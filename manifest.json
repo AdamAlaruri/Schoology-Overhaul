@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "name": "Schoology Overhaul",
+  "version": "1.0.0",
+  "description": "A modern, fast, customizable interface for Schoology. Runs entirely in your browser; no data ever leaves it.",
+  "permissions": [
+    "storage"
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "*://*.schoology.com/*"
+      ],
+      "exclude_matches": [
+        "*://*.schoology.com/login*",
+        "*://*.schoology.com/login/*"
+      ],
+      "css": [
+        "src/styles.css"
+      ],
+      "js": [
+        "src/early.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "*://*.schoology.com/*"
+      ],
+      "exclude_matches": [
+        "*://*.schoology.com/login*",
+        "*://*.schoology.com/login/*"
+      ],
+      "js": [
+        "src/core.js",
+        "src/banners.js",
+        "src/data.js",
+        "src/views.js",
+        "src/app.js"
+      ],
+      "run_at": "document_end"
+    }
+  ]
+}
