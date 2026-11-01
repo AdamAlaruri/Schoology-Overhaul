@@ -116,3 +116,9 @@ Known limits:
 ```bash
 node tests/mock-server.js    # then open http://localhost:4173/home
 ```
+
+## Grade updates, accent colour, Help
+
+- **Grade updates:** the bell in the top bar counts unread grading updates. When the gradebook shows a score that was not there before (a new grade, or a changed one) one notification is kept, showing the assignment, class, score and percentage, the due date and the date it was first seen here (Schoology does not publish when a grade was entered). The first read only records what is already graded, so old grades never flood in, and a grading event is never announced twice. Mark one or all as read. Checked whenever the gradebook is read (dashboard, Grades and course pages). Tests: `node tests/grade-cases.js`.
+- **Accent colour:** Settings → Appearance has eight named accents plus a custom hex. Text on the accent switches between near-black and white for contrast, and accent-coloured text is darkened or lightened to stay readable on either interface. Saved with your other preferences.
+- There is no Help item in the sidebar, top bar or settings.

@@ -428,7 +428,7 @@
   }
 
   /** Signature of everything the UI renders. Comparing it avoids re-rendering when a scan finds identical data. */
-  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners, state.avatar, state.unread]);
+  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners, state.avatar, state.unread, (S.prefs.gradeNotifs || []).length]);
   S.stateSig = sig;
   /** Adopt cache written by another tab. Returns true only if the data actually differs. */
   S.adoptCache = (c) => {
@@ -536,7 +536,7 @@
       attempt('Fetch: events', '/home/upcoming_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
     if (route === 'dashboard' || route === 'history') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
-    if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) state.grades = g; }, force));
+    if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
     await Promise.all(jobs);
     relink();
     pending--; state.loading = pending > 0; state.loaded = true; state.lastRefresh = Date.now();

@@ -191,7 +191,8 @@
         const key = ui.tab === 'submitted' ? 'submitted' : S.isOverdue(i) ? 'overdue' : n == null ? 'no due date' : dueSoon(i, now) ? 'upcoming' : 'later';
         (groups.get(key) || groups.set(key, []).get(key)).push(i);
       });
-      body = list.length ? [...groups.entries()].map(([label, arr]) => h('section', { class: 'tp-group' + (label === 'overdue' ? ' od' : label === 'upcoming' ? ' up' : '') }, h('h3', null, label === 'upcoming' ? [icon('clock', 14), 'Upcoming'] : label[0].toUpperCase() + label.slice(1)), h('ul', null, arr.map((i) => taskCard(i, now)))))
+      const ORDER = ['overdue', 'upcoming', 'later', 'no due date', 'submitted']; // late work first, then what is coming up, then everything further out
+      body = list.length ? [...groups.entries()].sort((x, y) => ORDER.indexOf(x[0]) - ORDER.indexOf(y[0])).map(([label, arr]) => h('section', { class: 'tp-group' + (label === 'overdue' ? ' od' : label === 'upcoming' ? ' up' : '') }, h('h3', null, label === 'upcoming' ? [icon('clock', 14), 'Upcoming'] : label[0].toUpperCase() + label.slice(1)), h('ul', null, arr.map((i) => taskCard(i, now)))))
         : [h('p', { class: 'tp-empty' }, ui.tab === 'submitted' ? 'Nothing submitted this week.' : 'Nothing due this week.')];
       if (list.length > limit) body.push(h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more' }, onclick: () => { ui.expanded = !ui.expanded; S.render(); } }, ui.expanded ? 'Show less' : `View ${list.length - limit} more`));
     }
@@ -201,8 +202,7 @@
       .map((f) => Object.assign(f, { ts: (S.parseDue(f.x.dueText) || {}).ts || 0 })).sort((a, b) => b.ts - a.ts).slice(0, 3);
     return h('aside', { class: 'tp-col', 'aria-label': 'Tasks' },
       h('div', { class: 'dp-sh' }, h('h2', { class: 'dp-h' }, 'Tasks'), h('div', { class: 'dp-sh-a' },
-        h('a', { class: 'sgo-icon-btn', href: '/home#/settings', title: 'Settings', 'aria-label': 'Task settings' }, icon('settings', 18)),
-        h('button', { class: 'sgo-icon-btn', type: 'button', title: 'New task', 'aria-label': 'New task', onclick: () => S.openNewAssignment(null) }, icon('plus', 18)))),
+        h('a', { class: 'sgo-icon-btn', href: '/home#/settings', title: 'Settings', 'aria-label': 'Task settings' }, icon('settings', 18)),)),
       h('div', { class: 'tp' },
       h('div', { class: 'tp-week' },
         h('button', { class: 'sgo-icon-btn', type: 'button', dataset: { fk: 'week-prev' }, 'aria-label': 'Previous week', onclick: () => shift(-1) }, icon('left', 18)),
@@ -213,6 +213,7 @@
       h('div', { class: 'tp-ring', role: 'img', 'aria-label': `${pct}% complete, ${complete.length} of ${inView.length}` }, ring.content.firstChild,
         h('div', null, h('b', null, pct + '%'), h('span', null, `${complete.length}/${inView.length}`), h('small', null, 'Complete'))),
       tabBar,
+      h('button', { class: 'sgo-btn ghost tp-add', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add to tasks'),
       h('div', { id: 'sgo-tabpanel', role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
       h('section', { class: 'tp-feedback' },
         h('button', { class: 'tp-fbh', type: 'button', 'aria-expanded': String(fbOpen), dataset: { fk: 'feedback-toggle' }, onclick: () => { S.prefs.feedbackOpen = !fbOpen; S.savePrefs(); S.render(true); } },
@@ -893,17 +894,24 @@
       text.addEventListener('change', () => write(P[key])); // an unfinished or invalid code snaps back to the colour in use
       return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
     };
-    const accents = h('div', { class: 'sgo-swatches' }, S.ACCENTS.map((c) => h('button', { type: 'button', class: 'sgo-sw' + (P.accent === c ? ' on' : ''), style: { background: c }, 'aria-label': 'Accent ' + c, onclick: () => { S.setAppearance({ accent: c }); S.render(true); } })));
+    const current = (S.ACCENTS.find((x) => x[1] === P.accent) || ['Custom'])[0], open = !!S.ui.accentOpen;
+    const choose = (hex) => { S.setAppearance({ accent: hex }); S.ui.accentOpen = false; S.render(true); };
+    const accents = h('div', { class: 'acc-wrap' },
+      h('button', { class: 'acc-btn', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': String(open), 'aria-label': 'Accent colour: ' + current + '. Choose another.', onclick: (e) => { e.stopPropagation(); S.ui.accentOpen = !open; S.render(true); } },
+        h('span', { class: 'acc-chip', style: { background: P.accent } }), h('span', null, current)),
+      open ? h('div', { class: 'acc-pop', role: 'group', 'aria-label': 'Accent colours' },
+        S.ACCENTS.map(([name, hex]) => h('button', { class: 'acc-sq' + (P.accent === hex ? ' on' : ''), type: 'button', style: { background: hex }, title: name, 'aria-label': name, 'aria-pressed': String(P.accent === hex), onclick: () => choose(hex) },
+          P.accent === hex ? icon('check', 16) : null)),
+        h('label', { class: 'acc-sq acc-custom', title: 'Any other colour' }, icon('palette', 16), h('input', { type: 'color', value: P.accent, 'aria-label': 'Custom accent colour', onchange: (e) => choose(e.target.value) }))) : null);
     const presets = S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (['accent', 'contour', 'contourGlow', 'background'].every((k) => P[k] === t[k]) ? ' on' : ''), onclick: () => { S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); } },
       h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.accent } }), h('i', { style: { background: t.contourGlow } })), t.name));
     return h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'),
       h('p', { class: 'sgo-muted' }, 'Four colours define the look. Changes apply instantly and are saved in this browser. The interface switches between light and dark text to match the background colour.'),
+      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Accent colour'), h('small', null, 'Click the square, then pick a colour. Used for buttons, links, active items and selection.')), accents),
       h('div', { class: 'ap-presets' }, presets),
       control('Contour lines', 'contour', 'The topographic map drawn behind every page'),
       control('Contour glow', 'contourGlow', 'The soft light under the main contour lines'),
       control('Background', 'background', 'The surface behind the map'),
-      control('Accent', 'accent', 'Buttons, links, active items and selection'),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Accent shortcuts')), accents),
       h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Topographic map'), h('small', null, 'Show the contour lines, or just the plain background colour')),
         h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Topographic map' }, [[true, 'On'], [false, 'Off']].map(([v, l]) => h('button', { type: 'button', class: (P.topoOn !== false) === v ? 'on' : '', 'aria-pressed': String((P.topoOn !== false) === v), onclick: () => { S.setMap({ topoOn: v }); S.render(true); } }, l)))),
       h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Line density'), h('small', null, 'How many contour lines the map draws')),

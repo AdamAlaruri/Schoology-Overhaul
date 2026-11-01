@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', topoOn: true, topoDensity: 'standard', topoSeed: 20260, classic: false,
+    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', topoOn: true, topoDensity: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false,
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {}, history: [],
   });
   S.DEFAULTS = DEFAULTS;
@@ -60,7 +60,7 @@
   S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 7; S.savePrefs(); };
   const C = window.SGO_COLOR;
   S.normHex = C.normHex; S.onAccent = C.onAccent;
-  S.ACCENTS = ['#3b82f6', '#22d3ee', '#10b981', '#a78bfa', '#f59e0b'];
+  S.ACCENTS = [['Blue', '#3b82f6'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
   /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
     { id: 'midnight', name: 'Midnight', accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000' },

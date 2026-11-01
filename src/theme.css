@@ -40,7 +40,7 @@ html {
 }
 /* ---- light interface (a light background colour switches the whole UI, so text always contrasts) ---- */
 html:not(.sgo-dark) {
-  --glass: 255 255 255; --text: #0f172a; --muted: #475569; --accent-ink: color-mix(in srgb, var(--accent) 70%, #000);
+  --glass: 255 255 255; --text: #0f172a; --muted: #475569; --accent-ink: color-mix(in srgb, var(--accent) 55%, #000);
   --line: rgb(15 23 42 / .12); --line-strong: rgb(15 23 42 / .22);
   --surface: rgb(var(--glass) / .88); --surface-shell: rgb(var(--glass) / .94); --surface-pop: rgb(var(--glass) / .99); --surface2: rgb(15 23 42 / .05);
   --shadow: 0 8px 24px rgb(15 23 42 / .12); --shadow-3: 0 16px 40px rgb(15 23 42 / .2);
@@ -108,6 +108,13 @@ html[data-sgo-topo="off"] #sgo-topo { display: none; }
 .dc-grid { gap: var(--space-4); align-items: stretch; }
 .sgo-sec { margin-bottom: var(--space-4); }
 .sgo-sec h3 { margin: 0 0 var(--space-2); }
+
+/* dashboard: each section sits in its own visible box, so the welcome, the classes and the tasks read as three distinct areas */
+.dp-head, .dp-courses, .tp-col { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--rc); padding: var(--space-4); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.dp-head { border-bottom: 1px solid var(--line-strong); }
+.tp-col .tp { background: transparent; border: 0; padding: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.dp-courses .dp-sh, .tp-col .dp-sh { margin-bottom: var(--space-3); }
+
 
 /* small parts snap to the same scale: no browser-default button padding, no 2px or 3px gaps */
 .sgo-rail-i { gap: var(--space-1); } .sgo-rail-tog { margin: auto auto var(--space-1); }
@@ -188,3 +195,37 @@ textarea.sgo-input { padding: var(--space-2) var(--space-3); }
   .sgo-card, .sgo-modal { padding: var(--space-3); }
 }
 @media (prefers-reduced-motion: reduce) { .sgo *, .sgo *::before, .sgo *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }
+
+/* Tasks panel: Add to tasks sits directly above the list */
+.tp-add { width: 100%; }
+.tp-add + #sgo-tabpanel { margin-top: var(--space-1); }
+
+/* grade updates: bell, count and a compact list */
+.sgo-notif { position: relative; }
+.sgo-bell { position: relative; }
+.sgo-bell-n { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 var(--space-1); border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: 16px; text-align: center; }
+.notif-p { position: absolute; right: 0; top: calc(100% + var(--space-2)); z-index: 5; width: min(380px, calc(100vw - 32px)); max-height: 70vh; overflow-y: auto; padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--surface-pop); box-shadow: var(--shadow-3); }
+.notif-h { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
+.notif-h .sgo-btn { min-height: var(--control-s); }
+.notif-l { list-style: none; margin: 0; padding: 0; }
+.notif-i { position: relative; display: grid; gap: var(--space-1); padding: var(--space-2) var(--space-6) var(--space-2) var(--space-3); border-top: 1px solid var(--line); }
+.notif-i.unread { border-left: 3px solid var(--accent); padding-left: var(--space-3); }
+.notif-t { display: flex; justify-content: space-between; gap: var(--space-2); align-items: baseline; } .notif-t a { font-weight: var(--fw-strong); overflow-wrap: anywhere; } .notif-t a:hover { color: var(--accent-ink); }
+.notif-g { color: var(--accent-ink); font-weight: var(--fw-strong); white-space: nowrap; }
+.notif-m { color: var(--muted); font-size: var(--fs-small); line-height: var(--lh-small); }
+.notif-r { position: absolute; right: var(--space-1); top: var(--space-2); }
+.notif-none { padding: var(--space-2) 0; }
+@media (max-width: 700px) { .notif-p { position: fixed; left: var(--space-3); right: var(--space-3); top: calc(var(--space-8) + var(--space-3)); width: auto; } }
+
+/* accent colour: one square that opens a grid of colour squares */
+.acc-wrap { position: relative; }
+.acc-btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface2); color: var(--text); font-size: var(--fs-small); font-weight: var(--fw-strong); }
+.acc-btn:hover { background: color-mix(in srgb, var(--text) 12%, transparent); }
+.acc-chip { width: 24px; height: 24px; border-radius: var(--r-sm); border: 1px solid var(--line-strong); }
+.acc-pop { position: absolute; right: 0; top: calc(100% + var(--space-2)); z-index: 6; display: grid; grid-template-columns: repeat(6, 40px); gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--surface-pop); box-shadow: var(--shadow-3); }
+.acc-sq { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 2px solid transparent; border-radius: var(--r-md); color: #fff; cursor: pointer; }
+.acc-sq svg { filter: drop-shadow(0 0 1px rgb(0 0 0 / .6)); }
+.acc-sq:hover { border-color: var(--text); } .acc-sq.on { border-color: var(--text); }
+.acc-custom { position: relative; background: var(--surface2); color: var(--text); border: 1px dashed var(--line-strong); }
+.acc-custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+@media (max-width: 480px) { .acc-pop { grid-template-columns: repeat(5, 40px); } }

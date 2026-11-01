@@ -88,6 +88,37 @@
   S.groupList = () => resource('groups', async () => parseGroups(await S.getDoc('/groups')), 5 * 6e4);
   S.groupFeed = (id) => resource('gfeed:' + id, async () => S.data.parseAnnouncements(await S.getDoc(`/group/${id}/feed`)), 5 * 6e4);
 
+  /* ---------- grade notifications ----------
+   * Whenever the gradebook shows a score that was not there before (a new grade, or a changed one), one notification is kept.
+   * The first read only records what is already graded, so a student is never flooded with old grades. An event is identified by
+   * the assignment and the score, so the same grading can never be announced twice. Schoology does not publish the date a grade
+   * was entered, so the date shown is when it was first seen here, next to the assignment's due date. */
+  S.gradeEvents = (grades, seen, baseline) => {
+    const next = {}, events = [];
+    for (const g of grades || []) for (const p of g.periods || []) for (const cat of p.categories || []) for (const it of cat.items || []) {
+      if (it.earned == null || !it.title) continue;
+      const key = `${g.courseId || g.courseName}|${it.title}|${it.dueText || ''}`, sig = `${it.earned}/${it.possible == null ? '' : it.possible}`;
+      next[key] = sig;
+      if (baseline && (seen || {})[key] !== sig) events.push({ id: key + '|' + sig, key, title: it.title, course: g.courseName || '', courseId: g.courseId || '', earned: it.earned, possible: it.possible == null ? null : it.possible, due: it.dueText || '' });
+    }
+    return { events, seen: Object.assign({}, seen, next) };
+  };
+  /** Compare the latest gradebook with what was seen. Returns true when new notifications were added. */
+  S.noteGrades = () => {
+    const P = S.prefs; if (!S.state.grades || !S.state.grades.length) return false;
+    const known = P.gradeSeen || {};
+    // a lost memory is treated like a first read, never as a flood of new grades
+    const r = S.gradeEvents(S.state.grades, known, !!P.gradeBase && Object.keys(known).length > 0), have = new Set((P.gradeNotifs || []).map((n) => n.id));
+    const fresh = r.events.filter((e) => !have.has(e.id)).map((e) => Object.assign(e, { at: Date.now(), read: false }));
+    P.gradeBase = true; P.gradeSeen = r.seen;
+    if (fresh.length) P.gradeNotifs = [...fresh, ...(P.gradeNotifs || [])].slice(0, 60);
+    S.savePrefs();
+    return fresh.length > 0;
+  };
+  S.unreadGrades = () => (S.prefs.gradeNotifs || []).filter((n) => !n.read).length;
+  S.markGradeRead = (id) => { const n = (S.prefs.gradeNotifs || []).find((x) => x.id === id); if (n && !n.read) { n.read = true; S.savePrefs(); } };
+  S.markAllGradesRead = () => { (S.prefs.gradeNotifs || []).forEach((n) => { n.read = true; }); S.savePrefs(); };
+
   /* ---------- history ---------- */
   /** Pages opened inside this extension, newest first. Stored locally; nothing is sent anywhere. */
   S.logVisit = (kind, title, href) => {

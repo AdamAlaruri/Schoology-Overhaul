@@ -9,7 +9,7 @@
   const html = document.documentElement;
   let root, side, main, content, top;
 
-  S.TOP_LINKS = [['portal', 'Portal'], ['help', 'Help']];
+  S.TOP_LINKS = [['portal', 'Portal']];
   const linkTo = (k) => (S.prefs.topLinks || {})[k] || '/home#/settings'; // unset school links open Settings, where they can be added
   const RAIL = () => [
     ['dashboard', 'Dashboard', 'home', '/home'],
@@ -18,7 +18,6 @@
     ['calendar', 'Calendar', 'calendar', '/calendar'],
     ['inbox', 'Inbox', 'inbox', '/messages'],
     ['history', 'History', 'clock', '/home/recent-activity'],
-    ['help', 'Help', 'help', linkTo('help')],
     ['settings', 'Accessibility', 'access', '/home#/settings'],
   ];
 
@@ -85,13 +84,41 @@
         onclick: () => { S.prefs.collapsed = !collapsed; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon('left', 17)));
   }
 
+  /* ---------- grade updates: a bell with an unread count and a small list ---------- */
+  const pct = (n) => (n.possible ? Math.round((n.earned / n.possible) * 1000) / 10 + '%' : '');
+  function notifPanel(list) {
+    const row = (n) => h('li', { class: 'notif-i' + (n.read ? '' : ' unread') },
+      h('div', { class: 'notif-t' },
+        h('a', { href: '/grades/grades', onclick: () => { S.markGradeRead(n.id); S.ui.notifOpen = false; } }, n.title),
+        h('span', { class: 'notif-g' }, `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}`)),
+      h('div', { class: 'notif-m' }, [S.cn(n.courseId, n.course) || n.course, n.due && 'Due ' + n.due.replace(/^Due:?\s*/i, ''), 'Seen ' + S.fmtDate(n.at)].filter(Boolean).join(' · ')),
+      n.read ? null : h('button', { class: 'sgo-icon-btn notif-r', type: 'button', title: 'Mark as read', 'aria-label': 'Mark ' + n.title + ' as read', onclick: () => { S.markGradeRead(n.id); S.render(true); } }, icon('check', 16)));
+    return h('div', { class: 'notif-p', role: 'dialog', 'aria-label': 'Grade updates' },
+      h('div', { class: 'notif-h' }, h('b', null, 'Grade updates'), list.some((n) => !n.read) ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all as read') : null),
+      list.length ? h('ul', { class: 'notif-l' }, list.map(row)) : h('p', { class: 'sgo-muted notif-none' }, 'No grade updates yet. When a teacher grades an assignment, it shows up here.'));
+  }
+  function notifications() {
+    const list = S.prefs.gradeNotifs || [], n = S.unreadGrades(), open = !!S.ui.notifOpen;
+    return h('div', { class: 'sgo-notif' },
+      h('button', { class: 'sgo-icon-btn sgo-bell', type: 'button', title: 'Grade updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
+        'aria-label': n ? `Grade updates, ${n} unread` : 'Grade updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; S.render(true); } },
+        icon('bell', 18), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
+      open ? notifPanel(list) : null);
+  }
+  document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen && !(e.target.closest && e.target.closest('.sgo-notif'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.notifOpen) { S.ui.notifOpen = false; S.render(true); } });
+  // the accent colour picker closes on a click elsewhere or Escape
+  document.addEventListener('click', (e) => { if (S.ui && S.ui.accentOpen && !(e.target.closest && e.target.closest('.acc-wrap'))) { S.ui.accentOpen = false; S.render(true); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.accentOpen) { S.ui.accentOpen = false; S.render(true); } });
+
   function topbar() {
     const q = h('input', { class: 'sgo-input sgo-search', type: 'search', placeholder: 'Search assignments…', 'aria-label': 'Search assignments',
       onkeydown: (e) => { if (e.key === 'Enter') { S.ui.assign.q = e.target.value; S.ui.assign.f = 'all'; S.ui.assign.course = ''; S.go('/home#/assignments'); S.render(); } } });
     const dark = html.classList.contains('sgo-dark');
-    const links = [['Home', '/home'], ...S.TOP_LINKS.filter(([k]) => k !== 'help').map(([k, label]) => [label, linkTo(k)])];
+    const links = [['Home', '/home'], ...S.TOP_LINKS.map(([k, label]) => [label, linkTo(k)])];
     return h('div', { class: 'sgo-top' }, q,
       h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
+      notifications(),
       h('button', { class: 'sgo-icon-btn', title: 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
       h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
   }
