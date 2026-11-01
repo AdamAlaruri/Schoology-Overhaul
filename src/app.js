@@ -46,21 +46,8 @@
   const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : /^\/home\/recent-activity/.test(p) ? 'history' : ''); };
   const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups', history: 'History' };
 
-  /* ---------- theme ---------- */
-  S.applyTheme = () => {
-    const t = S.prefs.theme, dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
-    html.classList.toggle('sgo-dark', dark);
-    html.style.setProperty('--accent', S.prefs.accent);
-    html.style.setProperty('--accent-color', S.prefs.accent);
-    html.style.setProperty('--contour-color', S.prefs.contour || '#40526d');
-    html.style.setProperty('--contour-glow', S.prefs.contourGlow || '#1d4f91');
-    html.style.setProperty('--app-background', S.prefs.background || '#000000');
-    html.style.setProperty('--on-accent', S.onAccent(S.prefs.accent));
-    if (window.__sgoCtx) { window.__sgoCtx.accent = S.prefs.accent; window.__sgoCtx.dark = dark; }
-    if (window.__sgoAmbient) window.__sgoAmbient(); // the blob colours follow the accent and the theme, with a smooth transition
-    html.classList.toggle('sgo-collapsed', !!S.prefs.collapsed);
-  };
-  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => S.applyTheme());
+  /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
+  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); };
 
   /* ---------- hide native content but keep it alive ---------- */
   function clearHidden() {
@@ -107,7 +94,7 @@
       h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
       h('span', { class: 'sgo-status' }, S.state.loading ? 'Updating…' : S.state.lastRefresh ? 'Updated ' + S.fmtTime(S.state.lastRefresh) : ''),
       h('button', { class: 'sgo-icon-btn', title: 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
-      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: () => { S.prefs.theme = dark ? 'light' : 'dark'; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon(dark ? 'sun' : 'moon', 18)));
+      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
   }
 
   /** Shown when a request reveals that the Schoology session has ended. Existing data stays visible. */
@@ -232,7 +219,7 @@
   (async function boot() {
     const unboot = () => { document.documentElement.classList.remove('sgo-booting'); const b = document.getElementById('sgo-boot'); if (b) b.remove(); };
     if (!document.body || document.querySelector('form#s-user-login, #login-form')) { document.documentElement.classList.remove('sgo-app'); unboot(); return; } // login screen: hand the page back
-    await S.loadPrefs(); await S.loadCache(); await S.loadBackground();
+    await S.loadPrefs(); await S.loadCache();
     S.applyTheme(); buildShell(); interceptLinks(); S.render();
     document.documentElement.dataset.sgoT1 = String(Math.round(performance.now()));
     unboot(); // first real render is on screen: drop the placeholder

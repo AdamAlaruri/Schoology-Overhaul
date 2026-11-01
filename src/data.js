@@ -199,6 +199,7 @@
     // the course title and a colon belongs to it (checked on a real account, where the exact and tidied-name matches both missed Calculus).
     const low = raw.toLowerCase(), starts = Object.entries(state.banners).filter(([t]) => t.toLowerCase().startsWith(low + ':'));
     if (starts.length === 1) return starts[0][1];
+    if (starts.length > 1) { const urls = new Set(starts.map((x) => x[1])); if (urls.size === 1) return starts[0][1]; } // several titles, one picture: no doubt
     const key = S.cleanName(raw).toLowerCase();
     const hits = Object.entries(state.banners).filter(([t]) => S.cleanName(t).toLowerCase() === key);
     return hits.length === 1 ? hits[0][1] : '';
@@ -493,7 +494,10 @@
     try {
       if (hostIsHome) {
         const b = parseBanners(root);
-        if (Object.keys(b).length) state.banners = Object.assign({}, state.banners, b);
+        // The dashboard lists only the current classes, so a reasonably complete read replaces the saved set (old terms' titles would otherwise
+        // linger and make a class's title ambiguous); a partial read, while the dashboard is still filling in, is merged instead.
+        const n = Object.keys(b).length, enough = n >= Math.max(1, Math.floor(state.courses.length / 2));
+        if (n) state.banners = enough ? b : Object.assign({}, state.banners, b);
         diag('Live page: banners', Object.keys(b).length > 0, Object.keys(b).length);
       }
       const hd = readHeader(root);

@@ -1,6 +1,7 @@
 // Checks for the quirky messages. Run: node tests/quip-cases.js
 const path = require('path');
 global.window = {};
+require(path.join(__dirname, '..', 'src', 'color.js'));
 require(path.join(__dirname, '..', 'src', 'core.js'));
 require(path.join(__dirname, '..', 'src', 'quips.js'));
 const S = window.SGO;

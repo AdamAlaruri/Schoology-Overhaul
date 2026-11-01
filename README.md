@@ -30,19 +30,11 @@ Your school's Schoology address must match `*://*.schoology.com/*`. If your dist
 - Custom names are used everywhere in the redesign: sidebar, assignments, calendar, grades.
 - Uploaded cover images are downscaled and stored locally only. No image URLs are fetched from the web.
 
-## Course branding
+## Course banners
 
-Every class gets the identity of its own subject, worked out from its name (`src/subjects.js`): AP Biology gets biology, Spanish gets Spanish, and so on for 17 subjects. Anything unrecognised gets a monogram of its initials, never one generic icon.
-
-- **Emblem:** a line-art logo drawn in code (DNA helix, flask, integral sign, open book, temple, speech bubble with ¡!, supply and demand curves, brain, atom, brackets, gear, palette, notes, heart with pulse, globe, parabola, bell curve). It sits in a navy tile on the course card, the Courses page and the course header, tinted with the subject's accent.
-- **Banner:** each subject also has its own 960×320 banner on one system (navy-teal ground, cyan line art, one muted accent; Spanish carries a subtle flag-stripe accent). Banners are inline SVG, so there are no files to go missing and no network requests.
-- **Automatic by default.** Under **Change banner** the choices are Automatic, Original (Schoology's own picture, read from the home dashboard and never edited), nine subject banners (Biology, Chemistry, Calculus, English, History, Spanish, Economics, Psychology, Classic) and an upload. Choose, preview, then **Apply**. Earlier saved choices keep working.
-- A class's default colour is its subject's accent until the student picks one. **Reset all banners** returns every class to Automatic; **Restore original Schoology banners** switches every class to Original.
-- Detection rules, emblems and banners are covered by `node tests/banner-cases.js`.
-
-## Colour and type
-
-Cyan and white: `#20C5D9` is the accent, with a deeper cyan for active states and a darkened cyan for text on light surfaces (6.4:1 on white; navy on cyan is 7.9:1). Four bundled fonts (`fonts/`, SIL Open Font License, see `fonts/LICENSES.txt`), each with one job: Plus Jakarta Sans for the interface and page titles, DM Sans for text people read, Instrument Serif for the welcome line only, Space Grotesk for numbers and clocks.
+- Every class shows its **original Schoology course image** by default. The extension reads the image address from the home Course Dashboard (matching the dashboard card's title, which begins with the course title and a colon) and never downloads, edits or replaces it. A class Schoology gives no image (for example an Advisory) gets a flat tint of its colour; nothing is generated.
+- **Change banner** (image icon on a card) offers the original, eight optional subject banners and an upload. Choose, preview, then **Apply**. Under Settings, **Restore original Schoology banners** and **Reset all banners** apply to every class.
+- Choices are stored per course id in `chrome.storage.local`.
 
 ## Native course pages
 
@@ -53,19 +45,23 @@ Every course opens inside the app; the legacy Schoology course page is never sho
 - Your personal to-do tick is separate from Schoology's submission status.
 - Loading shows skeletons, failures show a retry, an ended session shows a sign-in prompt, and fetched pages are cached.
 
-## Design system and backgrounds
+## Design system
 
-`src/theme.css` holds the tokens (type, radii, spacing, surface opacity, blur, shadows, motion) and the surface hierarchy: background layer, glass navigation rail, content panels, then menus and dialogs, each with its own opacity and blur. Titles use a serif display face and the interface uses the system sans, so no font is downloaded. Browsers without `backdrop-filter` get more opaque surfaces instead of blur.
+One stylesheet owns the look (`src/theme.css`); `src/styles.css` holds component layout only and consumes its tokens.
 
-**Settings → Background** sets what sits behind the whole app:
-- 12 curated backgrounds (gradients, textures, architecture, nature, landscapes). They are drawn in code as gradients and small inline SVGs, so they are illustrations, not photographs, and nothing is downloaded. Upload a photo for photography.
-- Upload your own PNG, JPEG or WebP (up to 8 MB, at least 320 px). It is scaled down to 2200 px and re-encoded before it is stored; anything unreadable, too large or the wrong type is refused with a message and the current background is kept.
-- Solid colour, and Blur, Brightness and Overlay sliders. Reset returns to the default.
-- Saved under its own `sgo_bg` key in `chrome.storage.local` and applied before first paint, so it survives refreshes. If the browser refuses the write (storage full) you are told.
+- **Typography:** one font, Inter (bundled in `fonts/`, SIL Open Font License), declared once and inherited everywhere, with controls set to `font: inherit`. Seven sizes only: H1 48/700, H2 36/600, H3 28/600, H4 22/500, Body 16/400, Small 14/400, Caption 12/400, with the line heights from the brief. Page titles and the welcome line are H1, the clock H2, section headings H3, card titles H4. On phones the headings step down one level.
+- **Spacing:** an 8px scale (`--space-1` 4px for micro adjustments, then 8, 16, 24, 32, 40, 48, 64), 40px buttons and inputs, 32px compact controls, 48px rows. Radii are 4, 8 and 12px.
+- **Surfaces:** background (one SVG) → app shell → panels (subtle 8px blur) → menus and dialogs. The interface switches between light and dark text according to the background colour, so contrast always holds.
+
+## Topographic background
+
+`src/topo.js` generates a real contour map in code: a warped elevation field built from several hills, with iso-lines extracted by marching squares and written as smooth cubic Bézier `<path>` elements. It is one fixed, full-viewport SVG (`#sgo-bg`, `pointer-events: none`, behind everything), drawn at document start from `src/early.js` so it is there before the page paints. The geometry is generated once and kept; nothing animates. Strokes read CSS variables, so recolouring changes the paths themselves.
+
+**Settings → Appearance** has four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
 
 ## Dashboard header
 
-The greeting (Good morning / afternoon / evening plus your first name from Schoology, or just the greeting when no name is known) is the page heading, with a live clock beside it. The clock uses the browser's own local time and timezone, updates on the minute, and its timer stops whenever the dashboard is not on screen. On narrow screens the order is welcome, tasks, classes. Spacing uses the `--s1`…`--s8` tokens in `styles.css`; every page shares one card surface (`--rc` radius, `--cp` padding, hairline border, no shadow), one page width (`--page`) and the same left edge. "Your classes" and "Tasks" open with the same heading row so their first cards start on the same line.
+The greeting (Good morning / afternoon / evening plus your first name from Schoology, or just the greeting when no name is known) is the page heading, with a live clock beside it. The clock uses the browser's own local time and timezone, updates on the minute, and its timer stops whenever the dashboard is not on screen. On narrow screens the order is welcome, tasks, classes. Spacing uses the `--space-*` tokens in `theme.css`; every page shares one card surface, one page width (`--page`) and the same left edge. "Your classes" and "Tasks" open with the same heading row so their first cards start on the same line.
 
 ## Calendar, Inbox, History and Groups
 

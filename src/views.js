@@ -881,70 +881,44 @@
     setTimeout(() => title.focus(), 30);
   };
 
-  /* Background behind the whole interface: soft ambient light from the accent colour (default), your own image, or a solid colour. */
-  function backgroundCard() {
-    const ui = (S.ui.bg = S.ui.bg || { err: '' });
-    const keep = () => S.saveBackground().then((ok) => { if (!ok) { ui.err = 'Your browser could not save the background (its storage is full), so it will reset when you reload.'; S.render(true); } });
-    const choose = (patch) => {
-      ui.err = '';
-      const wasAmbient = S.bg.kind === 'auto' || S.bg.kind === 'ambient', toAmbient = patch.kind === 'auto' || patch.kind === 'ambient';
-      if (wasAmbient && !toAmbient) patch.overlay = Math.max(S.bg.overlay, 0.4); // a picture starts with enough overlay to keep text readable
-      else if (!wasAmbient && toAmbient) patch.overlay = 0.1;
-      S.setBackground(patch); keep(); S.render(true);
+  /* Appearance: four independent colours drive the whole look. Every change is applied at once through CSS variables and saved. */
+  function appearanceCard() {
+    const P = S.prefs, ui = (S.ui.appearance = S.ui.appearance || {});
+    const control = (label, key, hint) => {
+      const text = h('input', { class: 'sgo-input hex', value: P[key], maxlength: '7', spellcheck: 'false', autocomplete: 'off', 'aria-label': label + ' as a hex code', 'aria-invalid': 'false' });
+      const pick = h('input', { class: 'sgo-swatch-in', type: 'color', value: P[key], 'aria-label': label });
+      const write = (hex) => { text.value = hex; pick.value = hex; text.setAttribute('aria-invalid', 'false'); };
+      pick.addEventListener('input', () => { if (S.setAppearance({ [key]: pick.value })) write(P[key]); });
+      text.addEventListener('input', () => { const hex = S.normHex(text.value); text.setAttribute('aria-invalid', hex || text.value === '' ? 'false' : 'true'); if (hex && S.setAppearance({ [key]: hex })) pick.value = P[key]; });
+      text.addEventListener('change', () => write(P[key])); // an unfinished or invalid code snaps back to the colour in use
+      return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
     };
-    const tile = (label, style, pressed, onclick, cls) => h('button', { class: 'bg-tile' + (cls ? ' ' + cls : ''), type: 'button', 'aria-pressed': String(pressed), onclick }, h('i', { style }), label);
-    const A = window.SGO_AMBIENT, dark = document.documentElement.classList.contains('sgo-dark'), swatch = (id) => A.swatch(S.prefs.accent, dark, id);
-    const bg = S.bg, amb = bg.kind === 'auto' || bg.kind === 'ambient';
-    const slider = (label, key, min, max, step, fmt) => {
-      const out = h('output', null, fmt(bg[key]));
-      const root = document.documentElement, live = (on) => root.classList.toggle('sgo-bg-live', on); // while dragging, colours follow at once instead of crossfading
-      return h('label', { class: 'bg-ctl' }, h('span', null, label),
-        h('input', { type: 'range', min, max, step, value: bg[key], 'aria-label': label, oninput: (e) => { live(true); S.setBackground({ [key]: +e.target.value }); out.textContent = fmt(S.bg[key]); }, onchange: () => { live(false); keep(); } }), out);
-    };
-    const pct = (v) => Math.round(v * 100) + '%';
-    const upload = h('input', { type: 'file', accept: 'image/png,image/jpeg,image/webp', 'aria-label': 'Upload a background image',
-      onchange: (e) => { const f = e.target.files && e.target.files[0]; e.target.value = ''; if (!f) return;
-        S.readBackgroundFile(f).then((data) => choose({ kind: 'image', id: 'upload', css: `url("${data}")`, color: '', size: '' })).catch((err) => { ui.err = err.message; S.render(true); }); } });
-    return h('section', { class: 'sgo-card' }, h('h2', null, 'Background'),
-      h('p', { class: 'sgo-muted' }, 'Sits behind the whole app, never inside a card. Automatic follows your accent colour and the theme. Stored only in this browser.'),
-      h('div', { class: 'bg-group' }, h('div', { class: 'bg-tiles' },
-        tile('Topographic', { backgroundColor: '#000000' }, bg.kind === 'topographic', () => choose({ kind: 'topographic', id: '', css: '', color: '', size: 'cover', blur: 0, bright: 1, overlay: 0.35 })),
-        tile('Automatic', { backgroundImage: swatch('auto') }, bg.kind === 'auto', () => choose({ kind: 'auto', id: '', css: '', color: '', size: '' })),
-        ...A.PRESETS.filter((x) => x.id !== 'auto').map((x) => tile(x.name, { backgroundImage: swatch(x.id) }, bg.kind === 'ambient' && bg.id === x.id, () => choose({ kind: 'ambient', id: x.id, css: '', color: '', size: '' }))),
-        bg.kind === 'image' ? tile('Your image', { backgroundImage: bg.css }, true, () => {}) : null)),
-      h('div', { class: 'bg-actions' },
-        h('label', { class: 'sgo-btn ghost' }, icon('image', 16), 'Upload image', upload),
-        h('label', { class: 'sgo-btn ghost' }, 'Solid colour', h('span', { class: 'sgo-color' }, h('input', { type: 'color', value: bg.color || '#1b2227', 'aria-label': 'Solid background colour', onchange: (e) => choose({ kind: 'color', color: e.target.value, css: '', id: '', size: '' }) }))),
-        btn('Reset background', async () => { await S.resetBackground(); ui.err = ''; S.render(true); }, 'ghost', 'reload')),
-      h('p', { class: 'bg-err', role: 'alert' }, ui.err),
-      h('div', { class: 'bg-ctls' }, ...(amb
-        ? [slider('Intensity', 'intensity', 0.2, 1.5, 0.05, pct), slider('Blur', 'ambBlur', 0, 24, 1, (v) => 50 + v * 4 + 'px'), slider('Overlay', 'overlay', 0, 0.85, 0.05, pct)]
-        : [slider('Blur', 'blur', 0, 24, 1, (v) => v + 'px'), slider('Brightness', 'bright', 0.4, 1.3, 0.05, pct), slider('Overlay', 'overlay', 0, 0.85, 0.05, pct)])));
+    const accents = h('div', { class: 'sgo-swatches' }, S.ACCENTS.map((c) => h('button', { type: 'button', class: 'sgo-sw' + (P.accent === c ? ' on' : ''), style: { background: c }, 'aria-label': 'Accent ' + c, onclick: () => { S.setAppearance({ accent: c }); S.render(true); } })));
+    const presets = S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (['accent', 'contour', 'contourGlow', 'background'].every((k) => P[k] === t[k]) ? ' on' : ''), onclick: () => { S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); } },
+      h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.accent } }), h('i', { style: { background: t.contourGlow } })), t.name));
+    return h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'),
+      h('p', { class: 'sgo-muted' }, 'Four colours define the look. Changes apply instantly and are saved in this browser. The interface switches between light and dark text to match the background colour.'),
+      h('div', { class: 'ap-presets' }, presets),
+      control('Contour lines', 'contour', 'The topographic map drawn behind every page'),
+      control('Contour glow', 'contourGlow', 'The soft light under the main contour lines'),
+      control('Background', 'background', 'The surface behind the map'),
+      control('Accent', 'accent', 'Buttons, links, active items and selection'),
+      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Accent shortcuts')), accents),
+      h('div', { class: 'sgo-head-a' }, btn('Reset appearance', () => { S.resetAppearance(); S.render(true); }, 'ghost', 'reload')));
   }
 
   V.settings = () => {
     const P = S.prefs, set = (k, v) => { P[k] = v;  S.savePrefs(); S.applyTheme(); S.render(true); };
     const row = (t, s, ctl) => h('div', { class: 'sgo-set' }, h('div', null, h('b', null, t), s && h('small', null, s)), ctl);
     const seg = (key, opts) => h('div', { class: 'sgo-seg' }, opts.map(([v, l]) => h('button', { class: P[key] === v ? 'on' : '', onclick: () => set(key, v) }, l)));
-    const swatches = h('div', { class: 'sgo-swatches' }, S.ACCENTS.map((c) => h('button', { class: 'sgo-sw' + (P.accent === c ? ' on' : ''), style: { background: c }, 'aria-label': c, onclick: () => set('accent', c) })),
-      h('label', { class: 'sgo-color' }, h('input', { type: 'color', value: P.accent, onchange: (e) => set('accent', e.target.value) })));
-    const themeColor = (label, key) => h('label', { class: 'sgo-set slim' }, h('span', null, label), h('input', { class: 'sgo-color', type: 'color', value: P[key], 'aria-label': label, onchange: (e) => set(key, e.target.value) }));
-    const presets = [
-      ['Indigo', ['#7c9cff', '#40526d', '#1d4f91', '#000000']], ['Ocean', ['#36bffa', '#3d6878', '#0c5f8b', '#000000']],
-      ['Mint', ['#6ee7b7', '#4f7568', '#167a5b', '#000000']], ['Violet', ['#c4b5fd', '#685c87', '#5b3ea0', '#000000']],
-    ];
-    const applyPreset = (v) => { [P.accent, P.contour, P.contourGlow, P.background] = v; S.savePrefs(); S.applyTheme(); S.render(true); };
     const courseRows = S.orderedCourses().map((c) => h('div', { class: 'sgo-set slim' }, h('span', null, dot(S.courseColor(c.id, c.name)), S.cn(c.id, c.name)),
       h('label', { class: 'sgo-color' }, h('input', { type: 'color', value: S.courseColor(c.id, c.name), onchange: (e) => { P.courseColors[c.id] = e.target.value; S.savePrefs(); S.render(true); } }))));
     return h('div', { class: 'sgo-page narrow' }, pageHead('Settings', 'Everything is stored only in this browser'),
       h('section', { class: 'sgo-card' }, h('h2', null, 'Profile'), row('Your name', 'Used for the dashboard greeting. Stored only in this browser.',
         h('input', { class: 'sgo-input', value: P.displayName || '', placeholder: 'First name', onchange: (e) => set('displayName', e.target.value.trim()) }))),
-      h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'), row('Theme', null, seg('theme', [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']])), row('Accent colour', null, swatches), row('Curated themes', null, h('div', { class: 'sgo-swatches' }, presets.map(([name, values]) => h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => applyPreset(values) }, name)))), themeColor('Contour line colour', 'contour'), themeColor('Contour glow colour', 'contourGlow'), themeColor('Background colour', 'background'), row('Reset visual theme', null, btn('Reset to default', () => { Object.assign(P, { accent: '#7c9cff', contour: '#40526d', contourGlow: '#1d4f91', background: '#000000' }); S.savePrefs(); S.applyTheme(); S.render(true); }, 'ghost', 'reload'))),
-      backgroundCard(),
+      appearanceCard(),
       h('section', { class: 'sgo-card' }, h('h2', null, 'Course names'), row('Tidy names automatically', 'Turns “(MATH&151) CALCULUS I /AP CALC AB: (S1) Crane, A” into “AP Calculus AB”. Your own renames always win.', seg('cleanNames', [[true, 'On'], [false, 'Off']]))),
       nameFixesCard(),
-      h('section', { class: 'sgo-card' }, h('h2', null, 'Layout'), null,
-        null),
       courseRows.length ? h('section', { class: 'sgo-card' }, h('h2', null, 'Course colours'), courseRows) : null,
       h('section', { class: 'sgo-card' }, h('h2', null, 'School links'),
         h('p', { class: 'sgo-muted' }, 'Schoology has no pages for these. Add your school\'s addresses and the top bar and rail will use them.'),
@@ -959,7 +933,7 @@
         h('p', { class: 'sgo-muted' }, 'This extension only reads pages you can already see in Schoology, using your existing session. It never sees your password and sends nothing to any server. Preferences and a cache of what it read live in this browser.'),
         h('div', { class: 'sgo-head-a' }, btn('Refresh data now', () => S.hardRefresh(), 'ghost', 'reload'),
           btn('Clear cached data', async () => { await S.clearCache(); S.render(); }, 'ghost'),
-          btn('Reset all settings', () => { S.resetPrefs(); S.applyTheme(); S.resetBackground(); S.render(); }, 'ghost'))),
+          btn('Reset all settings', () => { S.resetPrefs(); S.applyTheme(); S.render(); }, 'ghost'))),
       h('section', { class: 'sgo-card' }, h('h2', null, 'Diagnostics'), h('p', { class: 'sgo-muted' }, 'What each data source returned the last time it ran. If a count is 0, that part of Schoology’s markup differs at your school; see README → Tuning selectors.'),
         h('div', { class: 'sgo-diag' }, S.state.diag.length ? S.state.diag.map((d) => h('div', { class: d.ok ? 'ok' : 'bad' }, h('b', null, d.name), h('span', null, `${d.count} found`), h('small', null, d.note))) : h('span', { class: 'sgo-muted' }, 'No runs yet.'))));
   };

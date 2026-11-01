@@ -1,6 +1,7 @@
 // Regression tests for banner recommendations. Run: node tests/banner-cases.js
 const path = require('path');
 global.window = {};
+require(path.join(__dirname, '..', 'src', 'color.js'));
 require(path.join(__dirname, '..', 'src', 'core.js'));
 require(path.join(__dirname, '..', 'src', 'banners.js'));
 const S = window.SGO;

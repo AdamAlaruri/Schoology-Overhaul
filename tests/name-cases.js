@@ -2,6 +2,7 @@
 // Add a line whenever a real Schoology title comes out wrong, so the fix can't regress.
 const path = require('path');
 global.window = {};
+require(path.join(__dirname, '..', 'src', 'color.js'));
 require(path.join(__dirname, '..', 'src', 'core.js'));
 const S = window.SGO;
 

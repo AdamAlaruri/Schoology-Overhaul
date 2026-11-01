@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    theme: 'dark', accent: '#7c9cff', contour: '#40526d', contourGlow: '#1d4f91', background: '#000000', classic: false,
+    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', classic: false,
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {}, history: [],
   });
   S.DEFAULTS = DEFAULTS;
@@ -47,75 +47,35 @@
     p.widgets = (p.widgets || []).filter((w) => S.WIDGETS[w.id]);
     Object.keys(S.WIDGETS).forEach((id) => { if (!known.has(id)) p.widgets.push({ id, size: S.WIDGETS[id].size, hidden: false }); });
     S.prefs = p;
-    if ((p.designV || 0) < 6) { Object.assign(p, { theme: 'dark', accent: '#7c9cff', contour: '#40526d', contourGlow: '#1d4f91', background: '#000000', designV: 6 }); S.savePrefs(); }
+    if ((p.designV || 0) < 7) { // one-time: colours that were earlier defaults move to the current defaults; a colour the student picked stays
+      const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], contour: ['#40526d'], contourGlow: ['#1d4f91'], background: [] }, now = DEFAULTS();
+      Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });
+      delete p.theme; p.designV = 7; S.savePrefs();
+    }
     return p;
   };
   let saveT;
   S.savePrefs = () => { clearTimeout(saveT); saveT = setTimeout(() => S.store.set('sgo_prefs', S.prefs), 150); };
-  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 6; S.savePrefs(); };
-  /** Text colour for a filled accent button: whichever of navy and white contrasts more with the accent. */
-  S.onAccent = (hex) => {
-    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || ''); if (!m) return '#06222b';
-    const l = [m[1], m[2], m[3]].map((x) => { const v = parseInt(x, 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
-    const lum = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
-    return (lum + 0.05) / (0.012 + 0.05) >= 1.05 / (lum + 0.05) ? '#06222b' : '#ffffff';
+  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 7; S.savePrefs(); };
+  const C = window.SGO_COLOR;
+  S.normHex = C.normHex; S.onAccent = C.onAccent;
+  S.ACCENTS = ['#3b82f6', '#22d3ee', '#10b981', '#a78bfa', '#f59e0b'];
+  /* Curated looks: [accent, contour line, contour glow, background]. */
+  S.THEME_PRESETS = [
+    { id: 'midnight', name: 'Midnight', accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000' },
+    { id: 'ocean', name: 'Ocean', accent: '#22d3ee', contour: '#255a66', contourGlow: '#0e7490', background: '#000000' },
+    { id: 'forest', name: 'Forest', accent: '#10b981', contour: '#2b4a3c', contourGlow: '#15803d', background: '#000000' },
+    { id: 'graphite', name: 'Graphite', accent: '#d4d4d8', contour: '#3f3f46', contourGlow: '#71717a', background: '#000000' },
+    { id: 'paper', name: 'Paper', accent: '#2563eb', contour: '#cbd5e1', contourGlow: '#93c5fd', background: '#ffffff' },
+  ];
+  /** Push the four appearance colours (accent, contour, glow, background) to the page. Called after every change; nothing reloads. */
+  S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
+  S.setAppearance = (patch) => {
+    const out = {};
+    for (const k of Object.keys(patch)) { const hex = C.normHex(patch[k]); if (!hex) return false; out[k] = hex; }
+    Object.assign(S.prefs, out); S.savePrefs(); S.applyTheme(); return true;
   };
-  S.ACCENTS = ['#7c9cff', '#36bffa', '#6ee7b7', '#c4b5fd', '#fbbf24'];
-
-  /* ---------- background behind the interface ----------
-   * Kept under its own storage key: an uploaded picture is large and must not be rewritten with every preference change. */
-  const BG_DEFAULT = () => ({ kind: 'topographic', id: '', css: '', color: '', size: 'cover', blur: 0, bright: 1, overlay: 0.35, ambBlur: 0, intensity: 0.6 });
-  S.BG_LIMITS = { bytes: 8 * 1024 * 1024, edge: 2200, out: 3.5e6, min: 320 };
-  const num = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
-  /** Only values this extension itself writes are accepted back from storage. */
-  const cleanBg = (b) => {
-    const d = BG_DEFAULT();
-    if (!b || typeof b !== 'object') return d;
-    const raw = b.kind === 'default' ? 'auto' : b.kind; // 'default' is what earlier versions called the plain background
-    const kind = ['topographic', 'damascus', 'auto', 'ambient', 'image', 'color'].includes(raw) ? raw : 'auto';
-    const css = typeof b.css === 'string' && b.css.length < 6e6 && /^(url\("data:image\/(png|jpeg|webp|svg\+xml)[;,]|(linear|radial)-gradient\()/.test(b.css) ? b.css : '';
-    const color = typeof b.color === 'string' && /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : '';
-    const ids = (window.SGO_AMBIENT ? window.SGO_AMBIENT.PRESETS : []).map((x) => x.id);
-    const out = Object.assign(d, { kind, id: typeof b.id === 'string' ? b.id.slice(0, 40) : '', css, color, size: /^(cover|\d{1,4}px)$/.test(b.size) ? b.size : '',
-      blur: num(b.blur, 0, 24, 0), bright: num(b.bright, 0.4, 1.3, 1), overlay: num(b.overlay, 0, 0.85, 0.1), ambBlur: num(b.ambBlur, 0, 24, 8), intensity: num(b.intensity, 0.2, 1.5, 0.6) });
-    if (kind === 'image' && !out.css) out.kind = 'auto';
-    if (kind === 'color' && !out.color) out.kind = 'auto';
-    if (kind === 'ambient' && !ids.includes(out.id)) out.kind = 'auto';
-    return out;
-  };
-  S.bg = BG_DEFAULT();
-  S.applyBackground = () => { if (window.__sgoBg) window.__sgoBg(S.bg); };
-  S.loadBackground = async () => { S.bg = cleanBg(await S.store.get('sgo_bg')); if (S.bg.kind === 'damascus') S.bg = BG_DEFAULT(); S.applyBackground(); };
-  /** Resolves true when the browser accepted the write (it refuses once its storage quota is used up). */
-  S.saveBackground = () => new Promise((res) => {
-    if (!hasChrome) return res(true);
-    try { chrome.storage.local.set({ sgo_bg: S.bg }, () => res(!chrome.runtime.lastError)); } catch (e) { res(false); }
-  });
-  S.setBackground = (patch) => { S.bg = cleanBg(Object.assign({}, S.bg, patch)); S.applyBackground(); };
-  S.resetBackground = async () => { S.bg = BG_DEFAULT(); S.applyBackground(); await S.store.remove('sgo_bg'); };
-  /** An uploaded picture: type and size are checked, then it is scaled down and re-encoded so it is small enough to keep. */
-  S.readBackgroundFile = (file) => new Promise((resolve, reject) => {
-    const L = S.BG_LIMITS;
-    if (!file) return reject(new Error('No file was chosen.'));
-    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return reject(new Error('Use a PNG, JPEG or WebP image.'));
-    if (file.size > L.bytes) return reject(new Error('That image is over 8 MB. Choose a smaller one.'));
-    const url = URL.createObjectURL(file), img = new Image();
-    img.onload = () => {
-      try {
-        const w = img.naturalWidth, h = img.naturalHeight;
-        if (Math.max(w, h) < L.min) throw new Error('That image is too small to use as a background.');
-        const k = Math.min(1, L.edge / Math.max(w, h)), c = document.createElement('canvas');
-        c.width = Math.round(w * k); c.height = Math.round(h * k);
-        const g = c.getContext('2d'); g.fillStyle = '#0b0d0f'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
-        const data = c.toDataURL('image/jpeg', 0.85);
-        if (data.length > L.out) throw new Error('That image is too large to store even after shrinking it.');
-        resolve(data);
-      } catch (e) { reject(e.message && !/Failed|Tainted/i.test(e.message) ? e : new Error('That image could not be processed.')); }
-      finally { URL.revokeObjectURL(url); }
-    };
-    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file is not a readable image.')); };
-    img.src = url;
-  });
+  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); };
 
   /* ---------- DOM helper (text is always a text node => no injection) ---------- */
   S.h = function h(tag, props, ...kids) {

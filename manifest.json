@@ -25,7 +25,8 @@
         "src/theme.css"
       ],
       "js": [
-        "src/ambient.js",
+        "src/color.js",
+        "src/topo.js",
         "src/early.js"
       ],
       "run_at": "document_start"

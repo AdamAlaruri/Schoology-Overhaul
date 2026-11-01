@@ -1,6 +1,7 @@
 // Checks for message/history helpers. Run: node tests/social-cases.js
 const path = require('path');
 global.window = {};
+require(path.join(__dirname, '..', 'src', 'color.js'));
 require(path.join(__dirname, '..', 'src', 'core.js'));
 require(path.join(__dirname, '..', 'src', 'social.js'));
 const S = window.SGO;

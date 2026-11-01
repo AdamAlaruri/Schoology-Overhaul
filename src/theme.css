@@ -1,26 +1,189 @@
-/* Authoritative application design system: typography, rhythm, surfaces and layers. */
-@font-face { font-family: "SGO Inter"; font-weight: 200 800; font-style: normal; font-display: swap; src: url("chrome-extension://__MSG_@@extension_id__/fonts/plus-jakarta-sans-latin-wght-normal.woff2") format("woff2"); }
-html { --font-app:"SGO Inter",Inter,"Segoe UI",system-ui,sans-serif; --type-h1:48px; --type-h2:36px; --type-h3:28px; --type-h4:22px; --type-body:16px; --type-small:14px; --type-caption:12px; --s1:4px; --s2:8px; --s3:16px; --s4:24px; --s5:32px; --s6:40px; --s7:48px; --s8:64px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-xl:20px; --rc:var(--r-lg); --rm:var(--r-sm); --t-fast:160ms; --t-base:220ms; --ease:cubic-bezier(.2,.7,.2,1); --app-background:#000; --contour-color:#40526d; --contour-glow:#1d4f91; --accent-color:#7c9cff; --bg:var(--app-background); --text:#f5f7fa; --muted:#9ba7b5; --accent:var(--accent-color); --on-accent:#05070a; --accent-ink:var(--accent-color); --accent-soft:color-mix(in srgb,var(--accent-color) 15%,transparent); --surface:#121820; --surface-shell:#0d1219; --surface-pop:#171e28; --surface2:#1b2430; --line:rgb(255 255 255 / .09); --line-strong:rgb(255 255 255 / .16); --edge:rgb(255 255 255 / .05); --shadow:0 12px 32px rgb(0 0 0 / .22); --shadow-1:0 1px 0 rgb(255 255 255 / .035); --shadow-3:0 24px 64px rgb(0 0 0 / .45); --bad:#ef7180; --warn:#e8b268; --ok:#78d6ac; --page:1440px; --cp:24px; }
-html.sgo-dark { color-scheme:dark; } html.sgo-app body { background:transparent !important; }
+/* Design system. The single source for: the font, the type scale, the 8px spacing scale, radii, control sizes, the four user colours
+ * and the surface layers. styles.css holds component layout only and consumes these tokens; it declares no font family, no raw
+ * font sizes, no raw spacing and no colours of its own for text. Loaded after styles.css.
+ *
+ * Layers, back to front:  0 background (#sgo-bg, one SVG)   1 app shell (#sgo-root)   2 panels   3 menus and dialogs
+ * Breakpoints used across the app: 1180 (side panels narrow), 900 (single column), 700 (phone gutters). */
 
-/* A permanent DOM SVG is inserted by early.js; it cannot intercept input or reflow pages. */
-#sgo-bg { position:fixed; z-index:0; inset:0; width:100vw; height:100vh; overflow:hidden; pointer-events:none; background:var(--app-background); }
-#sgo-bg > svg.sgo-topographic { position:absolute; inset:0; width:100vw; height:100vh; overflow:hidden; pointer-events:none; }
-#sgo-bg .contour { fill:none; stroke:var(--contour-color); stroke-width:1.15; vector-effect:non-scaling-stroke; }
-#sgo-bg .contour.deep{opacity:.13} #sgo-bg .contour.mid{opacity:.105} #sgo-bg .contour.fine{opacity:.075} #sgo-bg .contour-glow{fill:none;stroke:var(--contour-glow);stroke-width:3;opacity:.1;filter:url(#sgo-contour-glow)} #sgo-bg .amb{display:none!important}
-html[data-sgo-bg="image"] #sgo-bg>.sgo-topographic,html[data-sgo-bg="color"] #sgo-bg>.sgo-topographic,html[data-sgo-bg="ambient"] #sgo-bg>.sgo-topographic{display:none}
-html[data-sgo-bg="image"] #sgo-bg::before{content:"";position:absolute;inset:0;background:var(--bgc,transparent) var(--bgi) center/var(--bgs,cover) no-repeat;filter:blur(var(--bg-blur,0px)) brightness(var(--bg-bright,1))}html[data-sgo-bg="color"] #sgo-bg{background:var(--bgc,var(--app-background))}
+@font-face { font-family: "SGO Inter"; font-weight: 100 900; font-style: normal; font-display: swap; src: url("chrome-extension://__MSG_@@extension_id__/fonts/inter-latin-wght-normal.woff2") format("woff2"); }
 
-/* One inherited font configuration, with exact central scale. */
-#sgo-root,#sgo-root *,#sgo-boot,#sgo-boot * { font-family:var(--font-app)!important; } #sgo-root{position:relative;z-index:1;font-size:var(--type-body);line-height:1.5;color:var(--text)} #sgo-root h1,#sgo-root h2,#sgo-root h3,#sgo-root h4,#sgo-root p{margin-top:0}
-#sgo-root h1,.dp-head h1,.sgo-head h1,.crs-title h1,.sgo-detail h1{font-size:var(--type-h1);font-weight:700;line-height:1.15;letter-spacing:-.035em} #sgo-root h2,.sgo-card h2,.crs-card-h h2{font-size:var(--type-h2);font-weight:600;line-height:1.2;letter-spacing:-.025em} #sgo-root h3,.sgo-w-h h2,.sgo-sec h3{font-size:var(--type-h3);font-weight:600;line-height:1.25;letter-spacing:-.018em} #sgo-root h4,.sgo-item-title,.tc-title,.dc-body h2,.gp-name{font-size:var(--type-h4);font-weight:500;line-height:1.3;letter-spacing:-.012em} #sgo-root small,.sgo-muted,.sgo-item-meta,.tc-when,.dc-meta,.rs-meta{font-size:var(--type-small);font-weight:400;line-height:1.45}.sgo-caption,.dp-h,.sgo-sec h3,.bg-group h3,.sgo-eyebrow{font-size:var(--type-caption);font-weight:500;line-height:1.4;letter-spacing:.06em;text-transform:uppercase}
+html {
+  /* ---- the four colours people can change (see Settings -> Appearance) ---- */
+  --app-background: #000000; --contour-color: #34465f; --contour-glow: #245b9b; --accent: #3b82f6; --on-accent: #05070a;
 
-/* Eight-pixel layout rhythm. */
-.sgo-main{position:relative;z-index:1;background:transparent!important}.sgo-content{padding:var(--s2) var(--s6) var(--s8)!important}.sgo-page{max-width:var(--page);margin:0 auto;padding-top:var(--s5)}.sgo-page.narrow{max-width:960px}.sgo-page.dash6{column-gap:var(--s5);row-gap:var(--s5)}.sgo-rail{padding:var(--s3) var(--s2);gap:var(--s1);background:color-mix(in srgb,var(--surface-shell) 94%,transparent);border-right:1px solid var(--line)}.sgo-rail-i{min-height:44px;padding:0 var(--s3);border-radius:var(--r-sm);gap:var(--s2);font-size:var(--type-small);font-weight:500}.sgo-rail-i:hover{background:var(--surface2)}.sgo-rail-i[aria-current="page"]{color:var(--text)!important;background:var(--accent-soft);box-shadow:inset 2px 0 0 var(--accent-color)}.sgo-rail-i[aria-current="page"] svg{color:var(--accent-color)}.sgo-top{min-height:64px;padding:var(--s2) var(--s6);background:color-mix(in srgb,var(--surface-shell) 96%,transparent);border-bottom:1px solid var(--line);box-shadow:none}
+  /* ---- type: one family, one scale ---- */
+  --font: "SGO Inter", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-h1: 48px; --fs-h2: 36px; --fs-h3: 28px; --fs-h4: 22px; --fs-body: 16px; --fs-small: 14px; --fs-caption: 12px;
+  --fw-h1: 700; --fw-h2: 600; --fw-h3: 600; --fw-h4: 500; --fw-body: 400; --fw-strong: 500;
+  --lh-h1: 1.15; --lh-h2: 1.2; --lh-h3: 1.25; --lh-h4: 1.3; --lh-body: 1.5; --lh-small: 1.45; --lh-caption: 1.4;
 
-/* Shared component primitives cover dashboard and every routed view. */
-.dc,.tp,.sgo-card,.sgo-detail,.sgo-gcard,.sgo-course,.sgo-semester,.sgo-wcol,.sgo-w,.ib-list,.ib-read,.gp-card,.crs-card,.gr2-course,.rs-list,.an,.crs-fail,.sgo-review,.sgo-list{background:color-mix(in srgb,var(--surface) 96%,transparent);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--shadow-1);backdrop-filter:none}.sgo-card,.sgo-detail,.sgo-gcard,.sgo-semester,.sgo-w,.ib-list,.ib-read,.gp-card{padding:var(--cp);margin-bottom:var(--s4)}.sgo-card h2{margin-bottom:var(--s3)}.dc:hover,.gp-card:hover,.sgo-course:hover{transform:translateY(-1px);border-color:color-mix(in srgb,var(--accent-color) 42%,var(--line));box-shadow:var(--shadow)}.sgo-list>.sgo-item+.sgo-item,.tc{border-top:1px solid var(--line)}.sgo-list>.sgo-item:hover,.sgo-item:hover{background:var(--surface2)}
-.sgo-btn,.sgo-input,.sgo-chip,.sgo-seg{min-height:40px;border-radius:var(--r-sm);font-size:var(--type-small);font-weight:500}.sgo-btn{padding:0 var(--s3);transition:transform var(--t-fast) var(--ease),background var(--t-fast) var(--ease),border-color var(--t-fast) var(--ease)}.sgo-btn:hover{transform:translateY(-1px)}.sgo-btn.primary{background:var(--accent-color);color:var(--on-accent)!important;box-shadow:none}.sgo-btn.primary:hover{background:color-mix(in srgb,var(--accent-color) 84%,#fff)}.sgo-btn.ghost{background:transparent;border:1px solid var(--line-strong);color:var(--text)}.sgo-btn.ghost:hover{background:var(--surface2)}.sgo-input{padding:0 var(--s3);background:#0b1017;border:1px solid var(--line);color:var(--text)}.sgo-input:focus{outline:2px solid var(--accent-color);outline-offset:1px;border-color:transparent}.sgo-seg{padding:var(--s1);background:#0b1017}.sgo-seg button{min-height:32px;padding:0 var(--s3);border-radius:6px;font-size:var(--type-caption)}.sgo-seg button.on{background:var(--surface2);box-shadow:none}
-.sgo-modal-bg{background:rgb(0 0 0 / .68);backdrop-filter:blur(4px)}.sgo-modal,.sgo-menu-p{background:var(--surface-pop);border:1px solid var(--line-strong);border-radius:var(--r-xl);box-shadow:var(--shadow-3);backdrop-filter:none}.sgo-modal{padding:var(--s5)}.sgo-menu-p{padding:var(--s1)}.sgo-menu-p button{min-height:36px;font-size:var(--type-small);border-radius:6px}
-.sgo-welcome,.dp-head{padding:var(--s5);border:1px solid color-mix(in srgb,var(--contour-glow) 28%,var(--line));border-radius:var(--r-xl);background:color-mix(in srgb,var(--surface) 90%,transparent);box-shadow:0 0 56px color-mix(in srgb,var(--contour-glow) 16%,transparent)}.dp-head{border-bottom:0}.dp-time{font-size:28px;font-weight:600}.sgo-cell,.sgo-wcol{border:1px solid var(--line);box-shadow:none;background:var(--surface)}.sgo-cell.today .sgo-cell-n,.sgo-day.today,.sgo-month.mini .sgo-cell.today{background:var(--accent-color);color:var(--on-accent)!important}.sgo-course-bar{background:var(--accent-soft)!important}.sgo-course-foot a,.sgo-w-h a,.sgo-eyebrow{color:var(--accent-color)!important}
-@media(max-width:900px){.sgo-content{padding:var(--s2) var(--s4) var(--s7)!important}.sgo-top{padding-inline:var(--s4)}.sgo-page.dash6{row-gap:var(--s4)}}@media(max-width:700px){.sgo-content,.sgo-top{padding-inline:var(--s3)!important}.sgo-page{padding-top:var(--s4)}#sgo-root h1,.dp-head h1{font-size:36px}#sgo-root h2,.sgo-card h2{font-size:28px}.sgo-card,.sgo-detail,.sgo-welcome,.dp-head{padding:var(--s4)}}@media(prefers-reduced-motion:reduce){#sgo-root *,#sgo-root *::before,#sgo-root *::after{transition-duration:0ms!important;animation-duration:0ms!important}}
+  /* ---- space: 4 is for micro adjustments only; everything else steps by 8 ---- */
+  --space-1: 4px; --space-2: 8px; --space-3: 16px; --space-4: 24px; --space-5: 32px; --space-6: 40px; --space-7: 48px; --space-8: 64px;
+
+  /* ---- shape and size ---- */
+  --r-sm: 4px; --r-md: 8px; --r-lg: 12px; --rc: var(--r-lg); --rm: var(--r-md);
+  --cp: var(--space-4); --control-h: 40px; --control-s: 32px; --row-h: 48px; --sb: 88px; --page: 1400px;
+  --t-fast: 120ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  --bad: #f87171; --warn: #fbbf24; --ok: #34d399;
+
+  /* ---- derived from the four colours ---- */
+  --bg: var(--app-background);
+  --accent-soft: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-deep: color-mix(in srgb, var(--accent) 80%, #000);
+
+  /* ---- dark interface (used whenever the background colour is dark; the default) ---- */
+  --glass: 12 14 18; --text: #f2f4f7; --muted: #9aa4b2; --accent-ink: color-mix(in srgb, var(--accent) 70%, #fff);
+  --line: rgb(255 255 255 / .10); --line-strong: rgb(255 255 255 / .18);
+  --surface: rgb(var(--glass) / .82); --surface-shell: rgb(var(--glass) / .92); --surface-pop: rgb(var(--glass) / .98); --surface2: rgb(255 255 255 / .06);
+  --shadow: 0 8px 24px rgb(0 0 0 / .4); --shadow-3: 0 16px 40px rgb(0 0 0 / .55);
+  color-scheme: dark;
+}
+/* ---- light interface (a light background colour switches the whole UI, so text always contrasts) ---- */
+html:not(.sgo-dark) {
+  --glass: 255 255 255; --text: #0f172a; --muted: #475569; --accent-ink: color-mix(in srgb, var(--accent) 70%, #000);
+  --line: rgb(15 23 42 / .12); --line-strong: rgb(15 23 42 / .22);
+  --surface: rgb(var(--glass) / .88); --surface-shell: rgb(var(--glass) / .94); --surface-pop: rgb(var(--glass) / .99); --surface2: rgb(15 23 42 / .05);
+  --shadow: 0 8px 24px rgb(15 23 42 / .12); --shadow-3: 0 16px 40px rgb(15 23 42 / .2);
+  --bad: #dc2626; --warn: #b45309; --ok: #047857;
+  color-scheme: light;
+}
+html.sgo-collapsed { --sb: 64px; }
+
+/* ================= 0. background: one fixed full-viewport SVG, generated in topo.js ================= */
+#sgo-bg { display: none; position: fixed; inset: 0; width: 100vw; height: 100vh; z-index: 0; overflow: hidden; pointer-events: none; background: var(--app-background); }
+html.sgo-app #sgo-bg { display: block; }
+html.sgo-app, html.sgo-app body { background: var(--app-background) !important; }
+html.sgo-app body { background: transparent !important; }
+#sgo-topo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; }
+#sgo-topo path { fill: none; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; }
+#sgo-topo .topo-lines path { stroke: var(--contour-color); stroke-width: 1; }
+#sgo-topo .topo-lines path.mj { stroke-width: 1.5; }
+#sgo-topo .topo-glow path { stroke: var(--contour-glow); stroke-width: 6; stroke-opacity: .12; }
+.sgo-main { background: transparent; }
+
+/* ================= type ================= */
+.sgo, #sgo-boot { font-family: var(--font); font-size: var(--fs-body); font-weight: var(--fw-body); line-height: var(--lh-body); letter-spacing: 0; color: var(--text); font-synthesis: none; }
+.sgo button, .sgo input, .sgo select, .sgo textarea { font: inherit; letter-spacing: inherit; }
+.sgo h1 { font-size: var(--fs-h1); font-weight: var(--fw-h1); line-height: var(--lh-h1); letter-spacing: -.02em; }
+.sgo h2 { font-size: var(--fs-h2); font-weight: var(--fw-h2); line-height: var(--lh-h2); letter-spacing: -.015em; }
+.sgo h3 { font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h3); letter-spacing: -.01em; }
+.sgo h4 { font-size: var(--fs-h4); font-weight: var(--fw-h4); line-height: var(--lh-h4); }
+/* where each heading level is used */
+.sgo-head h1, .dp-head h1, .crs-title h1, .sgo-detail h1 { font-size: var(--fs-h1); font-weight: var(--fw-h1); line-height: var(--lh-h1); letter-spacing: -.02em; }
+.dp-time { font-size: var(--fs-h2); font-weight: var(--fw-h2); line-height: var(--lh-h2); letter-spacing: -.015em; }
+.dp-h, .sgo-calnav h2 { font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h3); letter-spacing: -.01em; text-transform: none; color: var(--text); }
+.dc-body h2, .sgo-course-t, .gp-name, .sgo-card h2, .crs-card-h h2, .sgo-modal h2, .ib-rh h2, .tp-fbh h3, .sgo-empty-t, .gr2-h b { font-size: var(--fs-h4); font-weight: var(--fw-h4); line-height: var(--lh-h4); letter-spacing: 0; }
+.sgo p, .sgo li, .sgo td, .sgo th, .sgo label { font-size: inherit; }
+.sgo-item-title, .tc-title, .rs-t b, .ar-t b, .hs-t b, .ib-top b { font-size: var(--fs-body); font-weight: var(--fw-strong); line-height: var(--lh-body); }
+.sgo-btn, .sgo-menu-p button, .sgo-chip, .sgo-seg button, .sgo-rail-i { font-size: var(--fs-small); font-weight: var(--fw-strong); line-height: var(--lh-small); }
+.dc-meta, .sgo-item-meta, .tc-when, .tc-course, .rs-meta, .ib-snip, .sgo-muted, .sgo-note, .gp-h p, .hs-t span, .dp-quip, .dp-date { font-size: var(--fs-small); font-weight: var(--fw-body); line-height: var(--lh-small); color: var(--muted); }
+.dp-quip { font-size: var(--fs-body); }
+.sgo-sec h3, .tp-group h3, .dc-due h3, .sgo-wd { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.sgo-rail-i > span { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); letter-spacing: 0; text-transform: none; color: inherit; }
+.sgo-pill, .sgo-badge, .dc-count, .sgo-rail-n, .ib-top time, .hs-row time, .an-h span, .sgo-chip span, .tp-fbh span { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); }
+.sgo-grade, .tp-ring b { font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h3); }
+.sgo-diag, .gr2-table { font-size: var(--fs-small); }
+.gr2-table th { font-size: var(--fs-caption); font-weight: var(--fw-strong); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.sgo strong, .sgo b { font-weight: var(--fw-strong); }
+.sgo small { font-size: var(--fs-small); line-height: var(--lh-small); }
+
+/* ================= layout rhythm ================= */
+.sgo-rail { width: var(--sb); padding: var(--space-3) var(--space-2); gap: var(--space-1); background: var(--surface-shell); box-shadow: 1px 0 0 var(--line); }
+.sgo-rail-i { min-height: 56px; padding: var(--space-2) var(--space-1); border-radius: var(--r-md); }
+.sgo-rail-i:hover { background: var(--surface2); }
+.sgo-rail-i[aria-current="page"] { background: var(--accent-soft); color: var(--text) !important; box-shadow: inset 2px 0 0 var(--accent); }
+.sgo-rail-i[aria-current="page"] svg { color: var(--accent-ink); }
+.sgo-top { min-height: 64px; padding: var(--space-2) var(--space-6); gap: var(--space-2) var(--space-3); background: var(--surface-shell); box-shadow: 0 1px 0 var(--line); }
+.sgo-content { padding: var(--space-2) var(--space-6) var(--space-8); }
+.sgo-page { max-width: var(--page); margin: 0 auto; padding-top: var(--space-4); }
+.sgo-page.narrow { max-width: 880px; margin-left: 0; }
+.sgo-head { margin: 0 0 var(--space-4); gap: var(--space-3); }
+.sgo-head p { margin-top: var(--space-1); }
+.sgo-page.dash6 { column-gap: var(--space-5); row-gap: var(--space-4); padding-top: var(--space-4); }
+.dp-head { padding: 0 0 var(--space-4); border-bottom: 1px solid var(--line); gap: var(--space-3) var(--space-4); }
+.dp-quip { margin-top: var(--space-2); }
+.dp-side { gap: var(--space-2); }
+.dp-sh { min-height: var(--control-h); margin-bottom: var(--space-3); }
+.dc-grid { gap: var(--space-4); align-items: stretch; }
+.sgo-sec { margin-bottom: var(--space-4); }
+.sgo-sec h3 { margin: 0 0 var(--space-2); }
+
+/* small parts snap to the same scale: no browser-default button padding, no 2px or 3px gaps */
+.sgo-rail-i { gap: var(--space-1); } .sgo-rail-tog { margin: auto auto var(--space-1); }
+.sgo-rail-tog, .sgo-act, .sgo-chip-btn, .sgo-sw, .tc-check, .sgo-check, .sgo-x { padding: 0; }
+.sgo-pill, .sgo-badge, .dc-grade { padding: var(--space-1) var(--space-2); }
+.dc-count { padding: 0 var(--space-1); }
+.crs-title { padding: var(--space-3) 0 var(--space-2); } .crs-tabs, .tc-acts, .sgo-seg { gap: var(--space-1); }
+.rs-acts, .bc ol { gap: var(--space-1); }
+.tc-when, .sgo-item-meta { margin-top: var(--space-1); } .crs-title p, .tc-course { margin-top: var(--space-1); }
+
+/* ================= panels (layer 2) ================= */
+.dc, .tp, .sgo-card, .sgo-detail, .sgo-gcard, .sgo-course, .sgo-semester, .sgo-wcol, .ib-list, .ib-read, .gp-card, .crs-card, .gr2-course, .rs-list, .an, .crs-fail, .sgo-review, .sgo-list, .sgo-cell {
+  background: var(--surface); border: 1px solid var(--line); border-radius: var(--rc); box-shadow: none;
+  -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
+}
+.sgo-card, .sgo-detail, .sgo-semester, .ib-list, .ib-read, .gp-card, .crs-card, .tp, .sgo-review, .crs-fail { padding: var(--cp); }
+.sgo-card { margin-bottom: var(--space-4); } .sgo-card h2 { margin-bottom: var(--space-3); }
+.dc:hover, .gp-card:hover, .sgo-course:hover { border-color: var(--line-strong); }
+.sgo-list { overflow: hidden; }
+.sgo-list > .sgo-item { background: transparent; border: 0; border-radius: 0; box-shadow: none; }
+.sgo-list > .sgo-item + .sgo-item, .tc { border-top: 1px solid var(--line); }
+.sgo-list > .sgo-item:hover { background: var(--surface2); transform: none; }
+.sgo-item { min-height: var(--row-h); padding: var(--space-2) var(--space-3); }
+.tc { background: transparent; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; padding: var(--space-3) 0; margin: 0; }
+.tp-group ul > .tc:first-child { border-top: 0; }
+.sgo-cell { -webkit-backdrop-filter: none; backdrop-filter: none; }
+.sgo-month, .sgo-weekview { gap: var(--space-1); }
+.gr2-table td, .gr2-table th { height: var(--row-h); padding: 0 var(--space-2); }
+
+/* ================= controls: 40px primary controls, 32px compact controls ================= */
+.sgo-btn { min-height: var(--control-h); padding: 0 var(--space-3); gap: var(--space-2); border-radius: var(--r-md); background: var(--surface2); color: var(--text); justify-content: center; }
+.sgo-btn:hover { background: color-mix(in srgb, var(--text) 12%, transparent); }
+.sgo-btn.primary { background: var(--accent); color: var(--on-accent) !important; box-shadow: none; }
+.sgo-btn.primary:hover { background: color-mix(in srgb, var(--accent) 86%, #fff); }
+.sgo-btn.ghost { background: transparent; border: 1px solid var(--line-strong); box-shadow: none; }
+.sgo-btn.ghost:hover { background: var(--surface2); }
+.sgo-btn.danger { background: var(--bad); color: #fff !important; }
+.sgo-icon-btn { min-width: var(--control-s); height: var(--control-s); padding: 0; border-radius: var(--r-md); }
+.sgo-input { min-height: var(--control-h); padding: 0 var(--space-3); border-radius: var(--r-md); background: var(--surface2); border: 1px solid var(--line); color: var(--text); }
+.sgo-input:hover { border-color: var(--line-strong); }
+.sgo-input:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: transparent; }
+textarea.sgo-input { padding: var(--space-2) var(--space-3); }
+.sgo-chip { min-height: var(--control-s); padding: 0 var(--space-3); border-radius: var(--r-md); background: transparent; border: 1px solid var(--line-strong); box-shadow: none; }
+.sgo-chip:hover { background: var(--surface2); } .sgo-chip.on { background: var(--text); color: var(--bg); border-color: transparent; }
+.sgo-seg { padding: var(--space-1); border-radius: var(--r-md); background: var(--surface2); }
+.sgo-seg button { min-height: var(--control-s); padding: 0 var(--space-3); border-radius: var(--r-sm); } .sgo-seg button.on { background: var(--surface-pop); box-shadow: none; }
+.sgo-pill, .sgo-badge { border-radius: var(--r-sm); }
+.sgo :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sgo-banner { margin: 0 var(--space-6) var(--space-2); padding: var(--space-2) var(--space-3); border-radius: var(--r-md); background: var(--surface-pop); border: 1px solid var(--line-strong); }
+
+/* ================= menus and dialogs (layer 3) ================= */
+.sgo-modal-bg { background: rgb(0 0 0 / .6); }
+.sgo-modal, .sgo-menu-p { background: var(--surface-pop); border: 1px solid var(--line-strong); box-shadow: var(--shadow-3); backdrop-filter: none; }
+.sgo-modal { padding: var(--space-4); border-radius: var(--r-lg); } .sgo-modal > p { margin: var(--space-1) 0 var(--space-3); }
+.sgo-menu-p { padding: var(--space-1); border-radius: var(--r-md); } .sgo-menu-p button { min-height: 36px; padding: 0 var(--space-2); border-radius: var(--r-sm); }
+.sgo-mrow { gap: var(--space-2); margin-bottom: var(--space-3); } .sgo-mrow > label { font-size: var(--fs-caption); font-weight: var(--fw-strong); letter-spacing: .04em; }
+.sgo-mfoot { margin-top: var(--space-4); }
+
+/* ================= settings: appearance ================= */
+.ap-presets { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
+.ap-preset { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--control-h); padding: 0 var(--space-3) 0 var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: transparent; color: var(--text); font-size: var(--fs-small); font-weight: var(--fw-strong); }
+.ap-preset:hover { background: var(--surface2); } .ap-preset.on { border-color: var(--accent); background: var(--accent-soft); }
+.ap-sw { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-1); width: 40px; height: 24px; border-radius: var(--r-sm); } .ap-sw i { width: 8px; height: 8px; border-radius: 50%; }
+.ap-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-2) var(--space-3); padding: var(--space-3) 0; border-top: 1px solid var(--line); }
+.ap-l { display: flex; flex-direction: column; min-width: 0; } .ap-l small { font-size: var(--fs-small); color: var(--muted); }
+.ap-c { display: flex; align-items: center; gap: var(--space-2); }
+.sgo-swatch-in { width: var(--control-h); height: var(--control-h); padding: var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--surface2); cursor: pointer; }
+.sgo-input.hex { width: 112px; font-variant-numeric: tabular-nums; text-transform: lowercase; } .sgo-input.hex[aria-invalid="true"] { border-color: var(--bad); }
+.sgo-card .sgo-head-a { margin-top: var(--space-3); } .sgo-card > .sgo-muted { margin-bottom: var(--space-3); }
+
+/* ================= narrow screens ================= */
+@media (max-width: 1180px) { .sgo-page.dash6 { column-gap: var(--space-4); } }
+@media (max-width: 900px) { .sgo-content { padding: var(--space-2) var(--space-4) var(--space-7); } .sgo-top { padding-inline: var(--space-4); } .sgo-banner { margin-inline: var(--space-4); } }
+@media (max-width: 700px) {
+  .sgo-content { padding-inline: var(--space-3); } .sgo-top { padding-inline: var(--space-3); gap: var(--space-1) var(--space-2); } .sgo-banner { margin-inline: var(--space-3); }
+  .sgo-head h1, .dp-head h1, .crs-title h1, .sgo-detail h1 { font-size: var(--fs-h2); font-weight: var(--fw-h2); line-height: var(--lh-h2); }
+  .dp-time { font-size: var(--fs-h3); line-height: var(--lh-h3); } .dp-h, .sgo-calnav h2 { font-size: var(--fs-h4); line-height: var(--lh-h4); font-weight: var(--fw-h4); }
+  .sgo-card, .sgo-modal { padding: var(--space-3); }
+}
+@media (prefers-reduced-motion: reduce) { .sgo *, .sgo *::before, .sgo *::after { transition-duration: 0ms !important; animation-duration: 0ms !important; } }

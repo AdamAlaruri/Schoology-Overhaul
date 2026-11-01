@@ -1,6 +1,3 @@
-Fonts bundled with the extension (latin subset, WOFF2). Each is licensed under the SIL Open Font License 1.1 (https://openfontlicense.org).
-Plus Jakarta Sans - Copyright 2020 The Plus Jakarta Sans Project Authors (https://github.com/tokotype/PlusJakartaSans)
-DM Sans          - Copyright 2014 The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
-Instrument Serif - Copyright 2022 The Instrument Serif Project Authors (https://github.com/Instrument/instrument-serif)
-Space Grotesk    - Copyright 2020 The Space Grotesk Project Authors (https://github.com/floriankarsten/space-grotesk)
-Obtained from the @fontsource packages on the npm registry.
+Font bundled with the extension (latin subset, WOFF2, variable weight 100-900).
+Inter - Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter), SIL Open Font License 1.1 (https://openfontlicense.org).
+Obtained from the @fontsource-variable/inter package on the npm registry.
