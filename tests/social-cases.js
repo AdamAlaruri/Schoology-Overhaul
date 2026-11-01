@@ -1,4 +1,4 @@
-// Checks for message/history helpers. Run: node tests/social-cases.js
+// Checks for message helpers. Run: node tests/social-cases.js
 const path = require('path');
 global.window = {};
 require(path.join(__dirname, '..', 'src', 'color.js'));
@@ -16,16 +16,13 @@ eq(S.parseStamp('Thu Oct 29 2026 at 12:05 pm'), at(2026, 9, 29, 12, 5), '12 pm i
 eq(S.parseStamp('2 hours ago'), null, 'relative text is not guessed');
 eq(S.parseStamp(''), null, 'empty');
 
-// visits: newest first, same page not repeated, capped
-S.prefs = S.DEFAULTS(); S.savePrefs = () => {};
-S.logVisit('course', 'AP Biology', '/course/1/materials');
-S.logVisit('course', 'AP Biology', '/course/1/materials');
-eq(S.prefs.history.length, 1, 'same page twice is one entry');
-S.logVisit('course', 'Algebra', '/course/2/materials');
-eq(S.prefs.history[0].title, 'Algebra', 'newest first');
-for (let i = 0; i < 300; i++) S.logVisit('course', 'C' + i, '/course/' + (10 + i) + '/materials');
-eq(S.prefs.history.length, 200, 'history is capped');
-S.logVisit('course', '', '/x'); eq(S.prefs.history.length, 200, 'untitled visits are ignored');
+// drafts: a message is only sent when it has what Schoology needs
+eq(S.checkDraft({ to: '', subject: 's', body: 'hi' }, false), 'Add who the message is for.', 'new message needs a recipient');
+eq(S.checkDraft({ to: 'Ms. Rivera', subject: ' ', body: 'hi' }, false), 'Add a subject.', 'new message needs a subject');
+eq(S.checkDraft({ to: 'Ms. Rivera', subject: 'Q', body: '   ' }, false), 'Write a message first.', 'an empty body is never sent');
+eq(S.checkDraft({ to: 'Ms. Rivera', subject: 'Q', body: 'Hello' }, false), '', 'a complete new message is fine');
+eq(S.checkDraft({ body: 'Thanks!' }, true), '', 'a reply needs only text');
+eq(S.checkDraft({ body: '' }, true), 'Write a message first.', 'an empty reply is never sent');
 
 console.log(fail ? `${fail} failing` : 'all social checks passed');
 process.exit(fail ? 1 : 0);

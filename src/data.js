@@ -73,6 +73,19 @@
   }
   const parseDoc = (html) => new DOMParser().parseFromString(html, 'text/html');
   S.getDoc = async (path) => parseDoc(await getHtml(path));
+  /** A form submitted with the signed-in session, exactly like the browser would. Never retried: sending twice would deliver twice. */
+  S.postForm = async (path, fields) => {
+    const body = new URLSearchParams(); fields.forEach(([k, v]) => body.append(k, v));
+    const ended = () => { state.session = 'expired'; return new Error('Your Schoology session has ended. Sign in again, then send the message.'); };
+    let r;
+    try { r = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body }); }
+    catch (e) { throw new Error('Could not reach Schoology. Check your connection.'); }
+    if (r.status === 401 || (r.redirected && /\/login/.test(r.url))) throw ended();
+    const t = await r.text();
+    if (LOGIN_RE.test(t)) throw ended();
+    if (!r.ok) throw new Error('Schoology answered with HTTP ' + r.status + '. The message was not sent.');
+    return parseDoc(unwrap(t));
+  };
 
   /* ---------- parsers ---------- */
   function parseCourses(root) {
@@ -531,11 +544,11 @@
     const force = !!opts.force;
     pending++; state.loading = true; const before = sig();
     const jobs = [attempt('Fetch: courses', '/courses', parseCourses, applyCourses, force)];
-    if (route !== 'native' && route !== 'inbox' && route !== 'groups' && route !== 'history') jobs.push(
+    if (route !== 'native' && route !== 'inbox' && route !== 'groups') jobs.push(
       attempt('Fetch: assignments', '/home/upcoming_submissions_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: events', '/home/upcoming_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
-    if (route === 'dashboard' || route === 'history') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
+    if (route === 'dashboard') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
     if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
     await Promise.all(jobs);
     relink();

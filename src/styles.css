@@ -459,7 +459,7 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 .crs-pane .gr2-body { padding: 0; border: 0; }
 @media (max-width: 900px) { .crs-grid { grid-template-columns: minmax(0, 1fr); } .rs { grid-template-columns: 36px minmax(0, 1fr) auto; } .rs-meta { display: none; } .ar { grid-template-columns: 36px minmax(0, 1fr) auto; } .ar-pts, .ar-mine { display: none; } .crs-banner { height: 96px; } .rs-acts .sgo-act { opacity: 1; } }
 
-/* ---- inbox, groups, history ---- */
+/* ---- inbox, groups ---- */
 .ib { display: grid; grid-template-columns: minmax(300px, 400px) 1fr; gap: 16px; align-items: start; }
 .ib-list, .ib-read { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 16px; min-width: 0; }
 .ib-list { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 0; max-height: calc(100vh - 150px); overflow: auto; }
@@ -494,10 +494,6 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 .gp-h { display: flex; gap: 16px; align-items: center; } .gp-av { width: 44px; height: 44px; border-radius: 12px; }
 .gp-name { font-weight: 600; color: var(--text); text-decoration: none; } .gp-name:hover { text-decoration: underline; } .gp-h p { color: var(--muted); font-size: var(--fs-caption); line-height: var(--lh-caption); margin-top: 4px; }
 .gp-tog { align-self: flex-start; } .gp-body { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
-.hs-row { display: flex; align-items: center; gap: 16px; padding: 8px 16px; color: var(--text); text-decoration: none; } a.hs-row:hover { background: var(--surface2); }
-.hs-ic { flex: none; width: 32px; height: 32px; border-radius: 12px; display: grid; place-items: center; background: var(--surface2); color: var(--muted); }
-.hs-t { flex: 1; min-width: 0; display: flex; flex-direction: column; } .hs-t b { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; } .hs-t span { color: var(--muted); font-size: var(--fs-caption); line-height: var(--lh-caption); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.hs-row time { color: var(--muted); font-size: var(--fs-caption); line-height: var(--lh-caption); flex: none; }
 .sgo-ev-k { font-style: normal; font-weight: 600; font-size: var(--fs-caption); line-height: var(--lh-caption); text-transform: uppercase; margin-right: 4px; opacity: .75; }
 
 /* ---- one card language for the whole app: flat surface, hairline border, shared radius ---- */

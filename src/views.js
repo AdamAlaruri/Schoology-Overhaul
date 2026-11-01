@@ -173,7 +173,7 @@
         const next = tabs[(n + tabs.length) % tabs.length][0];
         pick(next); document.getElementById('sgo-tab-' + next).focus();
       } },
-      tabs.map(([k, label, ic]) => h('button', { type: 'button', role: 'tab', id: 'sgo-tab-' + k, dataset: { fk: 'tab-' + k }, 'aria-selected': String(ui.tab === k), 'aria-controls': 'sgo-tabpanel', tabindex: ui.tab === k ? '0' : '-1', title: label, 'aria-label': label, onclick: () => pick(k) }, icon(ic, 20))));
+      tabs.map(([k, label, ic]) => h('button', { type: 'button', role: 'tab', id: 'sgo-tab-' + k, dataset: { fk: 'tab-' + k }, 'aria-selected': String(ui.tab === k), 'aria-controls': 'sgo-tabpanel', tabindex: ui.tab === k ? '0' : '-1', title: label, onclick: () => pick(k) }, icon(ic, 18), h('span', null, label))));
 
     let body;
     if (ui.tab === 'announcements') {
@@ -766,8 +766,6 @@
     const tabs = [['overview', 'Overview'], ['materials', 'Materials'], ['assignments', 'Assignments'], ['grades', 'Grades'], ['announcements', 'Announcements']];
     const nav = h('nav', { class: 'crs-tabs', 'aria-label': 'Course sections' }, tabs.map(([k, label]) => h('a', { href: cHref(c.id, k), 'aria-current': r.tab === k ? 'page' : null }, label)));
     const pane = { overview: overviewPane, materials: materialsPane, assignments: assignmentsPane, grades: gradesPane, announcements: announcementsPane }[r.tab](c, r);
-    const tabLabel = (tabs.find(([k]) => k === r.tab) || [])[1];
-    S._logTitle = name + (r.tab !== 'overview' && tabLabel ? ' · ' + tabLabel : '');
     return h('div', { class: 'sgo-page crs' }, header, nav, pane);
   };
 

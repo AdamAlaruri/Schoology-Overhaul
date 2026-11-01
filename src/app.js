@@ -17,7 +17,6 @@
     ['groups', 'Groups', 'groups', '/groups'],
     ['calendar', 'Calendar', 'calendar', '/calendar'],
     ['inbox', 'Inbox', 'inbox', '/messages'],
-    ['history', 'History', 'clock', '/home/recent-activity'],
     ['settings', 'Accessibility', 'access', '/home#/settings'],
   ];
 
@@ -35,15 +34,14 @@
     if (p === '/courses') return 'courses';
     if (S.courseRoute(loc)) return 'course';
     if (/^\/calendar(\/.*)?$/.test(p)) return 'calendar';
-    if (/^\/messages(\/sent|\/view\/\d+)?$/.test(p)) return 'inbox'; // compose (/messages/new) stays on Schoology's own page
-    if (p === '/home/recent-activity') return 'history';
+    if (/^\/messages(\/sent|\/new|\/view\/\d+)?$/.test(p)) return 'inbox';
     if (p === '/groups') return 'groups'; // a single group (/group/ID) opens on Schoology's own page
     if (/^\/grades(\/grades)?$/.test(p)) return 'grades';
     return null;
   }
   const route = () => routeFor(location);
-  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : /^\/home\/recent-activity/.test(p) ? 'history' : ''); };
-  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups', history: 'History' };
+  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
+  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups' };
 
   /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
   const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); };
@@ -165,8 +163,6 @@
     document.title = (S._title || TITLES[r] || 'Schoology') + ' · Schoology'; S._title = '';
     const sig = r + '|' + location.pathname + location.search + '|' + S.parseHash().path;
     content = h('main', { class: 'sgo-content' + (sig !== lastSig ? ' animate' : ''), id: 'sgo-content' }, view);
-    if (sig !== lastSig && (r === 'course' || r === 'assignment') && S._logTitle) S.logVisit(r, S._logTitle, location.pathname + location.search + (r === 'assignment' ? location.hash : ''));
-    S._logTitle = '';
     lastSig = sig;
     root.replaceChildren(sidebar(r), h('div', { class: 'sgo-main' }, topbar(), banner(), content), S.modalHost);
     content.scrollTop = content.classList.contains('animate') ? 0 : scroll; // a different page starts at the top

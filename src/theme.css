@@ -75,13 +75,13 @@ html[data-sgo-topo="off"] #sgo-topo { display: none; }
 .dp-h, .sgo-calnav h2 { font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h3); letter-spacing: -.01em; text-transform: none; color: var(--text); }
 .dc-body h2, .sgo-course-t, .gp-name, .sgo-card h2, .crs-card-h h2, .sgo-modal h2, .ib-rh h2, .tp-fbh h3, .sgo-empty-t, .gr2-h b { font-size: var(--fs-h4); font-weight: var(--fw-h4); line-height: var(--lh-h4); letter-spacing: 0; }
 .sgo p, .sgo li, .sgo td, .sgo th, .sgo label { font-size: inherit; }
-.sgo-item-title, .tc-title, .rs-t b, .ar-t b, .hs-t b, .ib-top b { font-size: var(--fs-body); font-weight: var(--fw-strong); line-height: var(--lh-body); }
+.sgo-item-title, .tc-title, .rs-t b, .ar-t b, .ib-top b { font-size: var(--fs-body); font-weight: var(--fw-strong); line-height: var(--lh-body); }
 .sgo-btn, .sgo-menu-p button, .sgo-chip, .sgo-seg button, .sgo-rail-i { font-size: var(--fs-small); font-weight: var(--fw-strong); line-height: var(--lh-small); }
-.dc-meta, .sgo-item-meta, .tc-when, .tc-course, .rs-meta, .ib-snip, .sgo-muted, .sgo-note, .gp-h p, .hs-t span, .dp-quip, .dp-date { font-size: var(--fs-small); font-weight: var(--fw-body); line-height: var(--lh-small); color: var(--muted); }
+.dc-meta, .sgo-item-meta, .tc-when, .tc-course, .rs-meta, .ib-snip, .sgo-muted, .sgo-note, .gp-h p, .dp-quip, .dp-date { font-size: var(--fs-small); font-weight: var(--fw-body); line-height: var(--lh-small); color: var(--muted); }
 .dp-quip { font-size: var(--fs-body); }
 .sgo-sec h3, .tp-group h3, .dc-due h3, .sgo-wd { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .sgo-rail-i > span { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); letter-spacing: 0; text-transform: none; color: inherit; }
-.sgo-pill, .sgo-badge, .dc-count, .sgo-rail-n, .ib-top time, .hs-row time, .an-h span, .sgo-chip span, .tp-fbh span { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); }
+.sgo-pill, .sgo-badge, .dc-count, .sgo-rail-n, .ib-top time, .an-h span, .sgo-chip span, .tp-fbh span { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); }
 .sgo-grade, .tp-ring b { font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h3); }
 .sgo-diag, .gr2-table { font-size: var(--fs-small); }
 .gr2-table th { font-size: var(--fs-caption); font-weight: var(--fw-strong); text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
@@ -229,3 +229,26 @@ textarea.sgo-input { padding: var(--space-2) var(--space-3); }
 .acc-custom { position: relative; background: var(--surface2); color: var(--text); border: 1px dashed var(--line-strong); }
 .acc-custom input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 @media (max-width: 480px) { .acc-pop { grid-template-columns: repeat(5, 40px); } }
+
+/* Tabs: clearly visible. A filled strip, readable labels, and an unmistakable selected tab (accent fill + underline). */
+.crs-tabs, .tp-tabs { gap: var(--space-1); padding: var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--surface2); }
+.crs-tabs a, .tp-tabs button, .ib-tabs a, .sgo-seg button { min-height: 40px; border-radius: var(--r-md); color: var(--text) !important; opacity: .86; font-size: var(--fs-body); font-weight: var(--fw-strong); text-decoration: none; }
+.crs-tabs a { display: inline-flex; align-items: center; padding: 0 var(--space-4); margin: 0; border-bottom: 0; }
+.tp-tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; padding: var(--space-1) var(--space-2); margin: 0; border: 0; min-height: 52px; }
+.tp-tabs button span { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--fw-strong); }
+.ib-tabs { padding: var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--r-lg); background: var(--surface2); align-self: stretch; display: flex; }
+.ib-tabs a { flex: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0 var(--space-4); }
+.sgo-seg { border: 1px solid var(--line-strong); }
+.sgo-seg button { min-height: 40px; padding: 0 var(--space-4); color: var(--text); }
+.crs-tabs a:hover, .tp-tabs button:hover, .ib-tabs a:hover, .sgo-seg button:hover { background: color-mix(in srgb, var(--text) 10%, transparent); opacity: 1; }
+.crs-tabs a[aria-current="page"], .tp-tabs button[aria-selected="true"], .ib-tabs a[aria-current="page"], .sgo-seg button.on { background: var(--accent); color: var(--on-accent) !important; opacity: 1; box-shadow: 0 2px 0 color-mix(in srgb, var(--on-accent) 55%, transparent) inset, 0 1px 6px rgb(0 0 0 / .25); border: 0; }
+.crs-tabs a:focus-visible, .tp-tabs button:focus-visible, .ib-tabs a:focus-visible, .sgo-seg button:focus-visible { outline: 2px solid var(--text); outline-offset: 2px; }
+
+/* Writing a message */
+.cm { display: grid; gap: var(--space-3); margin-top: var(--space-3); }
+.cm-f { display: grid; gap: var(--space-1); } .cm-f > span { font-size: var(--fs-small); font-weight: var(--fw-strong); }
+.cm-body { min-height: 140px; resize: vertical; height: auto; padding: var(--space-2) var(--space-3); line-height: var(--lh-body); font: inherit; }
+.cm-a { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.cm-msg { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--r-md); font-size: var(--fs-small); }
+.cm-msg.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); border: 1px solid var(--bad); }
+.cm-msg.ok { background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid var(--accent); }

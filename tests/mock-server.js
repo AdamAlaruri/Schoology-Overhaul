@@ -63,7 +63,9 @@ const MSGS = [[9001, '[(BIO&101) AP BIOLOGY: (S1) Rivera, M (BIO&101) AP BIOLOGY
   [9002, 'Quadratics quiz moved', 'The quiz is now on Friday. Review sheet is in Materials.', 'Mr. Chen', 'Thu Oct 29 2026 at 3:05 pm', false],
   [9003, 'Club meeting <b>tomorrow</b>', 'Bring snacks!', 'Jordan Kim', 'Mon Oct 26 2026 at 8:00 am', false]];
 const inbox = (sent) => `<h1 class="page-title">Messages</h1><div id="tabs-wrapper"><a href="/messages">Inbox</a><a href="/messages/sent">Sent Messages</a></div><form id="edit-privatemsg-list"><table id="privatemsg-list" class="privatemsg-list sticky-enabled"><thead><tr><th class="select-all"></th><th class="privatemsg-header-subject"><a href="/messages?order=subject" class="active">Subject</a></th></tr></thead><tbody>${(sent ? MSGS.slice(0, 1) : MSGS).map(([id, subj, body, who, when, unread], i) => `<tr class="${i % 2 ? 'even' : 'odd'}${unread ? ' new' : ''}"><td><input type="checkbox" class="form-checkbox" value="${id}"></td><td class="privatemsg-list-subject" subject="${subj}"><div class="picture"></div><div class="wrapper"><a class="subject-link" href="/messages/view/${id}?x=1">${subj}</a><p class="privatemsg-list-body">${body}</p><p class="names-date"><a href="/user/9">${who}</a> <span class="small gray">${when}</span></p></div></td></tr>`).join('')}</tbody></table></form>`;
-const thread = (id) => { const m = MSGS.find((x) => String(x[0]) === id) || MSGS[0]; return `<div class="message-title">${m[1]}</div><div class="message-participants">Between You and ${m[3]}</div><div class="message-view-row clearfix"><div class="message-body"><div class="name"><a href="/user/9">${m[3]}</a><span class="small gray">${m[4]}</span></div><p>${m[2]} <b>Thanks!</b></p><script>alert(1)</script><div class="s-message-attachments-container"><div class="s-message-attachments"><a href="/attachment/77/download">worksheet.pdf</a></div></div><div class="s_message_actions">Reply</div></div></div>`; };
+const thread = (id) => { const m = MSGS.find((x) => String(x[0]) === id) || MSGS[0]; return `<div class="message-title">${m[1]}</div><div class="message-participants">Between You and ${m[3]}</div><div class="message-view-row clearfix"><div class="message-body"><div class="name"><a href="/user/9">${m[3]}</a><span class="small gray">${m[4]}</span></div><p>${m[2]} <b>Thanks!</b></p><script>alert(1)</script><div class="s-message-attachments-container"><div class="s-message-attachments"><a href="/attachment/77/download">worksheet.pdf</a></div></div><div class="s_message_actions">Reply</div></div></div>${sentReplies.filter((r) => r[0] === id).map((r) => `<div class="message-view-row"><div class="message-body"><div class="name"><a href="/user/1">Jordan Lee</a><span class="small gray">Sun Nov 1 2026 at 9:00 am</span></div><p>${r[1]}</p></div></div>`).join('')}${form(`/messages/view/${id}`, false)}`; };
+const sentReplies = [], sentNew = [];
+const form = (action, isNew) => `<form id="privatemsg-new" method="post" action="${action}">${isNew ? '<input type="text" id="edit-recipient" name="edit-recipient" class="ac_input"><input type="text" name="subject">' : ''}<textarea name="body" id="edit-body"></textarea><input type="hidden" name="sid" value="123"><input type="hidden" name="form_build_id" value="form-abc"><input type="hidden" name="form_token" value="tok-xyz"><input type="hidden" name="form_id" value="privatemsg_new"><input type="submit" name="op" value="Send"></form>`;
 const GROUPS = [[5001, 'Robotics Club', 'Skyview High School  42 members'], [5002, 'Class of 2027', 'Skyview High School  210 members'], [5003, 'NHS', 'Skyview High School  88 members'], [5004, 'Debate Team', 'Skyview High School  19 members']];
 const groupsHtml = () => `<h1 class="page-title">Groups</h1>${GROUPS.map(([id, n, i]) => `<div class="mygroups-list-item"><a href="/group/${id}"><div class="picture"><img src="/icons/icon48.png" alt=""></div></a><div class="middle"><a class="group-title" href="/group/${id}">${n}</a><p class="info"><a href="/school/1">Skyview High School</a> ${i.split('  ')[1]}</p></div></div>`).join('')}`;
 const groupFeed = (gid) => `<ul>${[['Coach Lee', 'Practice moved to the lab on Tuesday at 3:30.'], ['Sam Ortiz', 'Who can bring the spare batteries?']].map(([a, b], i) => `<li id="edge-assoc-${gid}${i}" class="first"><div class="edge-item"><span class="edge-sentence"><span class="update-sentence-inner"><a href="/user/9">${a}</a> posted in <a href="/group/${gid}">Group</a></span></span><span class="update-body s-rte"><p>${b}</p></span><span class="created">Thu Oct 29, 2026 at 4:1${i} pm</span></div></li>`).join('')}</ul>`;
@@ -96,7 +98,7 @@ http.createServer((req, res) => {
   const guarded = ['/home/upcoming_ajax', '/home/upcoming_submissions_ajax', '/home/overdue_submissions_ajax', '/home/feed', '/courses', '/grades/grades'];
   if (guarded.includes(p) && mode === 'expired') { res.writeHead(302, { location: '/login' }); return res.end(); }
   if (guarded.includes(p) && mode === 'fail') { res.writeHead(500); return res.end('boom'); }
-  if (/^\/(messages|groups|group\/|home\/recent-activity)/.test(p) && mode === 'expired') { res.writeHead(302, { location: '/login' }); return res.end(); }
+  if (/^\/(messages|groups|group\/)/.test(p) && mode === 'expired') { res.writeHead(302, { location: '/login' }); return res.end(); }
   if (/^\/(messages|groups|group\/)/.test(p) && mode === 'fail') { res.writeHead(500); return res.end('boom'); }
   const send = (t, body) => { res.writeHead(200, { 'content-type': t }); res.end(body); };
   if (p.startsWith('/src/') || p.startsWith('/icons/') || p.startsWith('/fonts/') || p.startsWith('/banners/')) {
@@ -114,12 +116,25 @@ http.createServer((req, res) => {
   if (p === '/courses') return send('text/html', shell('<h2>Native courses</h2>' + coursesHtml()));
   if (p === '/grades/grades') return send('text/html', shell(gradesHtml()));
   if (p === '/messages' || p === '/messages/sent') return send('text/html', shell(inbox(p === '/messages/sent')));
+  if (/^\/messages\/view\/\d+$/.test(p) && req.method === 'POST') {
+    let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => {
+      const f = new URLSearchParams(b);
+      if (f.get('form_token') !== 'tok-xyz' || !f.get('body')) return send('text/html', shell('<div class="messages error">Could not send.</div>' + thread(p.split('/')[3])));
+      sentReplies.push([p.split('/')[3], f.get('body').replace(/</g, '&lt;')]); send('text/html', shell(thread(p.split('/')[3])));
+    }); return; }
   if (/^\/messages\/view\/\d+$/.test(p)) return send('text/html', shell(thread(p.split('/')[3])));
-  if (p === '/messages/new') return send('text/html', shell('<h2>Native compose</h2>'));
+  if (p === '/messages/new' && req.method === 'POST') {
+    let b = ''; req.on('data', (c) => { b += c; }); req.on('end', () => {
+      const f = new URLSearchParams(b);
+      if (f.get('form_token') !== 'tok-xyz') return send('text/html', shell('<div class="messages error">Invalid security token.</div>' + form('/messages/new', true)));
+      if (/nobody/i.test(f.get('edit-recipient'))) return send('text/html', shell('<div class="messages error">The recipient “nobody” could not be found.</div>' + form('/messages/new', true)));
+      sentNew.push([f.get('edit-recipient'), f.get('subject'), f.get('body')]); send('text/html', shell(inbox(true)));
+    }); return; }
+  if (p === '/messages/new') return send('text/html', shell('<h1>Compose</h1>' + form('/messages/new', true)));
+  if (p === '/__sent') return send('application/json', JSON.stringify({ sentReplies, sentNew }));
   if (p === '/groups') return send('text/html', shell(groupsHtml()));
   if (/^\/group\/\d+\/feed$/.test(p)) return send('application/json', JSON.stringify({ output: groupFeed(p.split('/')[2]) }));
   if (/^\/group\/\d+$/.test(p)) return send('text/html', shell('<h2>Native group page</h2>'));
-  if (p === '/home/recent-activity') return send('text/html', shell(homeBody()));
   if (p === '/calendar') return send('text/html', shell('<h2>Native calendar</h2>'));
   if (/^\/event\/\d+/.test(p)) return send('text/html', shell('<a href="/course/101/materials">AP Biology</a><div class="assignment-description"><p>Write up your <b>findings</b> from the lab. Include a graph and a short conclusion.</p><script>alert(1)</script><img src=x onerror=alert(2)></div>'));
   const cm = /^\/course\/(\d+)(?:\/([a-z_]+))?(?:\/.*)?$/.exec(p);

@@ -1,4 +1,4 @@
-/* Inbox, Groups and History data. Everything comes from Schoology's own pages (/messages, /groups, /group/<id>/feed,
+/* Inbox and Groups data. Everything comes from Schoology's own pages (/messages, /groups, /group/<id>/feed,
  * /home/feed) read with the signed-in session. Message text is private, so it is kept in memory only, never in storage. */
 (() => {
   const S = window.SGO;
@@ -74,6 +74,60 @@
     if (m && m.unread) { m.unread = false; if (S.state.unread.messages > 0) S.state.unread.messages--; }
   };
 
+  /** Mark cached mail data stale (it is kept on screen while it reloads). */
+  S.staleMail = (...keys) => keys.forEach((k) => { const cur = store.get(k); if (cur) cur.at = 0; });
+
+  /* ---------- sending ----------
+   * A message written here is delivered by Schoology itself: this reads Schoology's own form (so its security tokens are fresh),
+   * fills in the person's text and submits it with their signed-in session. Nothing goes anywhere else. */
+  /** What is wrong with a draft, or '' when it can be sent. */
+  S.checkDraft = (d, reply) => {
+    if (!reply && !clean(d.to)) return 'Add who the message is for.';
+    if (!reply && !clean(d.subject)) return 'Add a subject.';
+    if (!clean(d.body)) return 'Write a message first.';
+    return '';
+  };
+  /** The form's fields, filled in, ready to post. Throws when Schoology's page has no message form. */
+  S.messageFields = (doc, d, reply) => {
+    const form = doc.querySelector('#privatemsg-new, form#privatemsg-new');
+    if (!form) throw new Error('Schoology did not return its message form.');
+    const out = [];
+    form.querySelectorAll('input, textarea, select').forEach((el) => {
+      const n = el.getAttribute('name'); if (!n || el.disabled) return;
+      const t = (el.getAttribute('type') || '').toLowerCase();
+      if (t === 'submit' || t === 'button' || t === 'file' || t === 'image') return;
+      if ((t === 'checkbox' || t === 'radio') && !el.checked) return;
+      out.push([n, n === 'body' ? d.body : n === 'subject' ? d.subject || '' : n === 'edit-recipient' || n === 'recipient' ? d.to || '' : el.value || '']);
+    });
+    const op = form.querySelector('input[type=submit][name=op], button[name=op]');
+    out.push(['op', (op && (op.value || op.textContent)) || (reply ? 'Send' : 'Send')]);
+    if (!reply && !out.some(([n]) => n === 'edit-recipient' || n === 'recipient')) out.push(['edit-recipient', d.to || '']);
+    if (!out.some(([n]) => n === 'body')) out.push(['body', d.body]);
+    const action = form.getAttribute('action') || '';
+    return { action, fields: out };
+  };
+  /** Text of a problem Schoology reported on the page it answered with, or ''. */
+  S.messageError = (doc) => {
+    const e = doc.querySelector('.messages.error, .message-error, .error-message, div.error, .form-item .error, #privatemsg-new .error');
+    return e ? clean(e.textContent).slice(0, 240) : '';
+  };
+  /** Send a new message (`id` empty) or a reply. Resolves when Schoology accepted it; rejects with a sentence for the person. */
+  S.sendMessage = async ({ id, to, subject, body }) => {
+    const reply = !!id, page = reply ? '/messages/view/' + id : '/messages/new', d = { to, subject, body };
+    const bad = S.checkDraft(d, reply); if (bad) throw new Error(bad);
+    const doc = await S.getDoc(page), f = S.messageFields(doc, d, reply);
+    let target = f.action ? new URL(f.action, location.origin) : null;
+    if (!target || target.origin !== location.origin) target = new URL(page, location.origin); // only ever posts to Schoology's own site
+    const after = await S.postForm(target.pathname + target.search, f.fields), err = S.messageError(after);
+    if (err) throw new Error(err);
+    // after a delivered new message Schoology moves on to a mailbox; the compose form coming back means it was not accepted
+    if (!reply && after.querySelector('#privatemsg-new #edit-recipient, #privatemsg-new [name=edit-recipient]')) {
+      throw new Error('Schoology did not accept the message. Check the recipient’s name, or finish it on Schoology.');
+    }
+    S.staleMail('mail:sent', 'mail:inbox', 'thread:' + id);
+    return true;
+  };
+
   /* ---------- groups ---------- */
   const safeImg = (src) => { try { const u = new URL(src, location.origin); return /schoology\.com$/i.test(u.hostname) || u.origin === location.origin ? u.href : ''; } catch (e) { return ''; } };
   function parseGroups(doc) {
@@ -118,16 +172,4 @@
   S.unreadGrades = () => (S.prefs.gradeNotifs || []).filter((n) => !n.read).length;
   S.markGradeRead = (id) => { const n = (S.prefs.gradeNotifs || []).find((x) => x.id === id); if (n && !n.read) { n.read = true; S.savePrefs(); } };
   S.markAllGradesRead = () => { (S.prefs.gradeNotifs || []).forEach((n) => { n.read = true; }); S.savePrefs(); };
-
-  /* ---------- history ---------- */
-  /** Pages opened inside this extension, newest first. Stored locally; nothing is sent anywhere. */
-  S.logVisit = (kind, title, href) => {
-    if (!title || !href) return;
-    const list = S.prefs.history = S.prefs.history || [], now = Date.now(), top = list[0];
-    if (top && top.href === href) { if (now - top.ts > 6e4) { top.ts = now; S.savePrefs(); } return; }
-    list.unshift({ kind, title, href, ts: now });
-    if (list.length > 200) list.length = 200;
-    S.savePrefs();
-  };
-  S.clearHistory = () => { S.prefs.history = []; S.savePrefs(); redraw(); };
 })();

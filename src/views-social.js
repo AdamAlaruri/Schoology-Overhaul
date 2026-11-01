@@ -1,4 +1,4 @@
-/* Inbox, Groups and History screens. Real data only: what Schoology lists, plus pages opened in this extension. */
+/* Inbox and Groups screens. Real data only: what Schoology lists. */
 (() => {
   const S = window.SGO;
   const V = S.views;
@@ -27,8 +27,37 @@
   const searchBox = (value, label, onInput, fk) => h('input', { class: 'sgo-input', type: 'search', value, placeholder: label, 'aria-label': label, dataset: { fk }, oninput: (e) => onInput(e.target.value) });
 
   /* ===================== INBOX ===================== */
-  S.ui.mail = { q: '', f: 'all' };
+  S.ui.mail = { q: '', f: 'all', drafts: {}, send: {} };
   const matches = (m, q) => !q || (m.subject + ' ' + m.snippet + ' ' + m.people + ' ' + m.tag).toLowerCase().includes(q.toLowerCase());
+
+  /** Write a message here; Schoology delivers it. Text is kept per conversation while the page is open, so nothing is lost on a redraw. */
+  function composer(key, id) {
+    const ui = S.ui.mail, d = ui.drafts[key] || (ui.drafts[key] = { to: '', subject: '', body: '' }), st = ui.send[key] || {}, reply = !!id, busy = st.state === 'sending';
+    const field = (label, name, ph, big) => h('label', { class: 'cm-f' }, h('span', null, label), h(big ? 'textarea' : 'input', Object.assign({ class: 'sgo-input' + (big ? ' cm-body' : ''), name, placeholder: ph, disabled: busy, rows: 7, dataset: { fk: 'cm-' + name }, oninput: (e) => { d[name] = e.target.value; if (st.state === 'error') { st.state = ''; } } }, big ? {} : { type: 'text', value: d[name] })));
+    const ta = field(reply ? 'Reply' : 'Message', 'body', reply ? 'Write your reply…' : 'Write your message…', true); ta.querySelector('textarea').value = d.body;
+    const send = async () => {
+      const bad = S.checkDraft(d, reply); if (bad) { ui.send[key] = { state: 'error', msg: bad }; S.render(true); return; }
+      ui.send[key] = { state: 'sending' }; S.render(true);
+      try {
+        await S.sendMessage({ id, to: d.to, subject: d.subject, body: d.body });
+        ui.drafts[key] = { to: '', subject: '', body: '' }; ui.send[key] = { state: 'sent', msg: reply ? 'Reply sent through Schoology.' : 'Message sent through Schoology.' };
+        if (reply) S.render(true); else { S.go('/messages/sent'); }
+      } catch (e) { ui.send[key] = { state: 'error', msg: String(e.message || e) }; S.render(true); }
+    };
+    return h('form', { class: 'cm', onsubmit: (e) => { e.preventDefault(); if (!busy) send(); } },
+      reply ? null : [field('To', 'to', 'Name of the person, as it appears in Schoology'), field('Subject', 'subject', 'Subject')],
+      ta,
+      h('div', { class: 'cm-a' },
+        h('button', { class: 'sgo-btn primary', type: 'submit', disabled: busy }, icon('send', 16), busy ? 'Sending…' : 'Send'),
+        reply ? null : h('a', { class: 'sgo-btn ghost', href: '/messages' }, 'Cancel'),
+        h('a', { class: 'sgo-btn ghost', href: classic(reply ? '/messages/view/' + id : '/messages/new'), target: '_blank', rel: 'noopener' }, icon('external', 15), 'Open in Schoology')),
+      st.msg ? h('p', { class: 'cm-msg ' + (st.state === 'error' ? 'bad' : 'ok'), role: st.state === 'error' ? 'alert' : 'status' }, st.msg) : null,
+      h('p', { class: 'sgo-note' }, 'Sent through your Schoology account, so it is delivered and saved there exactly like a message sent on Schoology.'));
+  }
+
+  function composePane() {
+    return h('section', { class: 'ib-read' }, h('a', { class: 'ib-back', href: '/messages' }, icon('left', 16), 'Inbox'), h('div', { class: 'ib-rh' }, h('h2', null, 'New message')), composer('new', ''));
+  }
 
   function readPane(id) {
     if (!id) return h('section', { class: 'ib-read ib-none' }, empty('Select a message', 'Pick a conversation on the left to read it here.'));
@@ -43,17 +72,17 @@
         h('div', { class: 'ib-mh' }, h('span', { class: 'ib-av' }, initials(r.name)), h('b', null, r.name || 'Unknown sender'), h('span', null, r.ts != null ? S.fmtDate(r.ts, true) + ' · ' + S.fmtTime(r.ts) : r.when)),
         h('div', { class: 'sgo-desc ib-body' }, S.sanitize(r.html)),
         r.files.length ? h('ul', { class: 'ib-files' }, r.files.map((f) => h('li', null, h('a', { href: f.href, target: '_blank', rel: 'noopener' }, icon('file', 15), f.name)))) : null))),
-      h('div', { class: 'sgo-head-a' }, h('a', { class: 'sgo-btn primary', href: classic('/messages/view/' + id), target: '_blank', rel: 'noopener' }, icon('external', 16), 'Reply in Schoology')),
-      h('p', { class: 'sgo-note' }, 'Replies are written on Schoology’s own page so nothing about your messages changes. Opening a message marks it read, as it does in Schoology.'));
+      composer(id, id),
+      h('p', { class: 'sgo-note' }, 'Opening a message marks it read, as it does in Schoology.'));
   }
 
   V.inbox = () => {
     const p = location.pathname.replace(/\/+$/, ''), box = p === '/messages/sent' ? 'sent' : 'inbox', vm = /^\/messages\/view\/(\d+)$/.exec(p), id = vm ? vm[1] : '';
-    const pane = readPane(id); // first: opening a message marks it read in the cached list drawn below
+    const composing = p === '/messages/new', pane = composing ? composePane() : readPane(id); // first: opening a message marks it read in the cached list drawn below
     const ui = S.ui.mail, key = 'mail:' + box, res = S.mailList(box);
     const items = res.data || [], unread = items.filter((m) => m.unread).length;
     const shown = items.filter((m) => matches(m, ui.q) && (ui.f !== 'unread' || m.unread));
-    const tab = (k, label, href) => h('a', { href, 'aria-current': box === k && !id ? 'page' : null }, label);
+    const tab = (k, label, href) => h('a', { href, 'aria-current': box === k && !id && !composing ? 'page' : null }, label);
     const listBody = stateBlock(res, 'your messages', key) || (shown.length
       ? h('ul', { class: 'ib-items' }, shown.map((m) => h('li', null, h('a', { class: 'ib-row' + (m.unread ? ' unread' : '') + (m.id === id ? ' on' : ''), href: '/messages/view/' + m.id, 'aria-current': m.id === id ? 'true' : null },
         h('span', { class: 'ib-av' }, initials(m.people)),
@@ -63,7 +92,7 @@
       : empty(items.length ? 'No messages match' : box === 'sent' ? 'No sent messages' : 'Your inbox is empty', items.length ? 'Try a different search or filter.' : 'Messages from teachers and classmates show up here.'));
     const redo = () => S.render(true);
     return h('div', { class: 'sgo-page ib-page' }, head('Inbox', 'Your Schoology messages', [h('a', { class: 'sgo-btn primary', href: '/messages/new' }, icon('plus', 16), 'New message')]),
-      h('div', { class: 'ib' + (id ? ' has-sel' : '') },
+      h('div', { class: 'ib' + (id || composing ? ' has-sel' : '') },
         h('section', { class: 'ib-list', 'aria-label': 'Messages' },
           h('nav', { class: 'ib-tabs', 'aria-label': 'Mailbox' }, tab('inbox', 'Inbox', '/messages'), tab('sent', 'Sent', '/messages/sent')),
           searchBox(ui.q, 'Search messages', (v) => { ui.q = v; redo(); }, 'ib-q'),
@@ -95,31 +124,5 @@
     const body = stateBlock(res, 'your groups', 'groups') || (shown.length ? h('div', { class: 'gp-grid' }, shown.map(card)) : empty(all.length ? 'No groups match' : 'You are not in any groups', all.length ? 'Try a different search.' : 'Groups you join in Schoology appear here.'));
     return h('div', { class: 'sgo-page' }, head('Groups', 'Groups you belong to in Schoology', [h('a', { class: 'sgo-btn ghost', href: classic('/groups') }, 'Join or manage groups')]),
       all.length > 3 ? h('div', { class: 'sgo-toolbar' }, searchBox(ui.q, 'Search groups', (v) => { ui.q = v; S.render(true); }, 'gp-q')) : null, body);
-  };
-
-  /* ===================== HISTORY ===================== */
-  S.ui.hist = { q: '', f: 'all' };
-  const KIND = { course: ['book', 'Course'], assignment: ['notepad', 'Assignment'], post: ['mega', 'Post'] };
-  V.history = () => {
-    const ui = S.ui.hist, mine = (S.prefs.history || []).map((e) => ({ kind: e.kind, title: e.title, href: e.href, ts: e.ts, local: true }));
-    const posts = (S.state.announcements || []).map((a) => ({ kind: 'post', title: a.body, who: a.author, where: S.cn(a.courseId, a.courseName) || a.courseName, href: a.url, ts: S.parseStamp(a.time), when: a.time }));
-    const q = ui.q.toLowerCase(), pool = (ui.f === 'opened' ? mine : ui.f === 'posts' ? posts : [...mine, ...posts]).filter((x) => !q || (x.title + ' ' + (x.who || '') + ' ' + (x.where || '')).toLowerCase().includes(q));
-    pool.sort((a, b) => (b.ts ?? -1) - (a.ts ?? -1));
-    const groups = new Map();
-    pool.forEach((x) => { const k = x.ts == null ? 'Earlier' : S.sameDay(x.ts, Date.now()) ? 'Today' : S.sameDay(x.ts, Date.now() - S.DAY) ? 'Yesterday' : S.fmtDate(x.ts, true); (groups.get(k) || groups.set(k, []).get(k)).push(x); });
-    const row = (x) => {
-      const [ic, label] = KIND[x.kind] || KIND.post, inner = [h('span', { class: 'hs-ic' }, icon(ic, 17)),
-        h('span', { class: 'hs-t' }, h('b', null, x.kind === 'post' ? (x.who || 'Update') : x.title), h('span', null, x.kind === 'post' ? [x.where, x.title].filter(Boolean).join(' — ') : label)),
-        h('time', null, x.ts != null ? S.fmtTime(x.ts) : x.when || '')];
-      return h('li', null, x.href ? h('a', { class: 'hs-row', href: x.href }, inner) : h('div', { class: 'hs-row' }, inner));
-    };
-    const loadingFeed = S.state.loading && !S.state.announcements.length;
-    const counts = { all: mine.length + posts.length, opened: mine.length, posts: posts.length };
-    return h('div', { class: 'sgo-page narrow' }, head('History', 'Recent activity from Schoology and pages you opened here', mine.length ? [h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => S.openConfirm({ title: 'Clear opened pages?', body: 'This removes the list of pages you opened in this extension. Posts from Schoology are not affected.', ok: 'Clear', danger: true, onOk: () => S.clearHistory() }) }, icon('trash', 15), 'Clear opened pages')] : null),
-      h('div', { class: 'sgo-toolbar' }, searchBox(ui.q, 'Search history', (v) => { ui.q = v; S.render(true); }, 'hs-q'),
-        h('div', { class: 'sgo-chips' }, [['all', 'All'], ['opened', 'Opened here'], ['posts', 'Posts']].map(([k, l]) => h('button', { class: 'sgo-chip' + (ui.f === k ? ' on' : ''), type: 'button', 'aria-pressed': String(ui.f === k), onclick: () => { ui.f = k; S.render(true); } }, l, h('span', null, counts[k]))))),
-      loadingFeed ? SKELETON(5) : groups.size ? [...groups.entries()].map(([day, xs]) => h('section', { class: 'sgo-sec' }, h('h3', null, day, h('span', null, xs.length)), h('ul', { class: 'rs-list' }, xs.map(row))))
-        : empty(q ? 'Nothing matches your search' : 'No activity yet', 'Posts from your classes appear here, and pages you open in this extension are listed as you go.'),
-      h('p', { class: 'sgo-note' }, 'Schoology does not share a browsing history, so this lists the posts in your Recent Activity feed and the course pages you opened in this extension. The opened list is stored only in this browser.'));
   };
 })();

@@ -63,14 +63,13 @@ One stylesheet owns the look (`src/theme.css`); `src/styles.css` holds component
 
 The greeting (Good morning / afternoon / evening plus your first name from Schoology, or just the greeting when no name is known) is the page heading, with a live clock beside it. The clock uses the browser's own local time and timezone, updates on the minute, and its timer stops whenever the dashboard is not on screen. On narrow screens the order is welcome, tasks, classes. Spacing uses the `--space-*` tokens in `theme.css`; every page shares one card surface, one page width (`--page`) and the same left edge. "Your classes" and "Tasks" open with the same heading row so their first cards start on the same line.
 
-## Calendar, Inbox, History and Groups
+## Calendar, Inbox and Groups
 
-All four open in the redesigned app (no legacy flash, refresh and back/forward work). Data comes only from Schoology's own pages:
+All three open in the redesigned app (no legacy flash, refresh and back/forward work). Data comes only from Schoology's own pages:
 
 - **Calendar** (`/calendar`): month, week, day and agenda views, tests and events marked, "Add personal task" for your own dated items (saved only in this browser).
-- **Inbox** (`/messages`, `/messages/sent`, `/messages/view/ID`): list, reading pane, search and an Unread filter. Message text is kept in memory only. Replying and composing happen on Schoology's own page; opening a message marks it read, as in Schoology.
-- **History** (`/home/recent-activity`): the posts in your Recent Activity feed plus the course pages you opened in this extension (stored locally, can be cleared). Schoology has no browsing-history feed, so nothing else is listed.
-- **Groups** (`/groups`): your groups with their latest posts. A single group (`/group/ID`) and composing a message still open on Schoology's own pages.
+- **Inbox** (`/messages`, `/messages/sent`, `/messages/view/ID`): list, reading pane, search and an Unread filter. Message text is kept in memory only. Replying and composing (`/messages/new`) happen inside the app: the extension reads Schoology's own message form with your signed-in session, fills in your text and submits it, so Schoology delivers it and keeps it in Sent. Errors from Schoology are shown as-is, and "Open in Schoology" is always offered. Opening a message marks it read, as in Schoology.
+- **Groups** (`/groups`): your groups with their latest posts. A single group (`/group/ID`) still opens on Schoology's own page.
 
 ## Quirky messages
 

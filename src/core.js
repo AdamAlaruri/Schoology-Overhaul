@@ -35,7 +35,7 @@
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
     accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', topoOn: true, topoDensity: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false,
-    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {}, history: [],
+    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
   S.prefs = DEFAULTS();
@@ -124,6 +124,7 @@
     eyeoff: '<path d="M3 3l18 18M10.6 6.2A9.8 9.8 0 0112 6c5 0 8.5 4 9.5 6a14 14 0 01-3 3.7M6.6 7.6C4.5 9 3 11 2.5 12c1 2 4.5 6 9.5 6a9 9 0 004-1"/>',
     drag: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
     up: '<path d="M6 15l6-6 6 6"/>',
     down: '<path d="M6 9l6 6 6-6"/>',
     left: '<path d="M15 5l-7 7 7 7"/>',
