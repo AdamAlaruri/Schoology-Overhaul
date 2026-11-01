@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', classic: false,
+    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', bgBlur: 0, topoOn: true, topoDensity: 'standard', topoSeed: 20260, classic: false,
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {}, history: [],
   });
   S.DEFAULTS = DEFAULTS;
@@ -75,7 +75,16 @@
     for (const k of Object.keys(patch)) { const hex = C.normHex(patch[k]); if (!hex) return false; out[k] = hex; }
     Object.assign(S.prefs, out); S.savePrefs(); S.applyTheme(); return true;
   };
-  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); };
+  /** The map's own settings: blur 0-24px, on or off, line density and which map (seed). */
+  S.setMap = (patch) => {
+    const P = S.prefs;
+    if ('bgBlur' in patch) P.bgBlur = Math.min(24, Math.max(0, Math.round(Number(patch.bgBlur) || 0)));
+    if ('topoOn' in patch) P.topoOn = !!patch.topoOn;
+    if ('topoDensity' in patch && ['light', 'standard', 'dense'].includes(patch.topoDensity)) P.topoDensity = patch.topoDensity;
+    if ('topoSeed' in patch) P.topoSeed = Math.max(1, Math.round(Number(patch.topoSeed) || 20260));
+    S.savePrefs(); S.applyTheme();
+  };
+  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); S.setMap({ bgBlur: d.bgBlur, topoOn: d.topoOn, topoDensity: d.topoDensity, topoSeed: d.topoSeed }); };
 
   /* ---------- DOM helper (text is always a text node => no injection) ---------- */
   S.h = function h(tag, props, ...kids) {

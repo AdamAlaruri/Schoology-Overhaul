@@ -33,7 +33,7 @@ Your school's Schoology address must match `*://*.schoology.com/*`. If your dist
 ## Course banners
 
 - Every class shows its **original Schoology course image** by default. The extension reads the image address from the home Course Dashboard (matching the dashboard card's title, which begins with the course title and a colon) and never downloads, edits or replaces it. A class Schoology gives no image (for example an Advisory) gets a flat tint of its colour; nothing is generated.
-- **Change banner** (image icon on a card) offers the original, eight optional subject banners and an upload. Choose, preview, then **Apply**. Under Settings, **Restore original Schoology banners** and **Reset all banners** apply to every class.
+- **Change banner** (image icon on a card) offers the original, seven optional photographs (Science, Biology, History, English, Computer Science, Languages, Arts & electives) and an upload. The photographs are real public-domain or CC0 pictures from Wikimedia Commons bundled in `banners/`, with credits in `banners/CREDITS.md`; nothing is generated and nothing is fetched at run time. Mathematics classes are suggested the Science photo. Choose, preview, then **Apply**. Under Settings, **Restore original Schoology banners** and **Reset all banners** apply to every class.
 - Choices are stored per course id in `chrome.storage.local`.
 
 ## Native course pages
@@ -57,7 +57,7 @@ One stylesheet owns the look (`src/theme.css`); `src/styles.css` holds component
 
 `src/topo.js` generates a real contour map in code: a warped elevation field built from several hills, with iso-lines extracted by marching squares and written as smooth cubic Bézier `<path>` elements. It is one fixed, full-viewport SVG (`#sgo-bg`, `pointer-events: none`, behind everything), drawn at document start from `src/early.js` so it is there before the page paints. The geometry is generated once and kept; nothing animates. Strokes read CSS variables, so recolouring changes the paths themselves.
 
-**Settings → Appearance** has four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
+**Settings → Appearance** has a **Background blur** slider (0–24px, applied to the whole map), buttons to turn the **topographic map** on or off, set its **line density** (Light, Standard, Dense) and draw a **New map**, and four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
 
 ## Dashboard header
 

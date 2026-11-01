@@ -102,17 +102,18 @@
 
   const memo = new Map();
   /** { width, height, paths: [{ d, o, major }] }. Cached per size and seed, so navigating never regenerates it. */
-  T.build = (width = 1600, height = 900, seed = 20260) => {
-    const key = `${width}x${height}:${seed}`;
+  T.DENSITY = { light: 14, standard: 26, dense: 42 };
+  T.build = (width = 1600, height = 900, seed = 20260, density = 'standard') => {
+    const LEVELS = T.DENSITY[density] || T.DENSITY.standard, key = `${width}x${height}:${seed}:${LEVELS}`;
     if (memo.has(key)) return memo.get(key);
     const cols = 128, rows = Math.round((cols * height) / width), aspect = width / height, field = makeField(seed, aspect);
     const val = new Float32Array((cols + 1) * (rows + 1));
     let lo = Infinity, hi = -Infinity;
     for (let j = 0; j <= rows; j++) for (let i = 0; i <= cols; i++) { const z = field((i / cols) * aspect, j / rows); val[j * (cols + 1) + i] = z; if (z < lo) lo = z; if (z > hi) hi = z; }
-    const LEVELS = 26, sx = width / cols, sy = height / rows, paths = [];
+    const sx = width / cols, sy = height / rows, paths = [];
     for (let k = 0; k < LEVELS; k++) {
       const t = 0.035 + 0.93 * Math.pow(k / (LEVELS - 1), 1.12), L = lo + (hi - lo) * t;
-      const major = k % 5 === 0, o = major ? 0.9 : Math.round((0.38 + 0.34 * Math.abs(Math.sin(k * 1.9))) * 100) / 100;
+      const major = k % (LEVELS > 30 ? 6 : 5) === 0, o = major ? 0.9 : Math.round((0.38 + 0.34 * Math.abs(Math.sin(k * 1.9))) * 100) / 100;
       for (const line of chain(segmentsAt(val, cols, rows, L))) {
         const d = toPath(line.pts, line.closed, sx, sy);
         if (d) paths.push({ d, o, major });
@@ -123,9 +124,9 @@
     return out;
   };
   /** The map as SVG markup. Stroke colours come from CSS variables, so changing them recolours the paths themselves. */
-  T.svg = (width, height, seed) => {
+  T.svg = (width, height, seed, density) => {
     // the glow is only drawn under the index (major) contours: enough to light the map, half the markup
-    const m = T.build(width, height, seed), p = (c) => m.paths.filter((x) => c || x.major).map((x) => `<path d="${x.d}"${c ? ` class="${x.major ? 'mj' : ''}" stroke-opacity="${x.o}"` : ''}/>`).join('');
+    const m = T.build(width, height, seed, density), p = (c) => m.paths.filter((x) => c || x.major).map((x) => `<path d="${x.d}"${c ? ` class="${x.major ? 'mj' : ''}" stroke-opacity="${x.o}"` : ''}/>`).join('');
     return `<svg id="sgo-topo" viewBox="0 0 ${m.width} ${m.height}" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><g class="topo-glow">${p(false)}</g><g class="topo-lines">${p(true)}</g></svg>`;
   };
 })();

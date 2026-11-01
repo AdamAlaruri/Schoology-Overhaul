@@ -21,15 +21,24 @@
     st.setProperty('--accent', accent);
     st.setProperty('--on-accent', C.onAccent(accent));
     html.classList.toggle('sgo-dark', C.isDark(bg));
+    // the map itself: shown or hidden, how dense, which seed, and how blurred the whole background is
+    const blur = Math.min(24, Math.max(0, Number(prefs && prefs.bgBlur) || 0));
+    st.setProperty('--bg-blur', blur + 'px');
+    html.dataset.sgoTopo = prefs && prefs.topoOn === false ? 'off' : 'on';
+    buildLayer((prefs && prefs.topoDensity) || 'standard', Number(prefs && prefs.topoSeed) || 20260);
   };
 
   /* One fixed full-viewport SVG behind everything. The geometry is generated once (see topo.js) and kept for the page's life. */
-  const buildLayer = () => {
-    if (document.getElementById('sgo-bg')) return;
-    const el = document.createElement('div'); el.id = 'sgo-bg'; el.setAttribute('aria-hidden', 'true');
-    el.innerHTML = T.svg(1600, 900, 20260);
-    html.append(el);
-  };
+  let drawn = '';
+  function buildLayer(density, seed) {
+    if (!html.classList.contains('sgo-app') && !document.getElementById('sgo-bg')) return; // plain Schoology pages never get the map
+    let el = document.getElementById('sgo-bg');
+    if (!el) { el = document.createElement('div'); el.id = 'sgo-bg'; el.setAttribute('aria-hidden', 'true'); html.append(el); }
+    const key = density + ':' + seed;
+    if (key === drawn) return; // the same map is never rebuilt
+    drawn = key;
+    el.innerHTML = T.svg(1600, 900, seed, density);
+  }
 
   // Keep this list in step with routeFor() in app.js.
   const isApp = !classic && (p === '/home' || p === '/home/recent-activity' || p === '/courses' || p === '/groups' || /^\/calendar(\/.*)?$/.test(p) || /^\/messages(\/sent|\/view\/\d+)?$/.test(p) || /^\/grades(\/grades)?$/.test(p) || /^\/course\/\d+(\/(materials|updates|student_grades|info))?$/.test(p));
@@ -38,7 +47,6 @@
 
   html.classList.add('sgo-app', 'sgo-booting');
   window.__sgoTheme(null); // defaults first (black, blue), then the saved colours as soon as storage answers
-  buildLayer();
 
   const boot = document.createElement('div');
   boot.id = 'sgo-boot';

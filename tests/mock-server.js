@@ -99,12 +99,12 @@ http.createServer((req, res) => {
   if (/^\/(messages|groups|group\/|home\/recent-activity)/.test(p) && mode === 'expired') { res.writeHead(302, { location: '/login' }); return res.end(); }
   if (/^\/(messages|groups|group\/)/.test(p) && mode === 'fail') { res.writeHead(500); return res.end('boom'); }
   const send = (t, body) => { res.writeHead(200, { 'content-type': t }); res.end(body); };
-  if (p.startsWith('/src/') || p.startsWith('/icons/') || p.startsWith('/fonts/')) {
+  if (p.startsWith('/src/') || p.startsWith('/icons/') || p.startsWith('/fonts/') || p.startsWith('/banners/')) {
     const f = path.join(root, p);
     if (!fs.existsSync(f)) { res.writeHead(404); return res.end(); }
     // the extension addresses its bundled files as chrome-extension://<id>/...; in this mock they live at the site root
     if (p.endsWith('.css')) return send('text/css', fs.readFileSync(f, 'utf8').split('chrome-extension://__MSG_@@extension_id__/').join('/'));
-    return send(p.endsWith('.js') ? 'text/javascript' : p.endsWith('.woff2') ? 'font/woff2' : 'image/png', fs.readFileSync(f));
+    return send(p.endsWith('.js') ? 'text/javascript' : p.endsWith('.woff2') ? 'font/woff2' : p.endsWith('.jpg') ? 'image/jpeg' : 'image/png', fs.readFileSync(f));
   }
   if (p === '/home') return send('text/html', shell(homeBody()));
   if (p === '/home/upcoming_ajax') return send('application/json', JSON.stringify({ html: upcomingHtml('event') }));
