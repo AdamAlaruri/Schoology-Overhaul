@@ -34,8 +34,8 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    theme: 'system', accent: '#5b6cff', classic: false, 
-    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, classCollapsed: {}, done: {},
+    theme: 'dark', accent: '#7c9cff', contour: '#40526d', contourGlow: '#1d4f91', background: '#000000', classic: false,
+    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {}, history: [],
   });
   S.DEFAULTS = DEFAULTS;
   S.prefs = DEFAULTS();
@@ -47,11 +47,75 @@
     p.widgets = (p.widgets || []).filter((w) => S.WIDGETS[w.id]);
     Object.keys(S.WIDGETS).forEach((id) => { if (!known.has(id)) p.widgets.push({ id, size: S.WIDGETS[id].size, hidden: false }); });
     S.prefs = p;
+    if ((p.designV || 0) < 6) { Object.assign(p, { theme: 'dark', accent: '#7c9cff', contour: '#40526d', contourGlow: '#1d4f91', background: '#000000', designV: 6 }); S.savePrefs(); }
     return p;
   };
   let saveT;
   S.savePrefs = () => { clearTimeout(saveT); saveT = setTimeout(() => S.store.set('sgo_prefs', S.prefs), 150); };
-  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.savePrefs(); };
+  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 6; S.savePrefs(); };
+  /** Text colour for a filled accent button: whichever of navy and white contrasts more with the accent. */
+  S.onAccent = (hex) => {
+    const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || ''); if (!m) return '#06222b';
+    const l = [m[1], m[2], m[3]].map((x) => { const v = parseInt(x, 16) / 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+    const lum = 0.2126 * l[0] + 0.7152 * l[1] + 0.0722 * l[2];
+    return (lum + 0.05) / (0.012 + 0.05) >= 1.05 / (lum + 0.05) ? '#06222b' : '#ffffff';
+  };
+  S.ACCENTS = ['#7c9cff', '#36bffa', '#6ee7b7', '#c4b5fd', '#fbbf24'];
+
+  /* ---------- background behind the interface ----------
+   * Kept under its own storage key: an uploaded picture is large and must not be rewritten with every preference change. */
+  const BG_DEFAULT = () => ({ kind: 'topographic', id: '', css: '', color: '', size: 'cover', blur: 0, bright: 1, overlay: 0.35, ambBlur: 0, intensity: 0.6 });
+  S.BG_LIMITS = { bytes: 8 * 1024 * 1024, edge: 2200, out: 3.5e6, min: 320 };
+  const num = (v, lo, hi, d) => (typeof v === 'number' && isFinite(v) ? Math.min(hi, Math.max(lo, v)) : d);
+  /** Only values this extension itself writes are accepted back from storage. */
+  const cleanBg = (b) => {
+    const d = BG_DEFAULT();
+    if (!b || typeof b !== 'object') return d;
+    const raw = b.kind === 'default' ? 'auto' : b.kind; // 'default' is what earlier versions called the plain background
+    const kind = ['topographic', 'damascus', 'auto', 'ambient', 'image', 'color'].includes(raw) ? raw : 'auto';
+    const css = typeof b.css === 'string' && b.css.length < 6e6 && /^(url\("data:image\/(png|jpeg|webp|svg\+xml)[;,]|(linear|radial)-gradient\()/.test(b.css) ? b.css : '';
+    const color = typeof b.color === 'string' && /^#[0-9a-f]{6}$/i.test(b.color) ? b.color : '';
+    const ids = (window.SGO_AMBIENT ? window.SGO_AMBIENT.PRESETS : []).map((x) => x.id);
+    const out = Object.assign(d, { kind, id: typeof b.id === 'string' ? b.id.slice(0, 40) : '', css, color, size: /^(cover|\d{1,4}px)$/.test(b.size) ? b.size : '',
+      blur: num(b.blur, 0, 24, 0), bright: num(b.bright, 0.4, 1.3, 1), overlay: num(b.overlay, 0, 0.85, 0.1), ambBlur: num(b.ambBlur, 0, 24, 8), intensity: num(b.intensity, 0.2, 1.5, 0.6) });
+    if (kind === 'image' && !out.css) out.kind = 'auto';
+    if (kind === 'color' && !out.color) out.kind = 'auto';
+    if (kind === 'ambient' && !ids.includes(out.id)) out.kind = 'auto';
+    return out;
+  };
+  S.bg = BG_DEFAULT();
+  S.applyBackground = () => { if (window.__sgoBg) window.__sgoBg(S.bg); };
+  S.loadBackground = async () => { S.bg = cleanBg(await S.store.get('sgo_bg')); if (S.bg.kind === 'damascus') S.bg = BG_DEFAULT(); S.applyBackground(); };
+  /** Resolves true when the browser accepted the write (it refuses once its storage quota is used up). */
+  S.saveBackground = () => new Promise((res) => {
+    if (!hasChrome) return res(true);
+    try { chrome.storage.local.set({ sgo_bg: S.bg }, () => res(!chrome.runtime.lastError)); } catch (e) { res(false); }
+  });
+  S.setBackground = (patch) => { S.bg = cleanBg(Object.assign({}, S.bg, patch)); S.applyBackground(); };
+  S.resetBackground = async () => { S.bg = BG_DEFAULT(); S.applyBackground(); await S.store.remove('sgo_bg'); };
+  /** An uploaded picture: type and size are checked, then it is scaled down and re-encoded so it is small enough to keep. */
+  S.readBackgroundFile = (file) => new Promise((resolve, reject) => {
+    const L = S.BG_LIMITS;
+    if (!file) return reject(new Error('No file was chosen.'));
+    if (!/^image\/(png|jpeg|webp)$/.test(file.type)) return reject(new Error('Use a PNG, JPEG or WebP image.'));
+    if (file.size > L.bytes) return reject(new Error('That image is over 8 MB. Choose a smaller one.'));
+    const url = URL.createObjectURL(file), img = new Image();
+    img.onload = () => {
+      try {
+        const w = img.naturalWidth, h = img.naturalHeight;
+        if (Math.max(w, h) < L.min) throw new Error('That image is too small to use as a background.');
+        const k = Math.min(1, L.edge / Math.max(w, h)), c = document.createElement('canvas');
+        c.width = Math.round(w * k); c.height = Math.round(h * k);
+        const g = c.getContext('2d'); g.fillStyle = '#0b0d0f'; g.fillRect(0, 0, c.width, c.height); g.drawImage(img, 0, 0, c.width, c.height);
+        const data = c.toDataURL('image/jpeg', 0.85);
+        if (data.length > L.out) throw new Error('That image is too large to store even after shrinking it.');
+        resolve(data);
+      } catch (e) { reject(e.message && !/Failed|Tainted/i.test(e.message) ? e : new Error('That image could not be processed.')); }
+      finally { URL.revokeObjectURL(url); }
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('That file is not a readable image.')); };
+    img.src = url;
+  });
 
   /* ---------- DOM helper (text is always a text node => no injection) ---------- */
   S.h = function h(tag, props, ...kids) {
@@ -91,6 +155,8 @@
     eyeoff: '<path d="M3 3l18 18M10.6 6.2A9.8 9.8 0 0112 6c5 0 8.5 4 9.5 6a14 14 0 01-3 3.7M6.6 7.6C4.5 9 3 11 2.5 12c1 2 4.5 6 9.5 6a9 9 0 004-1"/>',
     drag: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    up: '<path d="M6 15l6-6 6 6"/>',
+    down: '<path d="M6 9l6 6 6-6"/>',
     left: '<path d="M15 5l-7 7 7 7"/>',
     right: '<path d="M9 5l7 7-7 7"/>',
     mega: '<path d="M3 11v3a1 1 0 001 1h2l7 4V6L6 10H4a1 1 0 00-1 1zM17 9a4 4 0 010 6"/>',
@@ -105,6 +171,18 @@
     bell: '<path d="M6 8a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 14 6 8z"/><path d="M10 19a2 2 0 004 0"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 4 4 3-3 4 4"/>',
+    dots: '<circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/>',
+    groups: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0112 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 015 5"/>',
+    inbox: '<path d="M3 13l3-8h12l3 8"/><path d="M3 13v6h18v-6h-5l-1 2h-6l-1-2z"/>',
+    help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 113.5 2.3c-.6.3-1 .8-1 1.5v.7"/><path d="M12 17.5v.01"/>',
+    access: '<circle cx="12" cy="5" r="2"/><path d="M5 8h14M12 8v5l-3 6M12 13l3 6"/>',
+    rocket: '<path d="M5 15c-1.5 1-2 4-2 4s3-.5 4-2"/><path d="M14 4c3 0 5 2 5 5-1.5 4-5 7-7 7-1 0-2-.5-2.5-1.5l-1-1C8 12.500 7 10.500 7 10c0-2 3-6 7-6z"/><circle cx="14" cy="10" r="1.4"/>',
+    notepad: '<path d="M7 3h10a2 2 0 012 2v15H5V5a2 2 0 012-2z"/><path d="M9 3v2M15 3v2M8.500 10h7M8.500 14h7M8.500 18h4"/>',
+    file: '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/>',
+    link: '<path d="M10 14a4 4 0 005.700 0l3-3a4 4 0 00-5.700-5.700l-1 1"/><path d="M14 10a4 4 0 00-5.700 0l-3 3a4 4 0 005.700 5.700l1-1"/>',
+    slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/>',
+    sheet: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>',
+    download: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
     reload: '<path d="M20 11a8 8 0 10-2.3 5.7M20 5v6h-6"/>',
   };
   S.icon = (name, size = 18) => {
@@ -180,7 +258,7 @@
   S.greetingSub = (now = new Date()) => { const hr = now.getHours(); return hr >= 5 && hr < 12 ? "Here's what's happening with your classes today." : hr >= 12 && hr < 17 ? "Let's see what's coming up." : 'Your academic overview.'; };
 
   /* ---------- colour ---------- */
-  const PALETTE = ['#5b6cff', '#e5484d', '#f5a524', '#30a46c', '#0ea5e9', '#a855f7', '#ec4899', '#14b8a6', '#f97316', '#84cc16'];
+  const PALETTE = ['#111214', '#2c2d2f', '#424346', '#58595c', '#707174', '#898a8d', '#a2a3a5'];
   S.PALETTE = PALETTE;
   S.courseColor = (courseId, name) => {
     const k = courseId || name || '';
@@ -236,14 +314,10 @@
   /** The name Schoology gives, tidied automatically unless the user turned that off. */
   S.autoName = (name) => (S.prefs.cleanNames === false ? name || '' : S.cleanName(name));
   /** Course code from the raw title, e.g. "MATH&151". */
-  S.courseCode = (name) => { const m = /\(([A-Z]{2,6}&?\s?\d{2,4}[A-Z]?)\)/.exec(name || ''); return m ? m[1] : ''; };
+  S.courseCode = (name) => { const m = /\(([A-Z]{2,6}\s?&?\s?\d{2,4}[A-Z]?)\)/.exec(name || ''); return m ? m[1] : ''; };
   S.cn = (id, name) => S.cmeta(id, name).name || S.autoName(name);
-  S.COVERS = [
-    ['aurora', 'linear-gradient(135deg,#a78bfa,#38bdf8)'], ['sunset', 'linear-gradient(135deg,#fb7185,#fbbf24)'], ['forest', 'linear-gradient(135deg,#10b981,#0e7490)'],
-    ['ocean', 'linear-gradient(135deg,#0ea5e9,#6366f1)'], ['berry', 'linear-gradient(135deg,#ec4899,#8b5cf6)'], ['peach', 'linear-gradient(135deg,#fdba74,#f472b6)'],
-    ['slate', 'linear-gradient(135deg,#475569,#0f172a)'], ['mint', 'linear-gradient(135deg,#6ee7b7,#3b82f6)'],
-  ];
-  const autoGrad = (id, name) => { const color = S.courseColor(id, name); return `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 55%, #7c3aed))`; };
+  S.COVERS = [['graphite', '#202124'], ['charcoal', '#333436'], ['steel', '#67686b'], ['silver', '#98999b']];
+  const autoGrad = (id, name) => `color-mix(in srgb, ${S.courseColor(id, name)} 36%, var(--surface2))`; // flat tint of the course colour, only when no picture is known
   S.autoGradient = autoGrad;
   const photo = (u) => `center / cover no-repeat url("${String(u).replace(/"/g, '%22')}")`;
   /** CSS background for a banner choice. '' and 'orig' mean the original Schoology banner when it is known, else the colour gradient. */

@@ -1,9 +1,9 @@
-/* Data layer. Reads data Schoology already shows the signed-in user, either from the live
- * page DOM or via same-origin fetches that reuse the user's existing session cookie.
+/* Data layer. Reads data Schoology already shows the signed-in user through same-origin requests
+ * that reuse the existing session cookie. Each resource has exactly one source (see S.refresh), so
+ * data never depends on which page happens to be loaded. The live page is only read for what no
+ * endpoint provides: course banners, and the name, picture and unread counts in the header.
  * Nothing is sent to any third party; results are cached in chrome.storage.local only.
- *
- * Schoology markup differs between districts/versions, so every parser is tolerant, has
- * a generic fallback, and reports what it found in S.state.diag (Settings > Diagnostics). */
+ * S.state.diag (Settings > Diagnostics) reports what each source returned. */
 (() => {
   const S = window.SGO;
   if (S.data) return;
@@ -12,12 +12,12 @@
   const SEL = {
     courseTitle: '.course-title, .course-name, .course-item-title, [class*="course-title"]',
     courseSection: '.course-subtitle, .section-title, .course-section, [class*="section-title"]',
-    upcomingBox: '.upcoming-event, .upcoming-list > *, [id*="upcoming"] li, [class*="upcoming-event"]',
+    upcomingBox: '.upcoming-event',
     overdueRoot: '#overdue-submissions, .overdue-submissions, [id*="overdue"], [class*="overdue-submission"]',
     itemHref: /\/(assignment|event|assessment|discussion)\/\d+|\/course\/\d+\/(assignment|assessment|event)/i,
-    feedItem: '.edge-item, li[id^="n"][class*="edge"], .feed-item',
+    feedItem: 'li[id^="edge-assoc"], li.edge-item',
     feedBody: '.update-body, .s-rte, .edge-body',
-    feedTime: '.update-time, .small.gray, time',
+    feedTime: '.created, .update-time, .small.gray, time',
     gradeCourse: '.gradebook-course', // one per course; holds a table of tr.report-row (course / period / category / item rows)
     desc: '.assignment-description, .info-body, .s-rte, [class*="assignment-description"], #main-content .content-body',
   };
@@ -25,7 +25,7 @@
   const state = (S.state = {
     courses: [], items: {}, announcements: [], grades: [], user: '', loading: false,
     loaded: false, diag: [], lastRefresh: 0,
-    session: 'ok', fetchedAt: {}, banners: {}, // 'ok' | 'expired'; when each remote resource was last fetched (persisted)
+    session: 'ok', fetchedAt: {}, banners: {}, avatar: '', unread: { messages: 0, notifications: 0 }, cd: {}, // 'ok' | 'expired'; when each remote resource was last fetched (persisted)
   });
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const abs = (href) => { try { return new URL(href, location.origin); } catch (e) { return null; } };
@@ -33,7 +33,8 @@
   /* ---------- fetching ---------- */
   const inflight = new Map(); // path -> promise: the same URL is never requested twice at once
   const gens = {};            // resource -> id of its latest request: older responses are ignored
-  const TTL = { 'Fetch: courses': 10 * 6e4, 'Fetch: upcoming': 2 * 6e4, 'Fetch: overdue': 2 * 6e4, 'Fetch: home page': 5 * 6e4, 'Fetch: grades': 5 * 6e4 };
+  const TTL = { 'Fetch: courses': 10 * 6e4, 'Fetch: assignments': 2 * 6e4, 'Fetch: events': 2 * 6e4, 'Fetch: overdue': 2 * 6e4, 'Fetch: announcements': 5 * 6e4, 'Fetch: grades': 5 * 6e4 };
+  const CACHE_VERSION = 2; // bump when cached data can no longer be trusted; older caches are discarded
   const LOGIN_RE = /id="s-user-login"|id="login-form"/i;
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const expired = () => Object.assign(new Error('session expired'), { fatal: true });
@@ -59,7 +60,7 @@
   const unwrap = (t) => {
     try {
       const j = JSON.parse(t);
-      const html = j && (j.html || (j.data && j.data.html) || j.content);
+      const html = j && (j.html || j.output || (j.data && j.data.html) || j.content);
       if (typeof html === 'string') return html;
     } catch (e) { /* not JSON: it's HTML */ }
     return t;
@@ -76,7 +77,8 @@
   /* ---------- parsers ---------- */
   function parseCourses(root) {
     const map = new Map();
-    root.querySelectorAll('a[href*="/course/"]').forEach((a) => {
+    const rows = root.querySelector('.course-item') ? '.course-item a[href*="/course/"]' : 'a[href*="/course/"]';
+    root.querySelectorAll(rows).forEach((a) => {
       const m = (a.getAttribute('href') || '').match(/\/course\/(\d+)/);
       if (!m) return;
       const id = m[1];
@@ -132,9 +134,7 @@
 
   function parseUpcoming(root) {
     const out = new Map();
-    let boxes = [...root.querySelectorAll(SEL.upcomingBox)];
-    if (!boxes.length) boxes = [...root.querySelectorAll('a')].filter((a) => SEL.itemHref.test(a.getAttribute('href') || '')).map((a) => a.closest('li, tr, div') || a);
-    boxes.forEach((box) => {
+    root.querySelectorAll(SEL.upcomingBox).forEach((box) => {
       box.querySelectorAll('a[href]').forEach((a) => {
         const it = itemFromAnchor(a, box);
         if (it && !out.has(it.key)) out.set(it.key, it);
@@ -144,8 +144,7 @@
   }
 
   function parseOverdue(root) {
-    const rootEl = root.querySelector(SEL.overdueRoot);
-    if (!rootEl) return { found: false, items: [] };
+    const rootEl = root.querySelector(SEL.overdueRoot) || root; // the fetched fragment has no wrapper element
     const out = new Map();
     rootEl.querySelectorAll('a[href]').forEach((a) => {
       // The course name lives on the enclosing upcoming-event row, not on the generic div around the link.
@@ -168,7 +167,7 @@
       out.push({
         id: li.id || String(out.length), author: clean(authorA && authorA.textContent),
         courseName: clean(courseA && courseA.textContent), courseId: cm ? cm[1] : '',
-        body: body.slice(0, 600), time: clean((li.querySelector(SEL.feedTime) || {}).textContent),
+        body: body.slice(0, 1500), time: clean((li.querySelector(SEL.feedTime) || {}).textContent),
         url: courseA ? abs(courseA.getAttribute('href')).pathname : '',
       });
     });
@@ -196,10 +195,151 @@
   S.originalBanner = (id, name) => {
     const c = state.courses.find((x) => x.id === id), raw = clean(c ? c.name : name);
     if (state.banners[raw]) return state.banners[raw];
+    // The dashboard card says "TITLE: (S1) Teacher ..." while the course list says just "TITLE", so a card whose title begins with
+    // the course title and a colon belongs to it (checked on a real account, where the exact and tidied-name matches both missed Calculus).
+    const low = raw.toLowerCase(), starts = Object.entries(state.banners).filter(([t]) => t.toLowerCase().startsWith(low + ':'));
+    if (starts.length === 1) return starts[0][1];
     const key = S.cleanName(raw).toLowerCase();
     const hits = Object.entries(state.banners).filter(([t]) => S.cleanName(t).toLowerCase() === key);
     return hits.length === 1 ? hits[0][1] : '';
   };
+
+  /* ---- course content ----
+   * /course/<id>/materials[?f=<folder>] is server-rendered: #folder-contents-table > tbody > tr, one row per item in Schoology's order.
+   * Folder rows are tr.material-row-folder (id f-<folderId>); the rest are tr.type-document / type-assignment / type-common-assessment.
+   * Folder pages do not say where they sit, so the folder tree (id -> title, parent) is built as folders are opened and cached. */
+  const FOLDER_TTL = 5 * 6e4, FEED_TTL = 5 * 6e4, ASG_TTL = 10 * 6e4;
+  const courseData = (id) => (state.cd[id] = state.cd[id] || { folders: {}, tree: {}, errors: {}, feed: null, feedErr: null });
+  const FMT = { pdf: ['pdf', 'PDF'], doc: ['doc', 'Document'], docx: ['doc', 'Document'], rtf: ['doc', 'Document'], odt: ['doc', 'Document'], txt: ['doc', 'Text file'], ppt: ['slides', 'Slides'], pptx: ['slides', 'Slides'], key: ['slides', 'Slides'],
+    xls: ['sheet', 'Spreadsheet'], xlsx: ['sheet', 'Spreadsheet'], csv: ['sheet', 'Spreadsheet'], png: ['image', 'Image'], jpg: ['image', 'Image'], jpeg: ['image', 'Image'], gif: ['image', 'Image'], mp4: ['video', 'Video'], mov: ['video', 'Video'], mp3: ['audio', 'Audio'], zip: ['file', 'Archive'] };
+  const idFrom = (href, kind) => (new RegExp('/' + kind + '/(\\d+)').exec(href || '') || [])[1] || '';
+  const textOf = (el) => (el ? visibleText(el) : '');
+  function parseMaterialRow(tr) {
+    const cl = tr.classList;
+    if (cl.contains('material-row-folder')) {
+      const t = tr.querySelector('.folder-title a') || tr.querySelector('.folder-title');
+      return { kind: 'folder', id: tr.id.replace(/^f-/, ''), title: textOf(t), desc: textOf(tr.querySelector('.folder-description')).slice(0, 220) };
+    }
+    const typeCls = [...cl].find((c) => c.startsWith('type-')) || '';
+    const a = tr.querySelector('.item-title a') || tr.querySelector('a[href]');
+    const href = a ? a.getAttribute('href') || '' : '', nid = tr.id.replace(/^n-/, '');
+    const titleEl = tr.querySelector('.item-title'), sub = textOf(tr.querySelector('.item-subtitle'));
+    const dueM = /Due\s+(.+?)(?:\s*·|$)/.exec(sub), file = tr.querySelector('.attachments-file-name'), size = textOf(tr.querySelector('.attachments-file-size'));
+    const body = textOf(tr.querySelector('.item-body')).replace(textOf(file), '').replace(size, '').trim().slice(0, 160);
+    let title = textOf(titleEl).replace(/\s*\d+ lesson plans?$/i, '') || textOf(tr.querySelector('.document-body-title')) || textOf(file);
+    if (typeCls === 'type-assignment') return { kind: 'assignment', id: idFrom(href, 'assignment') || nid, title, dueText: dueM ? dueM[1] : '', href, body };
+    if (/assessment|quiz|test/.test(typeCls)) return { kind: 'assessment', id: idFrom(href, 'assessment') || nid, title, dueText: dueM ? dueM[1] : '', href, body };
+    if (typeCls === 'type-discussion') return { kind: 'discussion', id: nid, title, href, body };
+    if (typeCls === 'type-document' || typeCls === 'type-page' || typeCls === 'type-link') {
+      const fa = tr.querySelector('.attachments-file a[href]') || (file && file.matches('a[href]') ? file : null);
+      if (file) { const ext = (/\.([a-z0-9]+)$/i.exec(textOf(file)) || [])[1] || '', f = FMT[ext.toLowerCase()] || ['file', ext ? ext.toUpperCase() + ' file' : 'File']; return { kind: 'file', fmt: f[0], fmtLabel: f[1], id: nid, title, href, size, dl: fa ? fa.getAttribute('href') : '' }; }
+      if (tr.querySelector('[class*="link-icon"]') || typeCls === 'type-link') return { kind: 'link', id: nid, title, href, body };
+      return { kind: typeCls === 'type-page' ? 'page' : 'document', id: nid, title, href, body };
+    }
+    return { kind: 'other', id: nid, title, href, body, label: typeCls.replace(/^type-/, '').replace(/-/g, ' ') };
+  }
+  function parseFolder(doc, fid) {
+    const tbl = doc.querySelector('#folder-contents-table');
+    if (!tbl) throw new Error('This page did not contain a materials list');
+    const seen = new Set(), items = [];
+    tbl.querySelectorAll(':scope > tbody > tr, :scope > tr').forEach((tr) => {
+      if (!/type-|material-row-folder/.test(tr.className)) return;
+      const it = parseMaterialRow(tr);
+      if (!it.title) it.title = it.kind === 'folder' ? 'Untitled folder' : 'Untitled';
+      const k = it.kind + ':' + (it.id || it.title);
+      if (!seen.has(k)) { seen.add(k); items.push(it); }
+    });
+    return { id: fid || 'root', title: fid ? textOf(doc.querySelector('h1.page-title')) : '', items };
+  }
+  function loadFolder(courseId, fid) {
+    const cd = courseData(courseId), key = fid || 'root', ik = `folder:${courseId}:${key}`;
+    if (inflight.has(ik)) return inflight.get(ik);
+    const p = S.getDoc(`/course/${courseId}/materials` + (fid ? `?f=${encodeURIComponent(fid)}` : '')).then((doc) => {
+      const f = parseFolder(doc, fid); f.at = Date.now(); cd.folders[key] = f; delete cd.errors[key];
+      if (fid) cd.tree[fid] = Object.assign({ parent: '' }, cd.tree[fid], { title: f.title });
+      f.items.forEach((ch) => { if (ch.kind === 'folder') cd.tree[ch.id] = { title: ch.title, parent: key }; });
+      saveCache(); return f;
+    }).catch((e) => { cd.errors[key] = { msg: String(e.message || e), at: Date.now() }; throw e; }).finally(() => inflight.delete(ik));
+    inflight.set(ik, p); return p;
+  }
+  const redraw = () => { if (S.render) S.render(true); };
+  /** What the UI needs for one folder: the cached copy (even if old), and whether a refresh is running or failed. Starts at most one request. */
+  S.folderState = (courseId, fid) => {
+    const cd = courseData(courseId), key = fid || 'root', cur = cd.folders[key], err = cd.errors[key];
+    const fresh = cur && Date.now() - cur.at < FOLDER_TTL, recentErr = err && Date.now() - err.at < 30e3;
+    if (!fresh && !recentErr && !inflight.has(`folder:${courseId}:${key}`)) loadFolder(courseId, fid).then(redraw, redraw);
+    return { data: cur || null, loading: !fresh && !recentErr, error: recentErr ? err.msg : '' };
+  };
+  S.retryFolder = (courseId, fid) => { delete courseData(courseId).errors[fid || 'root']; redraw(); };
+  S.folderCount = (courseId, fid) => { const f = (state.cd[courseId] || { folders: {} }).folders[fid]; return f ? f.items.length : null; };
+  /** [{id, title}] from the first folder down to this one, or null while its parents are not known yet. */
+  S.folderTrail = (courseId, fid) => {
+    const cd = state.cd[courseId], out = []; let cur = fid, guard = 0;
+    if (!cd) return null;
+    while (cur && cur !== 'root' && guard++ < 25) { const n = cd.tree[cur]; if (!n || !n.parent) return null; out.unshift({ id: cur, title: n.title }); cur = n.parent; }
+    return out;
+  };
+  const crawling = new Map();
+  /** A nested folder opened by its address has no known parents. Walk the tree from the top, level by level, until it is found (cached afterwards). */
+  S.discoverFolder = (courseId, fid) => {
+    const k = courseId + ':' + fid;
+    if (crawling.has(k)) return crawling.get(k);
+    const cd = courseData(courseId);
+    const p = (async () => {
+      let level = ['root'], visited = 0; const seen = new Set();
+      while (level.length && visited < 40 && !(cd.tree[fid] && cd.tree[fid].parent)) {
+        const next = [];
+        for (const key of level) {
+          if (seen.has(key)) continue; seen.add(key); visited++;
+          const f = cd.folders[key] && Date.now() - cd.folders[key].at < FOLDER_TTL ? cd.folders[key] : await loadFolder(courseId, key === 'root' ? '' : key);
+          f.items.forEach((ch) => { if (ch.kind === 'folder') next.push(ch.id); });
+          if (cd.tree[fid] && cd.tree[fid].parent) break;
+        }
+        level = next;
+      }
+    })().catch(() => {}).finally(() => { crawling.delete(k); redraw(); });
+    crawling.set(k, p); return p;
+  };
+  /** Load the folders directly below the one on screen so their item counts can be shown. A few at a time, each at most once. */
+  S.prefetchFolders = (courseId, ids) => {
+    const cd = courseData(courseId), todo = ids.filter((id) => !cd.folders[id] && !cd.errors[id] && !inflight.has(`folder:${courseId}:${id}`)).slice(0, 8);
+    if (!todo.length) return;
+    Promise.allSettled(todo.map((id) => loadFolder(courseId, id))).then(redraw);
+  };
+  S.feedState = (courseId) => {
+    const cd = courseData(courseId), cur = cd.feed, err = cd.feedErr, ik = 'feed:' + courseId;
+    const fresh = cur && Date.now() - cur.at < FEED_TTL, recentErr = err && Date.now() - err.at < 30e3;
+    if (!fresh && !recentErr && !inflight.has(ik)) {
+      const p = S.getDoc(`/course/${courseId}/feed`).then((doc) => { cd.feed = { items: parseAnnouncements(doc), at: Date.now() }; cd.feedErr = null; saveCache(); })
+        .catch((e) => { cd.feedErr = { msg: String(e.message || e), at: Date.now() }; }).finally(() => { inflight.delete(ik); redraw(); });
+      inflight.set(ik, p);
+    }
+    return { items: cur ? cur.items : null, loading: !fresh && !recentErr, error: recentErr ? err.msg : '' };
+  };
+  /* Assignment pages: instructions, due date and attachments. Cached in memory only. */
+  const asgCache = new Map();
+  function parseAssignmentPage(doc) {
+    const t = doc.querySelector('h1.page-title'), clone = t ? t.cloneNode(true) : null;
+    if (clone) clone.querySelectorAll('.visually-hidden, .lesson-plan-wrapper').forEach((n) => n.remove());
+    const due = [...doc.querySelectorAll('.due-date')].map((e) => clean(e.textContent)).find(Boolean) || '';
+    const body = doc.querySelector('.info-body') || doc.querySelector(SEL.desc);
+    const atts = [...doc.querySelectorAll('.attachments-file a[href], .attachments a[href]')].map((a) => ({ name: clean(a.textContent), href: a.getAttribute('href') })).filter((x) => x.name);
+    return { title: clone ? clean(clone.textContent).replace(/\s*\d+ lesson plans?$/i, '') : '', dueText: due.replace(/^Due:?\s*/i, ''), descHtml: body ? body.innerHTML : '', attachments: atts };
+  }
+  S.assignmentState = (aid) => {
+    const cur = asgCache.get(aid), ik = 'asg:' + aid;
+    const fresh = cur && cur.data && !cur.err && Date.now() - cur.at < ASG_TTL, recentErr = cur && cur.err && Date.now() - cur.at < 30e3;
+    if (!fresh && !recentErr && !inflight.has(ik)) {
+      const p = S.getDoc(`/assignment/${aid}`).then((doc) => { asgCache.set(aid, { at: Date.now(), data: parseAssignmentPage(doc) }); })
+        .catch((e) => { asgCache.set(aid, { at: Date.now(), err: String(e.message || e), data: cur && cur.data }); }).finally(() => { inflight.delete(ik); redraw(); });
+      inflight.set(ik, p);
+    }
+    return { data: cur ? cur.data : null, loading: !fresh && !recentErr, error: recentErr ? cur.err : '' };
+  };
+  S.retryAssignment = (aid) => { asgCache.delete(aid); redraw(); };
+  /** "Ribarich, H" in the course title becomes "H. Ribarich". Empty when the title carries no teacher. */
+  S.courseTeacher = (course) => { const m = /:\s*\([^)]*\)\s*([A-Z][\w'’-]+),\s*([A-Z])\.?/.exec(course && course.name || ''); return m ? `${m[2]}. ${m[1]}` : ''; };
+  S.courseTerm = (course) => (/\((S\d|Q\d|T\d|Y\d?)\)/.exec(course && course.name || '') || [])[1] || '';
 
   /* ---- grades ----
    * Schoology renders each course as .gradebook-course > table > tr.report-row, where the row class says what it is:
@@ -261,7 +401,9 @@
           const earned = nums ? parseFloat(nums[1]) : null, possible = nums ? parseFloat(nums[2]) : null;
           const [status, statusLabel] = itemStatus(clean(gc ? gc.textContent : ''), earned);
           if (cat.items.some((x) => x.title === title && x.dueText === dueText)) return; // never list the same entry twice
-          cat.items.push({ title, dueText, earned, possible, status, statusLabel });
+          const cc = tr.querySelector('td.comment-column'), note = cc ? visibleText(cc) : '';
+          const ta = th.querySelector('a[href]');
+          cat.items.push({ title, dueText, earned, possible, status, statusLabel, comment: /^no comment$/i.test(note) ? '' : note, href: ta ? ta.getAttribute('href') || '' : '' });
         }
       });
       out.push(course);
@@ -276,32 +418,32 @@
     for (const k in it) if (it[k] !== '' && it[k] != null) next[k] = it[k];
     next.lastSeen = Date.now();
     if (!next.courseName && next.courseId) { const c = state.courses.find((x) => x.id === next.courseId); if (c) next.courseName = c.name; }
-    if (next.courseName && !next.courseId) { const c = state.courses.find((x) => x.name === next.courseName || next.courseName.includes(x.name)); if (c) next.courseId = c.id; }
     state.items[it.key] = next;
   }
+  /** Connect items and grades to courses by cleaned title. Runs after every refresh, because the sources load in parallel. */
+  function relink() {
+    Object.values(state.items).forEach((i) => { if (!i.courseId && i.courseName) i.courseId = courseIdFor(i.courseName); });
+    state.grades.forEach((g) => { if (!g.courseId) g.courseId = courseIdFor(g.courseName); });
+  }
 
-  let changed = false;
   /** Signature of everything the UI renders. Comparing it avoids re-rendering when a scan finds identical data. */
-  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners]);
+  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners, state.avatar, state.unread]);
   S.stateSig = sig;
   /** Adopt cache written by another tab. Returns true only if the data actually differs. */
   S.adoptCache = (c) => {
+    if (c.v !== CACHE_VERSION) return false;
     const before = sig();
     Object.assign(state, { courses: c.courses || [], items: c.items || {}, announcements: c.announcements || [], grades: c.grades || [], user: c.user || '', banners: c.banners || state.banners });
     return sig() !== before;
   };
-  function applyUpcoming(list) { list.forEach(upsert); changed = changed || list.length > 0; }
+  function applyUpcoming(list) { list.forEach(upsert); }
   function applyOverdue(res) {
-    if (!res.found) return;
     const seen = new Set(res.items.map((i) => i.key));
-    Object.values(state.items).forEach((i) => { if (i.fromOverdue && !seen.has(i.key)) { i.fromOverdue = false; changed = true; } });
-    res.items.forEach(upsert); changed = changed || res.items.length > 0;
+    Object.values(state.items).forEach((i) => { if (i.fromOverdue && !seen.has(i.key)) i.fromOverdue = false; });
+    res.items.forEach(upsert);
   }
   function applyCourses(list) {
-    if (!list.length) return;
-    const merged = new Map(state.courses.map((c) => [c.id, c]));
-    list.forEach((c) => merged.set(c.id, Object.assign(merged.get(c.id) || {}, c)));
-    state.courses = [...merged.values()]; changed = true;
+    if (list.length) state.courses = list; // the /courses page is authoritative: it replaces the list, it never merges into it
   }
   function diag(name, ok, count, note) {
     const i = state.diag.findIndex((d) => d.name === name);
@@ -315,53 +457,53 @@
   }
   const saveCache = S.debounce(() => {
     prune();
-    S.store.set('sgo_cache', { courses: state.courses, items: state.items, announcements: state.announcements, grades: state.grades, user: state.user, fetchedAt: state.fetchedAt, banners: state.banners });
+    S.store.set('sgo_cache', { v: CACHE_VERSION, courses: state.courses, items: state.items, announcements: state.announcements, grades: state.grades, user: state.user, fetchedAt: state.fetchedAt, banners: state.banners, avatar: state.avatar, cd: state.cd });
   }, 500);
-  S.clearCache = async () => { await S.store.remove('sgo_cache'); Object.assign(state, { courses: [], items: {}, announcements: [], grades: [], fetchedAt: {}, banners: {} }); };
+  S.clearCache = async () => { await S.store.remove('sgo_cache'); Object.assign(state, { courses: [], items: {}, announcements: [], grades: [], fetchedAt: {}, banners: {}, cd: {} }); };
 
   S.loadCache = async () => {
     const c = await S.store.get('sgo_cache');
-    if (c) Object.assign(state, { courses: c.courses || [], items: c.items || {}, announcements: c.announcements || [], grades: c.grades || [], user: c.user || '', fetchedAt: c.fetchedAt || {}, banners: c.banners || {} });
+    if (!c) return;
+    Object.assign(state, { user: c.user || '', banners: c.banners || {}, avatar: c.avatar || '' });
+    if (c.cd) state.cd = c.cd;
+    if (c.v === CACHE_VERSION) Object.assign(state, { courses: c.courses || [], items: c.items || {}, announcements: c.announcements || [], grades: c.grades || [], fetchedAt: c.fetchedAt || {} });
   };
 
-  /* ---------- live DOM scrape (the page Schoology itself rendered) ---------- */
-  function findUser(root) {
-    const cands = root.querySelectorAll('[class*="profile-name"], [class*="user-name"], [data-testid*="user-name"]');
-    for (const el of cands) {
-      const t = clean(el.getAttribute('aria-label') || el.textContent);
-      if (t && t.length < 40 && !/^(profile|account|settings|my|view|edit|sign|log)/i.test(t) && /[a-z]/i.test(t)) return t;
+  /* ---------- live page: only what no endpoint provides ---------- */
+  function readHeader(root) {
+    const hd = root.querySelector('#header');
+    const named = root.querySelector('[class*="profile-name"], [class*="user-name"]');
+    const out = { user: clean(named && named.textContent), avatar: '', unread: { messages: 0, notifications: 0 } };
+    if (!hd) return out;
+    const img = hd.querySelector('button img');
+    if (img) {
+      try { const u = new URL(img.getAttribute('src'), location.href); if (/(^|\.)schoology\.com$/i.test(u.hostname) || u.origin === location.origin) out.avatar = u.href; } catch (e) { /* no picture */ }
+      out.user = clean((img.closest('button') || {}).textContent) || out.user;
     }
-    return '';
+    hd.querySelectorAll('button[aria-label]').forEach((b) => {
+      const m = /(\d+)\s+unread\s+(messages|notifications)/i.exec(b.getAttribute('aria-label'));
+      if (m) out.unread[m[2].toLowerCase()] = +m[1];
+    });
+    return out;
   }
 
-  S.scrapeLive = (root = document, scope = ['courses', 'upcoming', 'overdue', 'feed', 'grades', 'banners']) => {
+  /** Banners exist only on the home page's Course Dashboard, so they are read only when /home is the loaded page. */
+  S.scrapeLive = (root = document, hostIsHome = false) => {
     const before = sig();
-    changed = false;
-    const on = (k) => scope.includes(k);
     try {
-      if (on('courses')) { const courses = parseCourses(root); applyCourses(courses); diag('Live page: courses', courses.length > 0, courses.length); }
-      if (on('upcoming')) { const up = parseUpcoming(root); applyUpcoming(up); diag('Live page: upcoming', up.length > 0, up.length); }
-      if (on('overdue')) { const od = parseOverdue(root); applyOverdue(od); diag('Live page: overdue', od.found, od.items.length, od.found ? '' : 'container not found'); }
-      if (on('feed')) {
-        const an = parseAnnouncements(root);
-        if (an.length) { state.announcements = an; changed = true; }
-        diag('Live page: announcements', an.length > 0, an.length);
-      }
-      if (on('grades')) {
-        const gr = parseGrades(root);
-        if (gr.length) { state.grades = gr; changed = true; }
-        diag('Live page: grades', gr.length > 0, gr.length);
-      }
-      if (on('banners')) {
+      if (hostIsHome) {
         const b = parseBanners(root);
         if (Object.keys(b).length) state.banners = Object.assign({}, state.banners, b);
         diag('Live page: banners', Object.keys(b).length > 0, Object.keys(b).length);
       }
-      const u = findUser(root); if (u && u !== state.user) { state.user = u; changed = true; }
+      const hd = readHeader(root);
+      if (hd.user) state.user = hd.user;
+      if (hd.avatar) state.avatar = hd.avatar;
+      state.unread = hd.unread;
     } catch (e) { diag('Live page scrape', false, 0, String(e.message || e)); }
-    changed = sig() !== before;
-    if (changed) saveCache();
-    return changed;
+    const now = sig() !== before;
+    if (now) saveCache();
+    return now;
   };
 
   /* ---------- same-origin fetches (reuses the user's existing login) ---------- */
@@ -382,22 +524,20 @@
   let pending = 0;
   /** Refresh remote data. Respects the cache lifetimes above unless forced, so switching tabs never refetches fresh data. */
   S.refresh = async (route, opts = {}) => {
-    const force = !!opts.force, hostHome = location.pathname.replace(/\/+$/, '') === '/home';
-    pending++; state.loading = true; const before = sig(); changed = false;
-    // On /home, Schoology's own page already requests the upcoming and overdue lists and the live scrape reads them,
-    // so asking again only duplicates those requests. Fetch them elsewhere, when forced, or as a fallback.
-    const wantItems = !hostHome || force || !!opts.items;
+    const force = !!opts.force;
+    pending++; state.loading = true; const before = sig();
     const jobs = [attempt('Fetch: courses', '/courses', parseCourses, applyCourses, force)];
-    if (wantItems) jobs.push(attempt('Fetch: upcoming', '/home/upcoming_ajax', parseUpcoming, applyUpcoming, force),
-                             attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
+    if (route !== 'native' && route !== 'inbox' && route !== 'groups' && route !== 'history') jobs.push(
+      attempt('Fetch: assignments', '/home/upcoming_submissions_ajax', parseUpcoming, applyUpcoming, force),
+      attempt('Fetch: events', '/home/upcoming_ajax', parseUpcoming, applyUpcoming, force),
+      attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
+    if (route === 'dashboard' || route === 'history') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
+    if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) state.grades = g; }, force));
     await Promise.all(jobs);
-    if (wantItems && !Object.keys(state.items).length)
-      await attempt('Fetch: home page', '/home', (doc) => Object.assign(parseUpcoming(doc), { _o: parseOverdue(doc) }), (r) => { applyUpcoming(r); applyOverdue(r._o); }, force);
-    if (route === 'grades') await attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; changed = true; } }, force);
+    relink();
     pending--; state.loading = pending > 0; state.loaded = true; state.lastRefresh = Date.now();
-    changed = sig() !== before;
     saveCache(); // also persists fetchedAt so the cache lifetimes survive a page reload
-    return changed;
+    return sig() !== before;
   };
 
   /** Lazily fetch an assignment's description (shown in the detail view). */
@@ -419,11 +559,32 @@
 
   /* ---------- derived, non-fabricated helpers ---------- */
   S.isDone = (it) => !!S.prefs.done[it.key];
-  S.isOverdue = (it) => !S.isDone(it) && !!it.fromOverdue;
+  /** Overdue means Schoology lists it as missing. The student's own tasks have no such list, so their date decides. */
+  S.isOverdue = (it) => !S.isDone(it) && (!!it.fromOverdue || (!!it.manual && !!it.due && it.due < Date.now()));
   /** Past its due date and not marked done. Schoology does not reliably expose submissions, so this is the student's own view. */
   S.isPastDue = (it) => !S.isDone(it) && !!it.due && it.due < Date.now();
   /** Past its date but not on Schoology's missing list: it may well be submitted, so its status is unknown. Kept out of To-do and counts. */
-  S.isStale = (it) => S.isPastDue(it) && !it.fromOverdue;
+  S.isStale = (it) => S.isPastDue(it) && !it.fromOverdue && !it.manual;
+  /* Gradebook lookups: which assignment has been submitted or graded, how many points it is worth. */
+  let gradeIndex = null, gradeIndexOf = null;
+  S.gradeFor = (courseId) => state.grades.find((g) => g.courseId === courseId) || null;
+  /** The gradebook entry for an assignment, matched by its id when the gradebook links to it, else by title. */
+  S.gradeEntryFor = (courseId, aid, title) => {
+    const g = S.gradeFor(courseId); if (!g) return null;
+    let hit = null;
+    (g.periods || []).forEach((p) => p.categories.forEach((cat) => cat.items.forEach((x) => { if (!hit && ((aid && idFrom(x.href, 'assignment') === aid) || (title && x.title.toLowerCase() === title.toLowerCase()))) hit = x; })));
+    return hit;
+  };
+  S.gradeEntry = (it) => {
+    if (gradeIndexOf !== state.grades) {
+      gradeIndexOf = state.grades; gradeIndex = new Map();
+      state.grades.forEach((g) => (g.periods || []).forEach((p) => p.categories.forEach((cat) => cat.items.forEach((x) => { const k = g.courseId + '|' + x.title.toLowerCase(); if (!gradeIndex.has(k)) gradeIndex.set(k, x); }))));
+    }
+    return it.courseId ? gradeIndex.get(it.courseId + '|' + it.title.toLowerCase()) || null : null;
+  };
+  /** Schoology's gradebook shows it as submitted or graded. */
+  S.isSubmitted = (it) => { const e = S.gradeEntry(it); return !!e && (e.status === 'graded' || e.status === 'pending'); };
+  S.isComplete = (it) => S.isDone(it) || S.isSubmitted(it);
   S.statusOf = (it) => {
     if (S.isDone(it)) return { id: 'done', label: 'Done (marked by you)' };
     if (it.fromOverdue) return { id: 'missing', label: 'Not submitted' };

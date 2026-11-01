@@ -9,14 +9,17 @@
   const html = document.documentElement;
   let root, side, main, content, top;
 
-  const NAV = [
+  S.TOP_LINKS = [['portal', 'Portal'], ['schools', 'Colleges & Schools'], ['map', 'Map & Locations'], ['contact', 'Contact Us'], ['help', 'Help']];
+  const linkTo = (k) => (S.prefs.topLinks || {})[k] || '/home#/settings'; // unset school links open Settings, where they can be added
+  const RAIL = () => [
     ['dashboard', 'Dashboard', 'home', '/home'],
     ['courses', 'Courses', 'book', '/courses'],
-    ['assignments', 'Assignments', 'tasks', '/home#/assignments'],
+    ['groups', 'Groups', 'groups', '/groups'],
     ['calendar', 'Calendar', 'calendar', '/calendar'],
-    ['grades', 'Grades', 'grades', '/grades/grades'],
-    ['resources', 'Resources', 'folder', '/resources'],
-    ['settings', 'Settings', 'settings', '/home#/settings'],
+    ['inbox', 'Inbox', 'inbox', '/messages'],
+    ['history', 'History', 'clock', '/home/recent-activity'],
+    ['help', 'Help', 'help', linkTo('help')],
+    ['settings', 'Accessibility', 'access', '/home#/settings'],
   ];
 
   /* ---------- routing ---------- */
@@ -29,20 +32,32 @@
       if (hp.path === '/settings') return 'settings';
       return 'dashboard';
     }
+    if (/[?&]sgo=classic\b/.test(loc.search)) return null; // explicit link to Schoology's own page
     if (p === '/courses') return 'courses';
-    if (p === '/calendar') return 'calendar';
+    if (S.courseRoute(loc)) return 'course';
+    if (/^\/calendar(\/.*)?$/.test(p)) return 'calendar';
+    if (/^\/messages(\/sent|\/view\/\d+)?$/.test(p)) return 'inbox'; // compose (/messages/new) stays on Schoology's own page
+    if (p === '/home/recent-activity') return 'history';
+    if (p === '/groups') return 'groups'; // a single group (/group/ID) opens on Schoology's own page
     if (/^\/grades(\/grades)?$/.test(p)) return 'grades';
     return null;
   }
   const route = () => routeFor(location);
-  const navKey = (r) => r === 'assignment' ? 'assignments' : r || (/^\/course\//.test(location.pathname) ? 'courses' : /^\/resources/.test(location.pathname) ? 'resources' : '');
-  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings' };
+  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : /^\/home\/recent-activity/.test(p) ? 'history' : ''); };
+  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups', history: 'History' };
 
   /* ---------- theme ---------- */
   S.applyTheme = () => {
     const t = S.prefs.theme, dark = t === 'dark' || (t === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
     html.classList.toggle('sgo-dark', dark);
     html.style.setProperty('--accent', S.prefs.accent);
+    html.style.setProperty('--accent-color', S.prefs.accent);
+    html.style.setProperty('--contour-color', S.prefs.contour || '#40526d');
+    html.style.setProperty('--contour-glow', S.prefs.contourGlow || '#1d4f91');
+    html.style.setProperty('--app-background', S.prefs.background || '#000000');
+    html.style.setProperty('--on-accent', S.onAccent(S.prefs.accent));
+    if (window.__sgoCtx) { window.__sgoCtx.accent = S.prefs.accent; window.__sgoCtx.dark = dark; }
+    if (window.__sgoAmbient) window.__sgoAmbient(); // the blob colours follow the accent and the theme, with a smooth transition
     html.classList.toggle('sgo-collapsed', !!S.prefs.collapsed);
   };
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => S.applyTheme());
@@ -67,36 +82,32 @@
   }
 
   function sidebar(r) {
-    const active = navKey(r), m = /^\/course\/(\d+)/.exec(location.pathname), cur = m && m[1];
-    const nav = NAV.map(([k, label, ic, href]) => h('a', { class: 'sgo-nav' + (active === k ? ' on' : ''), href, title: label }, icon(ic, 19), h('span', null, label)));
-    const courses = S.orderedCourses().slice(0, 14).map((c) => h('a', { class: 'sgo-cl' + (cur === c.id ? ' on' : ''), href: `/course/${c.id}/materials`, title: S.cn(c.id, c.name) },
-      h('i', { style: { background: S.courseColor(c.id, c.name) } }), h('span', null, S.cn(c.id, c.name))));
-    const thisCourse = cur && h('div', { class: 'sgo-sidegrp' }, h('div', { class: 'sgo-side-l' }, 'This course'),
-      [['Materials', `/course/${cur}/materials`], ['Updates', `/course/${cur}/updates`], ['Assignments', `/home#/assignments?course=${cur}`], ['Members', `/course/${cur}/members`]]
-        .map(([l, u]) => h('a', { class: 'sgo-cl', href: u }, h('span', null, l))));
-    return h('aside', { class: 'sgo-side' },
-      h('div', { class: 'sgo-brand' }, h('div', { class: 'sgo-logo' }, 'S'), h('b', null, 'Schoology'),
-        h('button', { class: 'sgo-icon-btn', title: 'Collapse sidebar', onclick: () => { S.prefs.collapsed = !S.prefs.collapsed; S.savePrefs(); S.applyTheme(); } }, icon('panel', 17))),
-      h('nav', { class: 'sgo-navs' }, nav),
-      thisCourse,
-      courses.length ? h('div', { class: 'sgo-sidegrp' },
-        h('button', { class: 'sgo-side-l sgo-side-toggle', 'aria-expanded': String(!!S.prefs.classesOpen), onclick: () => { S.prefs.classesOpen = !S.prefs.classesOpen; S.savePrefs(); S.render(true); } },
-          h('span', null, 'Classes'), h('span', { class: 'sgo-side-n' }, S.state.courses.length), h('span', { class: 'sgo-chev' + (S.prefs.classesOpen ? ' open' : '') }, icon('right', 14))),
-        S.prefs.classesOpen && courses) : null,
-      h('div', { class: 'sgo-side-foot' },
-        h('button', { class: 'sgo-nav', title: 'Switch to the original Schoology layout', onclick: () => { S.prefs.classic = true; S.savePrefs(); S.render(); } }, icon('external', 19), h('span', null, 'Classic view')),
-        h('a', { class: 'sgo-nav', href: '/logout', title: 'Sign out' }, icon('logout', 19), h('span', null, 'Sign out'))));
+    const active = navKey(r), who = S.prefs.displayName || S.state.user || '';
+    const initials = who.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'Me';
+    const face = S.state.avatar ? h('img', { class: 'sgo-face', src: S.state.avatar, alt: '' }) : h('span', { class: 'sgo-face' }, initials);
+    const account = S.menu('Account' + (who ? ': ' + who : ''), [
+      ['Assignments', () => S.go('/home#/assignments')], ['Grades', () => S.go('/grades/grades')], ['Resources', () => S.go('/resources')],
+      ['Extension settings', () => S.go('/home#/settings')], ['Schoology account', () => S.go('/settings/account')],
+      ['Classic view', () => { S.prefs.classic = true; S.savePrefs(); S.render(); }], ['Sign out', () => S.go('/logout')],
+    ], h('button', { class: 'sgo-rail-i', type: 'button' }, face, h('span', null, 'Account')));
+    const collapsed = !!S.prefs.collapsed;
+    return h('nav', { class: 'sgo-rail', 'aria-label': 'Main' }, account,
+      RAIL().map(([k, label, ic, href]) => h('a', { class: 'sgo-rail-i', href, 'aria-current': active === k ? 'page' : null, title: label, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, icon(ic, 21), h('span', null, label),
+        k === 'inbox' && S.state.unread.messages ? h('b', { class: 'sgo-rail-n', 'aria-label': `${S.state.unread.messages} unread` }, S.state.unread.messages) : null)),
+      h('button', { class: 'sgo-rail-tog', type: 'button', 'aria-expanded': String(!collapsed), 'aria-label': collapsed ? 'Expand navigation' : 'Collapse navigation', dataset: { fk: 'rail-toggle' },
+        onclick: () => { S.prefs.collapsed = !collapsed; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon('left', 17)));
   }
 
   function topbar() {
     const q = h('input', { class: 'sgo-input sgo-search', type: 'search', placeholder: 'Search assignments…', 'aria-label': 'Search assignments',
       onkeydown: (e) => { if (e.key === 'Enter') { S.ui.assign.q = e.target.value; S.ui.assign.f = 'all'; S.ui.assign.course = ''; S.go('/home#/assignments'); S.render(); } } });
     const dark = html.classList.contains('sgo-dark');
+    const links = [['Home', '/home'], ...S.TOP_LINKS.filter(([k]) => k !== 'help').map(([k, label]) => [label, linkTo(k)])];
     return h('div', { class: 'sgo-top' }, q,
+      h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
       h('span', { class: 'sgo-status' }, S.state.loading ? 'Updating…' : S.state.lastRefresh ? 'Updated ' + S.fmtTime(S.state.lastRefresh) : ''),
       h('button', { class: 'sgo-icon-btn', title: 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
-      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: () => { S.prefs.theme = dark ? 'light' : 'dark'; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon(dark ? 'sun' : 'moon', 18)),
-      (S.prefs.displayName || S.state.user) && h('span', { class: 'sgo-user', title: S.prefs.displayName || S.state.user }, (S.prefs.displayName || S.state.user).split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase()));
+      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: () => { S.prefs.theme = dark ? 'light' : 'dark'; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon(dark ? 'sun' : 'moon', 18)));
   }
 
   /** Shown when a request reveals that the Schoology session has ended. Existing data stays visible. */
@@ -112,6 +123,8 @@
     if (!root) return;
     const r = route(), ae = document.activeElement, hadSearch = keepFocus && ae && ae.type === 'search' && root.contains(ae) && ae.classList.contains('sgo-input') && !ae.classList.contains('sgo-search');
     const sel = hadSearch ? ae.selectionStart : 0, scroll = content ? content.scrollTop : 0;
+    // Everything is rebuilt, so remember what had keyboard focus and put it back afterwards.
+    const fk = ae && root.contains(ae) && ae.dataset ? ae.dataset.fk : '';
 
     if (S.prefs.classic) {
       html.classList.remove('sgo-app', 'sgo-native'); clearHidden(); lastRoute = null;
@@ -136,32 +149,35 @@
     let view;
     try { view = S.views[r]({ path: S.parseHash().path, q: S.parseHash().q }); }
     catch (e) { console.error('[Schoology Overhaul]', e); view = h('div', { class: 'sgo-page' }, h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Something went wrong drawing this page'), h('div', { class: 'sgo-empty-s' }, 'Use Classic view in the sidebar to keep working.'))); }
-    document.title = (TITLES[r] || 'Schoology') + ' · Schoology';
-    const sig = r + '|' + location.pathname + '|' + S.parseHash().path;
+    document.title = (S._title || TITLES[r] || 'Schoology') + ' · Schoology'; S._title = '';
+    const sig = r + '|' + location.pathname + location.search + '|' + S.parseHash().path;
     content = h('main', { class: 'sgo-content' + (sig !== lastSig ? ' animate' : ''), id: 'sgo-content' }, view);
+    if (sig !== lastSig && (r === 'course' || r === 'assignment') && S._logTitle) S.logVisit(r, S._logTitle, location.pathname + location.search + (r === 'assignment' ? location.hash : ''));
+    S._logTitle = '';
     lastSig = sig;
     root.replaceChildren(sidebar(r), h('div', { class: 'sgo-main' }, topbar(), banner(), content), S.modalHost);
-    content.scrollTop = scroll;
+    content.scrollTop = content.classList.contains('animate') ? 0 : scroll; // a different page starts at the top
     if (hadSearch) { const i = content.querySelector('input[type=search]'); if (i) { i.focus(); try { i.setSelectionRange(sel, sel); } catch (e) { /* ignore */ } } }
+    if (fk) { const el = root.querySelector(`[data-fk="${CSS.escape(fk)}"]`) || root.querySelector('[data-fk-fallback]'); if (el) el.focus({ preventScroll: true }); }
   };
 
   S.hardRefresh = async () => {
     S.state.loading = true; S.render(true);
     const r = route() || 'native';
-    if (r === 'dashboard' || r === 'grades') S.scrapeLive(document, scopeFor(r));
-    await S.refresh(r === 'native' ? 'courses' : r, { force: true });
+    S.scrapeLive(document, hostIsHome);
+    if (S.resetSocial) S.resetSocial();
+    await S.refresh(r, { force: true });
     S.render(true);
   };
 
-  const scopeFor = (r) => r === 'dashboard' ? ['courses', 'upcoming', 'overdue', 'feed', 'banners'] : r === 'grades' ? ['courses', 'grades'] : ['courses'];
+  // Client-side navigation changes the URL but not the document, so remember which Schoology page is really loaded.
+  const hostIsHome = location.pathname.replace(/\/+$/, '') === '/home';
 
   /* ---------- live observer (Schoology fills its page asynchronously) ---------- */
   let obs, obsStop;
   function observe() {
     if (obs) obs.disconnect();
-    const r = route();
-    if (!r && !/^\/course\//.test(location.pathname)) return;
-    const scrape = S.debounce(() => { const key = route() || 'native'; if (S.scrapeLive(document, scopeFor(key))) S.render(true); }, 700);
+    const scrape = S.debounce(() => { if (S.scrapeLive(document, hostIsHome)) S.render(true); }, 700);
     obs = new MutationObserver((muts) => { if (muts.some((m) => !root.contains(m.target))) scrape(); });
     obs.observe(document.body, { childList: true, subtree: true });
     clearTimeout(obsStop); obsStop = setTimeout(() => obs && obs.disconnect(), 60000);
@@ -216,7 +232,7 @@
   (async function boot() {
     const unboot = () => { document.documentElement.classList.remove('sgo-booting'); const b = document.getElementById('sgo-boot'); if (b) b.remove(); };
     if (!document.body || document.querySelector('form#s-user-login, #login-form')) { document.documentElement.classList.remove('sgo-app'); unboot(); return; } // login screen: hand the page back
-    await S.loadPrefs(); await S.loadCache();
+    await S.loadPrefs(); await S.loadCache(); await S.loadBackground();
     S.applyTheme(); buildShell(); interceptLinks(); S.render();
     document.documentElement.dataset.sgoT1 = String(Math.round(performance.now()));
     unboot(); // first real render is on screen: drop the placeholder
@@ -231,7 +247,5 @@
     observe();
     const r = route();
     S.refresh(r || 'native').then(() => S.render(true));
-    // Fallback: if Schoology's own page never supplied assignments, fetch them ourselves once.
-    setTimeout(() => { if (alive() && !Object.keys(S.state.items).length) S.refresh(route() || 'native', { items: true }).then(() => S.render(true)); }, 5000);
   })();
 })();

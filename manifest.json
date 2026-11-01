@@ -21,9 +21,11 @@
         "*://*.schoology.com/login/*"
       ],
       "css": [
-        "src/styles.css"
+        "src/styles.css",
+        "src/theme.css"
       ],
       "js": [
+        "src/ambient.js",
         "src/early.js"
       ],
       "run_at": "document_start"
@@ -39,11 +41,17 @@
       "js": [
         "src/core.js",
         "src/banners.js",
+        "src/quips.js",
         "src/data.js",
+        "src/social.js",
         "src/views.js",
+        "src/views-social.js",
         "src/app.js"
       ],
       "run_at": "document_end"
     }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["fonts/*.woff2"], "matches": ["*://*.schoology.com/*"] }
   ]
 }
