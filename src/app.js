@@ -9,7 +9,7 @@
   const html = document.documentElement;
   let root, side, main, content, top;
 
-  S.TOP_LINKS = [['portal', 'Portal'], ['schools', 'Colleges & Schools'], ['map', 'Map & Locations'], ['contact', 'Contact Us'], ['help', 'Help']];
+  S.TOP_LINKS = [['portal', 'Portal'], ['help', 'Help']];
   const linkTo = (k) => (S.prefs.topLinks || {})[k] || '/home#/settings'; // unset school links open Settings, where they can be added
   const RAIL = () => [
     ['dashboard', 'Dashboard', 'home', '/home'],
@@ -92,7 +92,6 @@
     const links = [['Home', '/home'], ...S.TOP_LINKS.filter(([k]) => k !== 'help').map(([k, label]) => [label, linkTo(k)])];
     return h('div', { class: 'sgo-top' }, q,
       h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
-      h('span', { class: 'sgo-status' }, S.state.loading ? 'Updating…' : S.state.lastRefresh ? 'Updated ' + S.fmtTime(S.state.lastRefresh) : ''),
       h('button', { class: 'sgo-icon-btn', title: 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
       h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
   }

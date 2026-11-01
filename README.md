@@ -55,9 +55,9 @@ One stylesheet owns the look (`src/theme.css`); `src/styles.css` holds component
 
 ## Topographic background
 
-`src/topo.js` generates a real contour map in code: a warped elevation field built from several hills, with iso-lines extracted by marching squares and written as smooth cubic Bézier `<path>` elements. It is one fixed, full-viewport SVG (`#sgo-bg`, `pointer-events: none`, behind everything), drawn at document start from `src/early.js` so it is there before the page paints. The geometry is generated once and kept; nothing animates. Strokes read CSS variables, so recolouring changes the paths themselves.
+`src/topo.js` generates a real contour map in code: a warped elevation field built from several hills, with iso-lines extracted by marching squares and written as smooth cubic Bézier `<path>` elements. It is one fixed, full-viewport SVG with a soft permanent blur (1.5px, background layer only, not adjustable) (`#sgo-bg`, `pointer-events: none`, behind everything), drawn at document start from `src/early.js` so it is there before the page paints. The geometry is generated once and kept; nothing animates. Strokes read CSS variables, so recolouring changes the paths themselves.
 
-**Settings → Appearance** has a **Background blur** slider (0–24px, applied to the whole map), buttons to turn the **topographic map** on or off, set its **line density** (Light, Standard, Dense) and draw a **New map**, and four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
+**Settings → Appearance** has buttons to turn the **topographic map** on or off, set its **line density** (Light, Standard, Dense) and draw a **New map**, and four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
 
 ## Dashboard header
 

@@ -21,9 +21,7 @@
     st.setProperty('--accent', accent);
     st.setProperty('--on-accent', C.onAccent(accent));
     html.classList.toggle('sgo-dark', C.isDark(bg));
-    // the map itself: shown or hidden, how dense, which seed, and how blurred the whole background is
-    const blur = Math.min(24, Math.max(0, Number(prefs && prefs.bgBlur) || 0));
-    st.setProperty('--bg-blur', blur + 'px');
+    // the map itself: shown or hidden, how dense and which seed (its blur is fixed in theme.css)
     html.dataset.sgoTopo = prefs && prefs.topoOn === false ? 'off' : 'on';
     buildLayer((prefs && prefs.topoDensity) || 'standard', Number(prefs && prefs.topoSeed) || 20260);
   };

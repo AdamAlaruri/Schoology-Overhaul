@@ -893,9 +893,6 @@
       text.addEventListener('change', () => write(P[key])); // an unfinished or invalid code snaps back to the colour in use
       return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
     };
-    const blurOut = h('output', null, (P.bgBlur || 0) + 'px');
-    const blurControl = h('div', { class: 'ap-c' }, h('input', { type: 'range', min: '0', max: '24', step: '1', value: String(P.bgBlur || 0), 'aria-label': 'Background blur', style: { width: '160px' },
-      oninput: (e) => { S.setMap({ bgBlur: +e.target.value }); blurOut.textContent = P.bgBlur + 'px'; } }), blurOut);
     const accents = h('div', { class: 'sgo-swatches' }, S.ACCENTS.map((c) => h('button', { type: 'button', class: 'sgo-sw' + (P.accent === c ? ' on' : ''), style: { background: c }, 'aria-label': 'Accent ' + c, onclick: () => { S.setAppearance({ accent: c }); S.render(true); } })));
     const presets = S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (['accent', 'contour', 'contourGlow', 'background'].every((k) => P[k] === t[k]) ? ' on' : ''), onclick: () => { S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); } },
       h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.accent } }), h('i', { style: { background: t.contourGlow } })), t.name));
@@ -907,7 +904,6 @@
       control('Background', 'background', 'The surface behind the map'),
       control('Accent', 'accent', 'Buttons, links, active items and selection'),
       h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Accent shortcuts')), accents),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Background blur'), h('small', null, 'Softens the whole map behind the interface')), blurControl),
       h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Topographic map'), h('small', null, 'Show the contour lines, or just the plain background colour')),
         h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Topographic map' }, [[true, 'On'], [false, 'Off']].map(([v, l]) => h('button', { type: 'button', class: (P.topoOn !== false) === v ? 'on' : '', 'aria-pressed': String((P.topoOn !== false) === v), onclick: () => { S.setMap({ topoOn: v }); S.render(true); } }, l)))),
       h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Line density'), h('small', null, 'How many contour lines the map draws')),
