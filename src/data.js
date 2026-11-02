@@ -548,7 +548,7 @@
       attempt('Fetch: assignments', '/home/upcoming_submissions_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: events', '/home/upcoming_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
-    if (route === 'dashboard') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
+    if (route === 'dashboard' || route === 'posts') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
     if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
     await Promise.all(jobs);
     relink();
