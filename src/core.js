@@ -35,7 +35,7 @@
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
     accent: '#65a9ff', background: '#0f1115', notifs: [], gradeSeen: {}, gradeBase: false, assignSeen: {}, assignBase: false, classic: false,
-    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
+    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], pinned: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
   S.prefs = DEFAULTS();
@@ -310,10 +310,20 @@
   S.resetCourse = (id) => { delete S.prefs.courseMeta[id]; delete S.prefs.courseColors[id]; S.savePrefs(); };
   /** Courses detected from Schoology, ordered by the user's choice (custom drag order or A-Z). */
   S.orderedCourses = () => {
-    const all = S.state.courses.slice();
-    if (S.prefs.courseSort === 'alpha') return all.sort((a, b) => S.cn(a.id, a.name).localeCompare(S.cn(b.id, b.name), undefined, { sensitivity: 'base' }));
-    const pos = new Map(S.prefs.courseOrder.map((id, i) => [id, i]));
-    return all.map((c, i) => [c, pos.has(c.id) ? pos.get(c.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+    const all = S.state.courses.slice(), pins = new Set(S.prefs.pinned || []);
+    let list;
+    if (S.prefs.courseSort === 'alpha') list = all.sort((a, b) => S.cn(a.id, a.name).localeCompare(S.cn(b.id, b.name), undefined, { sensitivity: 'base' }));
+    else { const pos = new Map(S.prefs.courseOrder.map((id, i) => [id, i])); list = all.map((c, i) => [c, pos.has(c.id) ? pos.get(c.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]); }
+    return [...list.filter((c) => pins.has(c.id)), ...list.filter((c) => !pins.has(c.id))]; // pinned classes lead, each group keeps its own order
+  };
+  S.isPinned = (id) => (S.prefs.pinned || []).includes(id);
+  S.togglePin = (id) => { const p = S.prefs.pinned || []; S.prefs.pinned = p.includes(id) ? p.filter((x) => x !== id) : [...p, id]; S.savePrefs(); };
+  /** Move a class one place earlier (-1) or later (1) among the classes it is grouped with (pinned or not). A keyboard-friendly alternative to dragging. */
+  S.moveCourse = (id, dir) => {
+    const list = S.orderedCourses(), i = list.findIndex((c) => c.id === id), j = i + dir;
+    if (i < 0 || j < 0 || j >= list.length || S.isPinned(list[j].id) !== S.isPinned(id)) return false;
+    [list[i], list[j]] = [list[j], list[i]];
+    S.prefs.courseOrder = list.map((c) => c.id); S.prefs.courseSort = 'custom'; S.savePrefs(); return true;
   };
   /** Downscale an uploaded image locally so it stays small in chrome.storage. */
   S.imageToDataUrl = (file) => new Promise((res, rej) => {
