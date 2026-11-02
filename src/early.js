@@ -7,7 +7,7 @@
   const p = location.pathname.replace(/\/+$/, '') || '/';
   const classic = /[?&]sgo=classic\b/.test(location.search); // the explicit "Open in Schoology" link: show the original page
   const C = window.SGO_COLOR;
-  const DEFAULTS = { accent: '#65a9ff', background: '#0f1115' };
+  const DEFAULTS = { accent: '#2563eb', background: '#f8fafc' };
 
   /* Two colours define the look: the accent and a solid page background. They are CSS variables on <html>. The theme (light or dark UI)
    * follows the background colour, so text always has the right contrast. Also called by the app whenever a colour changes. */
@@ -26,7 +26,7 @@
   if (!isApp) { html.classList.add('sgo-native'); return; } // native pages keep their layout; the sidebar space is reserved up front
 
   html.classList.add('sgo-app', 'sgo-booting');
-  window.__sgoTheme(null); // defaults first (dark, blue), then the saved colours as soon as storage answers
+  window.__sgoTheme(null); // defaults first (light, blue), then the saved colours as soon as storage answers
 
   const boot = document.createElement('div');
   boot.id = 'sgo-boot';
