@@ -11,14 +11,16 @@
 
   S.TOP_LINKS = [['portal', 'Portal']];
   const linkTo = (k) => (S.prefs.topLinks || {})[k] || '/home#/settings'; // unset school links open Settings, where they can be added
+  /* Eight destinations. The first four are the everyday ones: on a phone they stay in the bottom bar and the rest move into "More". */
   const RAIL = () => [
-    ['dashboard', 'Dashboard', 'home', '/home'],
-    ['courses', 'Courses', 'book', '/courses'],
-    ['calendar', 'Calendar', 'calendar', '/calendar'],
-    ['grades', 'Grades', 'grades', '/grades/grades'],
-    ['groups', 'Groups', 'groups', '/groups'],
-    ['inbox', 'Inbox', 'inbox', '/messages'],
-    ['settings', 'Settings', 'settings', '/home#/settings'],
+    ['dashboard', 'Dashboard', 'home', '/home', 1],
+    ['courses', 'Courses', 'book', '/courses', 1],
+    ['assignments', 'Assignments', 'tasks', '/home#/assignments', 1],
+    ['calendar', 'Calendar', 'calendar', '/calendar', 1],
+    ['grades', 'Grades', 'grades', '/grades/grades', 0],
+    ['inbox', 'Messages', 'inbox', '/messages', 0],
+    ['groups', 'Groups', 'groups', '/groups', 0],
+    ['settings', 'Settings', 'settings', '/home#/settings', 0],
   ];
 
   /* ---------- routing ---------- */
@@ -42,11 +44,11 @@
     return null;
   }
   const route = () => routeFor(location);
-  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r === 'posts' ? 'dashboard' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
-  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', posts: 'Class posts', inbox: 'Inbox', groups: 'Groups' };
+  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r === 'posts' ? 'dashboard' : r === 'assignment' ? 'assignments' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
+  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', posts: 'Class posts', inbox: 'Messages', groups: 'Groups' };
 
   /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
-  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, background: t.background }); S.render(true); };
+  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'light' : 'dark', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, background: t.background }); S.render(true); };
 
   /* ---------- hide native content but keep it alive ---------- */
   function clearHidden() {
@@ -68,18 +70,18 @@
   }
 
   function sidebar(r) {
-    const active = navKey(r), who = S.prefs.displayName || S.state.user || '';
+    const active = navKey(r), who = S.prefs.displayName || S.state.user || '', dark = html.classList.contains('sgo-dark'), portal = (S.prefs.topLinks || {}).portal;
     const initials = who.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'Me';
     const face = S.state.avatar ? h('img', { class: 'sgo-face', src: S.state.avatar, alt: '' }) : h('span', { class: 'sgo-face' }, initials);
-    const account = S.menu('Account' + (who ? ': ' + who : ''), [
-      ['Assignments', () => S.go('/home#/assignments')], ['Grades', () => S.go('/grades/grades')], ['Resources', () => S.go('/resources')],
-      ['Extension settings', () => S.go('/home#/settings')], ['Schoology account', () => S.go('/settings/account')],
-      ['Classic view', () => { S.prefs.classic = true; S.savePrefs(); S.render(); }], ['Sign out', () => S.go('/logout')],
-    ], h('button', { class: 'sgo-rail-i', type: 'button' }, face, h('span', null, 'Account')));
-    const collapsed = !!S.prefs.collapsed;
+    const utility = [['Class posts', () => S.go('/home#/posts')], ['Refresh data', () => S.hardRefresh()], [dark ? 'Switch to light mode' : 'Switch to dark mode', themeToggle], portal ? ['School portal', () => window.open(portal, '_blank', 'noopener')] : null,
+      ['Resources', () => S.go('/resources')], ['Schoology account', () => S.go('/settings/account')], ['Classic view', () => { S.prefs.classic = true; S.savePrefs(); S.render(); }], ['Sign out', () => S.go('/logout')]];
+    const account = S.menu('Account' + (who ? ': ' + who : ''), utility, h('button', { class: 'sgo-rail-i sgo-rail-acct', type: 'button' }, face, h('span', null, who ? who.split(' ')[0] : 'Account')));
+    const items = RAIL(), collapsed = !!S.prefs.collapsed;
+    const more = S.menu('More', [...items.filter((x) => !x[4]).map(([, label, , href]) => [label, () => S.go(href)]), ...utility.filter(Boolean)], h('button', { class: 'sgo-rail-i sgo-rail-more', type: 'button' }, icon('dots', 21), h('span', null, 'More')));
     return h('nav', { class: 'sgo-rail', 'aria-label': 'Main' }, account,
-      RAIL().map(([k, label, ic, href]) => h('a', { class: 'sgo-rail-i', href, 'aria-current': active === k ? 'page' : null, title: label, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, icon(ic, 21), h('span', null, label),
-        k === 'inbox' && S.state.unread.messages ? h('b', { class: 'sgo-rail-n', 'aria-label': `${S.state.unread.messages} unread` }, S.state.unread.messages) : null)),
+      items.map(([k, label, ic, href, primary]) => h('a', { class: 'sgo-rail-i' + (primary ? '' : ' sec'), href, 'aria-current': active === k ? 'page' : null, title: label },
+        icon(ic, 21), h('span', null, label), k === 'inbox' && S.state.unread.messages ? h('b', { class: 'sgo-rail-n', 'aria-label': `${S.state.unread.messages} unread` }, S.state.unread.messages) : null)),
+      more,
       h('button', { class: 'sgo-rail-tog', type: 'button', 'aria-expanded': String(!collapsed), 'aria-label': collapsed ? 'Expand navigation' : 'Collapse navigation', dataset: { fk: 'rail-toggle' },
         onclick: () => { S.prefs.collapsed = !collapsed; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon('left', 17)));
   }
@@ -91,12 +93,13 @@
   /** Where a notification leads, and its readable title and detail. All text comes from the stored real event. */
   const describe = (n) => {
     if (n.kind === 'grade') return {
-      title: (n.change === 'changed' ? 'Grade changed: ' : 'New grade: ') + n.title,
+      kind: n.change === 'changed' ? 'Grade changed' : 'New grade', title: (n.change === 'changed' ? 'Grade changed: ' : 'New grade: ') + n.title,
       detail: n.change === 'changed' && n.prevEarned != null ? `${n.prevEarned} → ${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}` : `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}`,
       href: n.courseId ? `/course/${n.courseId}/student_grades` : '/grades/grades' };
-    if (n.kind === 'assignment') return { title: 'New assignment: ' + n.title, detail: n.due ? 'Due ' + S.fmtDate(n.due) : 'No due date', href: n.href };
-    return { title: 'Due soon: ' + n.title, detail: 'Due ' + S.fmtDate(n.due) + (new Date(n.due).getHours() || new Date(n.due).getMinutes() ? ' · ' + S.fmtTime(n.due) : ''), href: n.href };
+    if (n.kind === 'assignment') return { kind: 'New assignment', title: 'New assignment: ' + n.title, detail: n.due ? 'Due ' + S.fmtDate(n.due) : 'No due date', href: n.href };
+    return { kind: 'Due soon', title: 'Due soon: ' + n.title, detail: 'Due ' + S.fmtDate(n.due) + (new Date(n.due).getHours() || new Date(n.due).getMinutes() ? ' · ' + S.fmtTime(n.due) : ''), href: n.href };
   };
+  S.describeNotif = describe;
   function notifPanel(list, issues) {
     const ui = S.ui, filter = ui.notifFilter || 'all', shown = filter === 'unread' ? list.filter((n) => !n.read) : list;
     const row = (n) => { const d = describe(n), [ic, label] = KIND[n.kind] || KIND.grade;
@@ -133,16 +136,11 @@
   document.addEventListener('click', (e) => { if (S.ui && S.ui.accentOpen && !(e.target.closest && e.target.closest('.acc-wrap'))) { S.ui.accentOpen = false; S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.accentOpen) { S.ui.accentOpen = false; S.render(true); } });
 
+  /* The top bar holds only search and the notification bell; everything else lives in the navigation or the account menu. */
   function topbar() {
-    const q = h('input', { class: 'sgo-input sgo-search', type: 'search', placeholder: 'Search assignments…', 'aria-label': 'Search assignments',
+    const q = h('input', { class: 'sgo-input sgo-search', type: 'search', placeholder: 'Search assignments', 'aria-label': 'Search assignments',
       onkeydown: (e) => { if (e.key === 'Enter') { S.ui.assign.q = e.target.value; S.ui.assign.f = 'all'; S.ui.assign.course = ''; S.go('/home#/assignments'); S.render(); } } });
-    const dark = html.classList.contains('sgo-dark');
-    const links = [...S.TOP_LINKS.map(([k, label]) => [label, linkTo(k)])];
-    return h('div', { class: 'sgo-top' }, q,
-      h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
-      notifications(),
-      h('button', { class: 'sgo-icon-btn', title: 'Refresh data', 'aria-label': 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
-      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', 'aria-label': dark ? 'Switch to light mode' : 'Switch to dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
+    return h('div', { class: 'sgo-top' }, q, notifications());
   }
 
   /** Shown when a request reveals that the Schoology session has ended. Existing data stays visible. */
