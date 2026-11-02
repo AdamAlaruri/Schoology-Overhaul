@@ -21,8 +21,7 @@
         "*://*.schoology.com/login/*"
       ],
       "css": [
-        "src/styles.css",
-        "src/theme.css"
+        "src/ui.css"
       ],
       "js": [
         "src/color.js",
