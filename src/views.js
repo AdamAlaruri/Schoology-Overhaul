@@ -28,6 +28,7 @@
   /** Where an assignment opens: its page inside the course when its course is known, otherwise Schoology's own page. */
   const aidOf = (it) => (/\/assignment\/(\d+)/.exec(it.key || it.url || '') || [])[1] || '';
   const itemHref = (it) => (it.manual ? detailHref(it) : it.courseId && aidOf(it) ? `/course/${it.courseId}/materials?tab=assignments&a=${aidOf(it)}` : it.url || detailHref(it));
+  S.itemHref = (it) => itemHref(it);
   const tasksOnly = () => S.allItems().filter((i) => i.type !== 'event');
 
   /* Four workload groups from the spec. Completed items are listed separately, not as overdue. */
@@ -93,77 +94,89 @@
   };
 
   /* ===================== DASHBOARD ===================== */
-  /* Dashboard title, greeting and course cards on the left, a Tasks panel on the right, all from the student's Schoology data. */
-  const dui = () => (S.ui.dash = S.ui.dash || { week: 0, course: 'all', tab: 'assignments', expanded: false, ann: {} });
+  /* A compact header, three statistics, the class cards and a Tasks panel, all from the student's own Schoology data.
+   * Nothing here is invented: every number is a count of real items, and the definitions are printed under each statistic. */
+  const dui = () => (S.ui.dash = S.ui.dash || { range: 'week', course: 'all', tab: 'assignments', expanded: false, ann: {} });
   const mon3 = (ts) => S.MONTHS[new Date(ts).getMonth()].slice(0, 3);
   const shortDate = (ts) => `${mon3(ts)} ${new Date(ts).getDate()}`;
   const daysUntil = (ts, now) => Math.round((S.sod(ts) - S.sod(now)) / S.DAY);
-  /** "today", "in 3d", "in 1w": computed from the real due date, in calendar days. */
-  const relative = (ts, now) => { const n = daysUntil(ts, now); return n <= 0 ? 'today' : n < 7 ? `in ${n}d` : `in ${Math.round(n / 7)}w`; };
-  /** Due within the next 48 hours and not finished: these get a clock mark and their own group in the Tasks panel. */
-  const dueSoon = (it, now) => { const end = it.due && (it.timed ? it.due : S.sod(it.due) + S.DAY - 1); return !!end && end > now && end - now <= 2 * S.DAY && !S.isComplete(it) && !S.isOverdue(it); }; // a date without a time means any time that day
-  const pctText = (p) => (p == null ? '--%' : (Math.round(p * 100) / 100) + '%');
-  /** Changes whenever an item crosses a boundary (becomes overdue, today, tomorrow). The app polls it to refresh the page as time passes. */
+  const pctText = (p) => (Math.round(p * 10) / 10) + '%';
+  /** Work that still needs doing: not submitted, not checked off, and not an old item whose status Schoology does not tell us. */
+  const isOpen = (it) => !S.isComplete(it) && !S.isStale(it);
+  /** Where an open item sits in the Tasks panel: overdue, today, the next 7 days, later, or undated. */
+  const bucketOf = (it, now) => {
+    if (S.isOverdue(it)) return 'overdue';
+    if (!it.due) return 'nodate';
+    const n = daysUntil(it.due, now);
+    return n <= 0 ? 'today' : n <= 7 ? 'upcoming' : 'later';
+  };
+  const RANGES = { today: ['overdue', 'today'], week: ['overdue', 'today', 'upcoming'], all: ['overdue', 'today', 'upcoming', 'later', 'nodate'] };
+  const BUCKET_LABEL = { overdue: 'Overdue', today: 'Due today', upcoming: 'Upcoming', later: 'Later', nodate: 'No due date' };
+  /** The status Schoology's data supports: submitted or graded, checked off by the student, missing, or simply not yet handed in. */
+  const statusOf = (it) => S.isSubmitted(it) ? ['Submitted', 'check'] : S.isDone(it) ? ['Completed', 'check'] : S.isOverdue(it) ? ['Overdue', 'alert'] : it.manual ? ['To do', 'tasks'] : ['Not submitted', 'notepad'];
+  const dueLabel = (it, now) => {
+    if (!it.due) return 'No due date';
+    const n = daysUntil(it.due, now), t = it.timed ? ' · ' + S.fmtTime(it.due) : '';
+    if (n === 0 && !S.isOverdue(it)) return 'Due today' + t;
+    if (n === 1) return 'Due tomorrow' + t;
+    return `Due ${S.WEEKDAYS[new Date(it.due).getDay()]}, ${shortDate(it.due)}${t}`;
+  };
+  /** Changes whenever an item crosses a boundary (becomes overdue, today, a new day). The app polls it to refresh the page as time passes. */
   S.dashStamp = () => {
     const now = Date.now();
-    return tasksOnly().filter((i) => !S.isComplete(i)).map((i) => i.key + (S.isOverdue(i) ? 'o' : '') + (dueSoon(i, now) ? 's' : '') + (i.due ? daysUntil(i.due, now) : '')).join('|');
+    return tasksOnly().filter(isOpen).map((i) => i.key + bucketOf(i, now) + (i.due ? daysUntil(i.due, now) : '')).join('|');
   };
 
   function dashCard(c, tasks, now) {
     const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), g = S.gradeFor(c.id);
-    const due = tasks.filter((i) => i.courseId === c.id && i.due && i.due >= now && !S.isComplete(i)).sort((a, b) => a.due - b.due);
-    const news = S.state.announcements.filter((a) => a.courseId === c.id).length;
+    const mine = tasks.filter((i) => i.courseId === c.id && isOpen(i));
+    const upcoming = mine.filter((i) => i.due && !S.isOverdue(i)).sort((a, b) => a.due - b.due), overdue = mine.filter(S.isOverdue).length, next = upcoming[0];
     const term = (/\((S\d|Q\d|T\d|Y\d?)\)/.exec(c.name + ' ' + (c.section || '')) || [])[1] || (g && g.periods[0] && g.periods[0].name) || '';
-    const cover = h('div', { class: 'dc-banner', style: { background: S.coverCss(c.id, c.name) } },
-      h('span', { class: 'dc-grade', 'aria-label': g && g.percent != null ? `Current grade ${pctText(g.percent)}` : 'No grade yet' }, pctText(g ? g.percent : null)),
-      S.menu('Options for ' + name, [['Change banner', () => S.openBannerPicker(c)], ['Rename and colour', () => S.openCourseEditor(c)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn dc-dots', type: 'button' }, icon('dots', 18)), 'dc-menu'));
+    const grade = g && g.percent != null ? pctText(g.percent) : '';
+    const sub = [S.courseCode(c.name) || c.section, term].filter(Boolean).join(' · ');
+    const go = (href) => () => S.go(href);
+    const cover = h('div', { class: 'dx-banner', style: { background: S.coverCss(c.id, c.name) } },
+      S.menu('Options for ' + name, [['Open course', go(`/course/${c.id}/materials`)], ['Assignments', go(assignmentsHref('course=' + c.id))], ['Grades', go(`/course/${c.id}/student_grades`)], ['Announcements', go(`/course/${c.id}/updates`)],
+        ['Change banner', () => S.openBannerPicker(c)], ['Rename and colour', () => S.openCourseEditor(c)]], h('button', { class: 'dx-icon-btn dx-dots', type: 'button' }, icon('dots', 18)), 'dx-menu'));
     S.guardCover(cover, c.id, c.name);
-    return h('article', { class: 'dc', style: { '--c': color }, 'aria-label': name }, cover,
-      h('div', { class: 'dc-body' },
-        h('h2', null, h('a', { href: `/course/${c.id}/materials` }, name)),
-        h('div', { class: 'dc-meta' }, S.courseCode(c.name) || c.section || ' '),
-        h('div', { class: 'dc-meta' }, term || ' '),
-        h('a', { class: 'sgo-icon-btn dc-news', href: `/course/${c.id}/updates`, title: 'Announcements', 'aria-label': news ? `${news} announcements for ${name}` : `Announcements for ${name}` },
-          icon('mega', 18), news ? h('span', { class: 'dc-count' }, news) : null)),
-      h('div', { class: 'dc-due' }, h('h3', null, 'Due'),
-        due.length ? h('ul', null, due.map((i) => h('li', null, h('a', { href: itemHref(i) }, i.title), h('span', { title: S.fmtDate(i.due) }, relative(i.due, now))))) : h('p', null, 'Nothing due')));
+    const summary = [overdue ? h('span', { class: 'dx-chip bad' }, icon('alert', 14), `${overdue} overdue`) : null,
+      upcoming.length ? h('span', { class: 'dx-chip' }, `${upcoming.length} upcoming`) : null].filter(Boolean);
+    return h('article', { class: 'dx-card', style: { '--c': color } }, cover,
+      h('div', { class: 'dx-card-b' },
+        h('div', { class: 'dx-card-t' }, h('h3', null, h('a', { class: 'dx-stretch', href: `/course/${c.id}/materials` }, name)), grade ? h('span', { class: 'dx-grade', title: 'Current grade in Schoology' }, grade) : null),
+        sub ? h('p', { class: 'dx-meta' }, sub) : null,
+        summary.length ? h('div', { class: 'dx-chips' }, summary) : null,
+        next ? h('p', { class: 'dx-next' }, h('span', null, 'Next: '), h('a', { href: itemHref(next) }, next.title), h('span', { class: 'dx-when' }, ' · ' + dueLabel(next, now).replace(/^Due /, '')))
+          : h('p', { class: 'dx-next none' }, 'No upcoming assignments')));
   }
 
-  function taskCard(it, now) {
+  function taskRow(it, now) {
     const done = S.isDone(it), viaSchoology = S.isSubmitted(it), complete = done || viaSchoology, e = S.gradeEntry(it);
-    const soon = dueSoon(it, now), when = it.due ? `Due ${shortDate(it.due)}` : 'No due date'; // no time of day here; the clock mark flags what is coming up
-    const name = S.cn(it.courseId, it.courseName) || (it.manual ? 'Personal task' : 'Course');
-    return h('li', { class: 'tc' + (complete ? ' is-done' : '') },
-      h('span', { class: 'tc-kind' + (it.type === 'assessment' ? ' quiz' : '') }, icon(it.type === 'assessment' ? 'rocket' : 'notepad', 18)),
-      h('div', { class: 'tc-main' },
-        h('div', { class: 'tc-course' }, h('i', { style: { background: S.colorOf(it) } }), name),
-        h('a', { class: 'tc-title', href: itemHref(it) }, it.title),
-        h('div', { class: 'tc-when' }, soon ? h('span', { class: 'tc-clock', title: 'Due within 48 hours', role: 'img', 'aria-label': 'Due within 48 hours' }, icon('clock', 14)) : null, when + (e && e.possible != null ? ` | ${e.possible} points` : '')),
-        h('div', { class: 'tc-acts' },
-          h('a', { class: 'sgo-act', href: detailHref(it), title: 'View details', 'aria-label': 'View details: ' + it.title }, icon('right', 15)),
-          it.manual && h('button', { class: 'sgo-act', type: 'button', title: 'Edit', 'aria-label': 'Edit ' + it.title, onclick: () => S.openNewAssignment(it) }, icon('edit', 15)),
-          it.manual
-            ? h('button', { class: 'sgo-act', type: 'button', title: 'Delete', 'aria-label': 'Delete ' + it.title, onclick: () => S.openConfirm({ title: 'Delete this task?', body: 'This removes it from your personal tracker only. Nothing changes in Schoology.', ok: 'Delete', danger: true, onOk: () => { delete S.prefs.manual[it.key]; S.savePrefs(); } }) }, icon('trash', 15))
-            : h('button', { class: 'sgo-act', type: 'button', title: 'Remove from my tracker (Schoology keeps it)', 'aria-label': 'Remove ' + it.title + ' from my tracker', onclick: () => askExclude(it) }, icon('eyeoff', 15)))),
-      h('button', { class: 'tc-check' + (complete ? ' on' : ''), type: 'button', dataset: { fk: 'check-' + it.key }, 'aria-pressed': String(complete), 'aria-disabled': viaSchoology ? 'true' : null,
-        title: viaSchoology ? 'Submitted in Schoology' : done ? 'Mark as not complete' : 'Mark complete',
-        'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : done ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: () => { if (!viaSchoology) toggleDone(it); } }, icon('check', 14)));
+    const [status, sIcon] = statusOf(it), name = S.cn(it.courseId, it.courseName) || (it.manual ? 'Personal task' : 'Course'), bucket = complete ? '' : bucketOf(it, now);
+    const mine = [['View details', () => S.go(detailHref(it))],
+      ...(it.manual ? [['Edit', () => S.openNewAssignment(it)], ['Delete', () => S.openConfirm({ title: 'Delete this task?', body: 'This removes it from your personal tracker only. Nothing changes in Schoology.', ok: 'Delete', danger: true, onOk: () => { delete S.prefs.manual[it.key]; S.savePrefs(); S.render(true); } })]]
+        : [['Hide from my tracker', () => askExclude(it)]])];
+    return h('li', { class: 'dx-task' + (complete ? ' done' : '') + (bucket === 'overdue' ? ' late' : '') },
+      h('button', { class: 'dx-check' + (complete ? ' on' : ''), type: 'button', dataset: { fk: 'check-' + it.key }, 'aria-pressed': String(complete), 'aria-disabled': viaSchoology ? 'true' : null,
+        title: viaSchoology ? 'Submitted in Schoology: it cannot be unchecked here' : done ? 'Mark as not complete' : 'Mark complete',
+        'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : done ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: () => { if (!viaSchoology) toggleDone(it); } }, h('i', null, icon('check', 14))),
+      h('div', { class: 'dx-task-m' },
+        h('a', { class: 'dx-task-t', href: itemHref(it) }, it.title),
+        h('p', { class: 'dx-task-s' }, dot(S.colorOf(it)), h('span', { class: 'dx-course' }, name), h('span', { class: 'dx-sep', 'aria-hidden': 'true' }, '·'), h('span', null, dueLabel(it, now)), e && e.possible != null ? h('span', { class: 'dx-pts' }, `· ${e.possible} pts`) : null),
+        h('p', { class: 'dx-tags' }, h('span', { class: 'dx-status s-' + status.toLowerCase().replace(/\s+/g, '-') }, icon(sIcon, 13), status), it.manual ? h('span', { class: 'dx-tag' }, 'Personal') : null)),
+      S.menu('Actions for ' + it.title, mine, h('button', { class: 'dx-icon-btn', type: 'button' }, icon('dots', 18)), 'dx-row-menu'));
   }
 
   function tasksPanel(t, now) {
-    const ui = dui(), day = (n) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime(); }; // calendar days, so clock changes can't shift the week
-    const start = day(ui.week * 7), end = day((ui.week + 1) * 7);
-    const shift = (d) => { ui.week += d; ui.expanded = false; S.render(); };
-    const byCourse = (i) => ui.course === 'all' || i.courseId === ui.course;
-    // The week shown, plus (on the current week) anything Schoology lists as missing, ticked or not, and tasks with no date.
-    const inView = t.filter(byCourse).filter((i) => (S.isComplete(i) || !S.isStale(i)) && ((i.due && i.due >= start && i.due < end) || (ui.week === 0 && (i.fromOverdue || S.isOverdue(i) || !i.due))))
-      .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
-    const open = inView.filter((i) => !S.isComplete(i)), complete = inView.filter(S.isComplete);
-    const pct = inView.length ? Math.round((complete.length / inView.length) * 100) : 0, C = 2 * Math.PI * 62;
-    const ring = document.createElement('template');
-    ring.innerHTML = `<svg viewBox="0 0 150 150" aria-hidden="true"><circle class="tp-track" cx="75" cy="75" r="62"/><circle class="tp-bar" cx="75" cy="75" r="62" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct / 100)}"/></svg>`;
+    const ui = dui(), today = S.sod(now);
+    const pool = t.filter((i) => ui.course === 'all' || i.courseId === ui.course);
+    const open = pool.filter(isOpen), complete = pool.filter((i) => S.isComplete(i) && (!i.due || i.due >= today - 7 * S.DAY));
+    const inRange = open.filter((i) => RANGES[ui.range].includes(bucketOf(i, now)));
+    // progress: of everything due in the next 7 days (today included), how much is submitted or checked off
+    const wk = pool.filter((i) => i.due && daysUntil(i.due, now) >= 0 && daysUntil(i.due, now) <= 6 && (S.isComplete(i) || !S.isStale(i)));
+    const wkDone = wk.filter(S.isComplete).length, wkPct = wk.length ? Math.round((wkDone / wk.length) * 100) : 0;
 
-    const tabs = [['announcements', 'Announcements', 'mega'], ['assignments', 'Assignments', 'notepad'], ['submitted', 'Submitted', 'check']];
+    const tabs = [['assignments', 'Assignments', 'notepad'], ['completed', 'Completed', 'check'], ['announcements', 'Posts', 'mega']];
     const pick = (k) => { ui.tab = k; ui.expanded = false; S.render(); };
     const tabBar = h('div', { class: 'tp-tabs', role: 'tablist', 'aria-label': 'Task lists',
       onkeydown: (e) => {
@@ -173,90 +186,93 @@
         const next = tabs[(n + tabs.length) % tabs.length][0];
         pick(next); document.getElementById('sgo-tab-' + next).focus();
       } },
-      tabs.map(([k, label, ic]) => h('button', { type: 'button', role: 'tab', id: 'sgo-tab-' + k, dataset: { fk: 'tab-' + k }, 'aria-selected': String(ui.tab === k), 'aria-controls': 'sgo-tabpanel', tabindex: ui.tab === k ? '0' : '-1', title: label, onclick: () => pick(k) }, icon(ic, 18), h('span', null, label))));
+      tabs.map(([k, label, ic]) => h('button', { type: 'button', role: 'tab', id: 'sgo-tab-' + k, dataset: { fk: 'tab-' + k }, 'aria-selected': String(ui.tab === k), 'aria-controls': 'sgo-tabpanel', tabindex: ui.tab === k ? '0' : '-1', onclick: () => pick(k) }, icon(ic, 18), h('span', null, label))));
 
+    const limit = 6, group = (list, keyOf, order, label) => {
+      const shown = ui.expanded ? list : list.slice(0, limit), groups = new Map();
+      shown.forEach((i) => { const k = keyOf(i); (groups.get(k) || groups.set(k, []).get(k)).push(i); });
+      const body = order.filter((k) => groups.has(k)).map((k) => h('section', { class: 'dx-group ' + k }, h('h3', null, label[k], h('span', null, list.filter((i) => keyOf(i) === k).length)), h('ul', null, groups.get(k).map((i) => taskRow(i, now)))));
+      if (list.length > limit) body.push(h('button', { class: 'dx-more', type: 'button', dataset: { fk: 'more' }, onclick: () => { ui.expanded = !ui.expanded; S.render(); } }, ui.expanded ? 'Show fewer' : `Show ${list.length - limit} more`));
+      return body;
+    };
     let body;
     if (ui.tab === 'announcements') {
       const anns = S.state.announcements.filter((a) => ui.course === 'all' || a.courseId === ui.course);
       body = anns.length ? anns.map((a, idx) => {
-        const id = a.id + ':' + idx, isOpen = !!ui.ann[id];
-        return h('div', { class: 'tp-ann' }, h('button', { type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpen), onclick: () => { ui.ann[id] = !isOpen; S.render(); } },
-          h('b', null, a.body.split(/(?<=[.!?])\s/)[0].slice(0, 80)), h('span', null, [a.author, S.cn(a.courseId, a.courseName), a.time].filter(Boolean).join(' · '))), isOpen ? h('p', null, a.body) : null);
-      }) : h('p', { class: 'tp-empty' }, 'No announcements right now.');
+        const id = a.id + ':' + idx, isOpenAnn = !!ui.ann[id];
+        return h('div', { class: 'dx-ann' }, h('button', { type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpenAnn), onclick: () => { ui.ann[id] = !isOpenAnn; S.render(); } },
+          h('b', null, a.body.split(/(?<=[.!?])\s/)[0].slice(0, 90)), h('span', null, [a.author, S.cn(a.courseId, a.courseName), a.time].filter(Boolean).join(' · '))), isOpenAnn ? h('p', null, a.body) : null);
+      }) : h('p', { class: 'dx-empty' }, 'No class posts to show right now.');
+    } else if (ui.tab === 'completed') {
+      const list = complete.sort((a, b) => (b.due ?? 0) - (a.due ?? 0));
+      body = list.length ? group(list, (i) => (S.isSubmitted(i) ? 'submitted' : 'completed'), ['submitted', 'completed'], { submitted: 'Submitted', completed: 'Completed' })
+        : h('p', { class: 'dx-empty' }, 'Nothing submitted or checked off yet. Work due in the last week and later shows up here once it is done.');
     } else {
-      const list = ui.tab === 'submitted' ? complete : open, limit = 4, shown = ui.expanded ? list : list.slice(0, limit);
-      const groups = new Map();
-      shown.forEach((i) => {
-        const n = i.due ? 0 : null; // only whether there is a date matters; the 48-hour window is exact (dueSoon)
-        const key = ui.tab === 'submitted' ? 'submitted' : S.isOverdue(i) ? 'overdue' : n == null ? 'no due date' : dueSoon(i, now) ? 'upcoming' : 'later';
-        (groups.get(key) || groups.set(key, []).get(key)).push(i);
-      });
-      const ORDER = ['overdue', 'upcoming', 'later', 'no due date', 'submitted']; // late work first, then what is coming up, then everything further out
-      body = list.length ? [...groups.entries()].sort((x, y) => ORDER.indexOf(x[0]) - ORDER.indexOf(y[0])).map(([label, arr]) => h('section', { class: 'tp-group' + (label === 'overdue' ? ' od' : label === 'upcoming' ? ' up' : '') }, h('h3', null, label === 'upcoming' ? [icon('clock', 14), 'Upcoming'] : label[0].toUpperCase() + label.slice(1)), h('ul', null, arr.map((i) => taskCard(i, now)))))
-        : [h('p', { class: 'tp-empty' }, ui.tab === 'submitted' ? 'Nothing submitted this week.' : 'Nothing due this week.')];
-      if (list.length > limit) body.push(h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more' }, onclick: () => { ui.expanded = !ui.expanded; S.render(); } }, ui.expanded ? 'Show less' : `View ${list.length - limit} more`));
+      const list = inRange.sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
+      const none = { today: 'Nothing is overdue or due today.', week: 'Nothing is overdue or due in the next 7 days.', all: 'No open assignments.' }[ui.range];
+      body = list.length ? group(list, (i) => bucketOf(i, now), ['overdue', 'today', 'upcoming', 'later', 'nodate'], BUCKET_LABEL) : h('div', { class: 'dx-empty' }, h('b', null, 'You’re all caught up'), h('span', null, none + (ui.range !== 'all' && open.length ? ` ${open.length} more open further out; choose All upcoming to see them.` : '')));
     }
 
-    const fbOpen = S.prefs.feedbackOpen !== false; // open until you collapse it; remembered
-    const feedback = S.state.grades.flatMap((g) => (g.periods || []).flatMap((p) => p.categories.flatMap((c) => c.items.filter((x) => x.comment).map((x) => ({ x, g })))))
-      .map((f) => Object.assign(f, { ts: (S.parseDue(f.x.dueText) || {}).ts || 0 })).sort((a, b) => b.ts - a.ts).slice(0, 3);
-    return h('aside', { class: 'tp-col', 'aria-label': 'Tasks' },
-      h('div', { class: 'dp-sh' }, h('h2', { class: 'dp-h' }, 'Tasks'), h('div', { class: 'dp-sh-a' },
-        h('a', { class: 'sgo-icon-btn', href: '/home#/settings', title: 'Settings', 'aria-label': 'Task settings' }, icon('settings', 18)),)),
-      h('div', { class: 'tp' },
-      h('div', { class: 'tp-week' },
-        h('button', { class: 'sgo-icon-btn', type: 'button', dataset: { fk: 'week-prev' }, 'aria-label': 'Previous week', onclick: () => shift(-1) }, icon('left', 18)),
-        h('span', { 'aria-live': 'polite' }, `${shortDate(start)} to ${shortDate(day((ui.week + 1) * 7 - 1))}`),
-        h('button', { class: 'sgo-icon-btn', type: 'button', dataset: { fk: 'week-next' }, 'aria-label': 'Next week', onclick: () => shift(1) }, icon('right', 18))),
-      h('select', { class: 'sgo-input tp-filter', 'aria-label': 'Filter tasks by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; ui.expanded = false; S.render(); } },
-        h('option', { value: 'all' }, 'All Courses'), S.orderedCourses().map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
-      h('div', { class: 'tp-ring', role: 'img', 'aria-label': `${pct}% complete, ${complete.length} of ${inView.length}` }, ring.content.firstChild,
-        h('div', null, h('b', null, pct + '%'), h('span', null, `${complete.length}/${inView.length}`), h('small', null, 'Complete'))),
+    const ranges = [['today', 'Today'], ['week', 'Next 7 days'], ['all', 'All upcoming']];
+    return h('aside', { class: 'dx-tasks', 'aria-label': 'Tasks' },
+      h('div', { class: 'dx-sh' }, h('h2', null, 'Tasks'), h('div', { class: 'dx-sh-a' },
+        h('button', { class: 'sgo-btn primary dx-add', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add task'),
+        h('a', { class: 'dx-icon-btn', href: '/home#/settings', title: 'Settings', 'aria-label': 'Settings' }, icon('settings', 18)))),
+      h('div', { class: 'dx-prog' },
+        h('p', null, wk.length ? h('b', null, `${wkDone} of ${wk.length} done`) : h('b', null, 'Nothing due'), ' in the next 7 days'),
+        h('div', { class: 'dx-bar', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': '100', 'aria-valuenow': String(wkPct), 'aria-label': 'Work due in the next 7 days that is done' }, h('i', { style: { width: wkPct + '%' } }))),
       tabBar,
-      h('button', { class: 'sgo-btn ghost tp-add', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add to tasks'),
-      h('div', { id: 'sgo-tabpanel', role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
-      h('section', { class: 'tp-feedback' },
-        h('button', { class: 'tp-fbh', type: 'button', 'aria-expanded': String(fbOpen), dataset: { fk: 'feedback-toggle' }, onclick: () => { S.prefs.feedbackOpen = !fbOpen; S.savePrefs(); S.render(true); } },
-          h('h3', null, 'Recent Feedback'), feedback.length ? h('span', null, feedback.length) : null, icon(fbOpen ? 'up' : 'down', 16)),
-        fbOpen ? (feedback.length ? feedback.map(({ x, g }) => { const pct = gItemPct(x);
-          return h('div', { class: 'tp-fb' }, h('div', { class: 'tp-fbt' }, h('b', null, x.title), x.earned != null ? h('span', { class: 'tp-fbg' }, `${gNum(x.earned)}${x.possible != null ? ' / ' + gNum(x.possible) : ''}${pct != null ? ' · ' + pct + '%' : ''}`) : null),
-            h('span', null, S.cn(g.courseId, g.courseName)), h('p', null, x.comment.slice(0, 140))); }) : h('p', { class: 'tp-empty' }, 'Nothing for now')) : null),
-      h('a', { class: 'sgo-btn primary tp-grades', href: '/grades/grades' }, 'View Grades')));
+      ui.tab === 'assignments' ? h('div', { class: 'dx-filters' },
+        h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Show' }, ranges.map(([k, l]) => h('button', { type: 'button', class: ui.range === k ? 'on' : '', 'aria-pressed': String(ui.range === k), dataset: { fk: 'range-' + k }, onclick: () => { ui.range = k; ui.expanded = false; S.render(); } }, l))),
+        h('select', { class: 'sgo-input dx-select', 'aria-label': 'Filter by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; ui.expanded = false; S.render(); } },
+          h('option', { value: 'all' }, 'All courses'), S.orderedCourses().map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name))))) : null,
+      h('div', { id: 'sgo-tabpanel', class: 'dx-panel', role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
+      h('div', { class: 'dx-foot' }, h('a', { class: 'sgo-btn ghost', href: '/home#/assignments' }, 'All assignments'), h('a', { class: 'sgo-btn ghost', href: '/grades/grades' }, 'Grades')));
   }
 
-  /* Live clock: the browser's own local time and timezone. One timer, aligned to the minute, that stops when the dashboard is not on screen. */
-  const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
   const dateFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-  let clockTimer = 0;
-  const toNextMinute = () => { const d = new Date(); return 60000 - d.getSeconds() * 1000 - d.getMilliseconds() + 30; };
-  function paintClock() {
-    const els = document.querySelectorAll('[data-sgo-clock]'), d = new Date();
-    els.forEach((e) => { const time = e.dataset.sgoClock === 'time'; e.textContent = (time ? timeFmt : dateFmt).format(d); if (time) e.setAttribute('datetime', d.toISOString()); });
-    return els.length;
+  /** The few numbers on the dashboard, each defined in plain words. Only counts of real items. */
+  S.dashStats = (tasks, now) => {
+    const open = tasks.filter(isOpen), b = (k) => open.filter((i) => bucketOf(i, now) === k).length;
+    const week = b('today') + b('upcoming'); // due today through 7 days out; overdue is counted on its own
+    return { outstanding: open.length, overdue: b('overdue'), today: b('today'), week, grades: S.unreadNotifs ? S.unreadNotifs('grade') : 0 };
+  };
+
+  /** Recent feedback lives under the classes as a quiet activity list: only grades with a teacher comment, newest first. */
+  function recentActivity() {
+    const items = S.state.grades.flatMap((g) => (g.periods || []).flatMap((p) => p.categories.flatMap((c) => c.items.filter((x) => x.comment).map((x) => ({ x, g })))))
+      .map((f) => Object.assign(f, { ts: (S.parseDue(f.x.dueText) || {}).ts || 0 })).sort((a, b) => b.ts - a.ts).slice(0, 4);
+    if (!items.length) return null;
+    return h('section', { class: 'dx-activity', 'aria-labelledby': 'dx-act-h' }, h('div', { class: 'dx-sh' }, h('h2', { id: 'dx-act-h' }, 'Recent activity')),
+      h('ul', null, items.map(({ x, g }) => { const pct = gItemPct(x);
+        return h('li', null, h('a', { href: g.courseId ? `/course/${g.courseId}/student_grades` : '/grades/grades' },
+          h('div', { class: 'dx-act-t' }, h('b', null, x.title), x.earned != null ? h('span', null, `${gNum(x.earned)}${x.possible != null ? ' / ' + gNum(x.possible) : ''}${pct != null ? ' · ' + pct + '%' : ''}`) : null),
+          h('span', { class: 'dx-meta' }, S.cn(g.courseId, g.courseName) + ' · Teacher feedback'), h('p', null, x.comment.slice(0, 160)))); })));
   }
-  function tickClock() {
-    clockTimer = 0;
-    if (!paintClock()) return; // left the dashboard: the timer ends, and starts again the next time the dashboard is drawn
-    clockTimer = setTimeout(tickClock, toNextMinute());
-  }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) paintClock(); }); // a sleeping tab catches up the moment it is shown
-  function clock() {
-    const d = new Date();
-    if (!clockTimer) clockTimer = setTimeout(tickClock, toNextMinute());
-    return h('div', { class: 'dp-clock' }, h('time', { class: 'dp-time', datetime: d.toISOString(), dataset: { sgoClock: 'time' } }, timeFmt.format(d)), h('span', { class: 'dp-date', dataset: { sgoClock: 'date' } }, dateFmt.format(d)));
-  }
+
   V.dashboard = () => {
     const now = Date.now(), t = tasksOnly(), courses = S.orderedCourses(), review = S.unreviewedItems().length;
     S._dashStamp = S.dashStamp();
     const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0]; // no name known yet: just the greeting
-    const head = h('div', { class: 'dp-head' }, h('div', null, h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}`), h('p', { class: 'dp-quip' }, S.quip())),
-      h('div', { class: 'dp-side' }, clock(),
-        S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
-          ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]])));
-    const cards = courses.length ? h('div', { class: 'dc-grid' }, courses.map((c) => dashCard(c, t, now)))
-      : !S.state.loaded ? h('div', { class: 'dc-grid', 'aria-busy': 'true', 'aria-label': 'Loading courses' }, [0, 1, 2].map(() => h('div', { class: 'sk-row dc-sk' })))
+    const st = S.dashStats(t, now), plural = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+    const ready = S.state.loaded || t.length;
+    const bits = [st.overdue && `${plural(st.overdue, 'assignment')} overdue`, st.today && `${st.today} due today`, st.week - st.today > 0 && `${st.week - st.today} more in the next 7 days`, st.grades && `${plural(st.grades, 'new grade')}`].filter(Boolean);
+    const context = !ready ? 'Loading your assignments…' : bits.length ? bits.join(' · ') : 'Nothing is overdue or due soon.';
+    const head = h('div', { class: 'dx-head' },
+      h('div', null, h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}`), h('p', { class: 'dx-sub' }, h('time', { datetime: new Date(now).toISOString() }, dateFmt.format(now)), h('span', { class: 'dx-sep', 'aria-hidden': 'true' }, '·'), context)),
+      S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
+        ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]], h('button', { class: 'dx-icon-btn', type: 'button' }, icon('dots', 18))));
+    const stats = ready ? h('dl', { class: 'dx-stats', 'aria-label': 'Summary' }, [
+      ['Outstanding', st.outstanding, 'Assignments not yet submitted or checked off, overdue included'],
+      ['Due in 7 days', st.week, 'Open assignments due today through the next 7 days (not overdue)'],
+      ['New grades', st.grades, 'Grades posted or changed since you last checked the bell'],
+    ].map(([label, n, def]) => h('div', { class: 'dx-stat' }, h('dt', null, label), h('dd', null, String(n)), h('small', null, def)))) : null;
+    const cards = courses.length ? h('div', { class: 'dx-grid' }, courses.map((c) => dashCard(c, t, now)))
+      : !S.state.loaded ? h('div', { class: 'dx-grid', 'aria-busy': 'true', 'aria-label': 'Loading courses' }, [0, 1, 2].map(() => h('div', { class: 'sk-row dx-sk' })))
         : empty('No courses found', 'Open Settings → Diagnostics to see what was read from Schoology.');
-    return h('div', { class: 'sgo-page dash6' }, head, h('div', { class: 'dp-main' }, h('section', { class: 'dp-courses', 'aria-labelledby': 'dp-courses-h' }, h('div', { class: 'dp-sh' }, h('h2', { class: 'dp-h', id: 'dp-courses-h' }, 'Your classes')), cards)), tasksPanel(t, now));
+    return h('div', { class: 'sgo-page dx' }, head, stats,
+      h('div', { class: 'dx-main' }, h('section', { 'aria-labelledby': 'dx-courses-h' }, h('div', { class: 'dx-sh' }, h('h2', { id: 'dx-courses-h' }, 'Your classes')), cards), recentActivity()),
+      tasksPanel(t, now));
   };
 
   function pageHead(title, sub, actions) {
@@ -901,21 +917,13 @@
         S.ACCENTS.map(([name, hex]) => h('button', { class: 'acc-sq' + (P.accent === hex ? ' on' : ''), type: 'button', style: { background: hex }, title: name, 'aria-label': name, 'aria-pressed': String(P.accent === hex), onclick: () => choose(hex) },
           P.accent === hex ? icon('check', 16) : null)),
         h('label', { class: 'acc-sq acc-custom', title: 'Any other colour' }, icon('palette', 16), h('input', { type: 'color', value: P.accent, 'aria-label': 'Custom accent colour', onchange: (e) => choose(e.target.value) }))) : null);
-    const presets = S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (['accent', 'contour', 'contourGlow', 'background'].every((k) => P[k] === t[k]) ? ' on' : ''), onclick: () => { S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); } },
-      h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.accent } }), h('i', { style: { background: t.contourGlow } })), t.name));
+    const presets = S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (['accent', 'background'].every((k) => P[k] === t[k]) ? ' on' : ''), onclick: () => { S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); } },
+      h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: 'inset 0 0 0 1px ' + t.accent } }, h('i', { style: { background: t.accent } })), t.name));
     return h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'),
-      h('p', { class: 'sgo-muted' }, 'Four colours define the look. Changes apply instantly and are saved in this browser. The interface switches between light and dark text to match the background colour.'),
+      h('p', { class: 'sgo-muted' }, 'An accent and a solid background define the look. Changes apply instantly and are saved in this browser. The interface switches between light and dark text to match the background colour.'),
       h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Accent colour'), h('small', null, 'Click the square, then pick a colour. Used for buttons, links, active items and selection.')), accents),
       h('div', { class: 'ap-presets' }, presets),
-      control('Contour lines', 'contour', 'The topographic map drawn behind every page'),
-      control('Contour glow', 'contourGlow', 'The soft light under the main contour lines'),
-      control('Background', 'background', 'The surface behind the map'),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Topographic map'), h('small', null, 'Show the contour lines, or just the plain background colour')),
-        h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Topographic map' }, [[true, 'On'], [false, 'Off']].map(([v, l]) => h('button', { type: 'button', class: (P.topoOn !== false) === v ? 'on' : '', 'aria-pressed': String((P.topoOn !== false) === v), onclick: () => { S.setMap({ topoOn: v }); S.render(true); } }, l)))),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Line density'), h('small', null, 'How many contour lines the map draws')),
-        h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Line density' }, [['light', 'Light'], ['standard', 'Standard'], ['dense', 'Dense']].map(([v, l]) => h('button', { type: 'button', class: (P.topoDensity || 'standard') === v ? 'on' : '', 'aria-pressed': String((P.topoDensity || 'standard') === v), onclick: () => { S.setMap({ topoDensity: v }); S.render(true); } }, l)))),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Map shape'), h('small', null, 'Draws a different landscape')),
-        btn('New map', () => { S.setMap({ topoSeed: 1000 + Math.floor(Math.random() * 90000) }); S.render(true); }, 'ghost', 'reload')),
+      control('Background', 'background', 'A solid colour behind every page'),
       h('div', { class: 'sgo-head-a' }, btn('Reset appearance', () => { S.resetAppearance(); S.render(true); }, 'ghost', 'reload')));
   }
 
