@@ -441,7 +441,7 @@
   }
 
   /** Signature of everything the UI renders. Comparing it avoids re-rendering when a scan finds identical data. */
-  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners, state.avatar, state.unread, (S.prefs.gradeNotifs || []).length]);
+  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners, state.avatar, state.unread, (S.prefs.notifs || []).length]);
   S.stateSig = sig;
   /** Adopt cache written by another tab. Returns true only if the data actually differs. */
   S.adoptCache = (c) => {
@@ -552,6 +552,7 @@
     if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
     await Promise.all(jobs);
     relink();
+    if (S.noteWork && state.fetchedAt['Fetch: assignments']) S.noteWork(S.allItems().filter((i) => i.type !== 'event'));
     pending--; state.loading = pending > 0; state.loaded = true; state.lastRefresh = Date.now();
     saveCache(); // also persists fetchedAt so the cache lifetimes survive a page reload
     return sig() !== before;
