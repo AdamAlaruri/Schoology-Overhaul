@@ -142,67 +142,34 @@
   S.groupList = () => resource('groups', async () => parseGroups(await S.getDoc('/groups')), 5 * 6e4);
   S.groupFeed = (id) => resource('gfeed:' + id, async () => S.data.parseAnnouncements(await S.getDoc(`/group/${id}/feed`)), 5 * 6e4);
 
-  /* ---------- notifications ----------
-   * One list (prefs.notifs, newest first, kept as history) for four kinds of event, each created only when the data shows it:
-   *   grade       a score appears that was not there before ("New grade"), or a score changes ("Grade changed")
-   *   assignment  a teacher-assigned item appears that was not in an earlier read
-   *   deadline    an unfinished item is due within 24 hours
-   * The first read of each source only records what already exists, so nothing old is ever announced as new. An event has an id made
-   * from what happened, so a background refresh that sees the same data again can never create the same notification twice.
-   * Connection and sync problems are not stored: they are derived from the current state (S.syncIssues) so they cannot pile up. */
-  const CAP = 80;
+  /* ---------- grade notifications ----------
+   * Whenever the gradebook shows a score that was not there before (a new grade, or a changed one), one notification is kept.
+   * The first read only records what is already graded, so a student is never flooded with old grades. An event is identified by
+   * the assignment and the score, so the same grading can never be announced twice. Schoology does not publish the date a grade
+   * was entered, so the date shown is when it was first seen here, next to the assignment's due date. */
   S.gradeEvents = (grades, seen, baseline) => {
     const next = {}, events = [];
     for (const g of grades || []) for (const p of g.periods || []) for (const cat of p.categories || []) for (const it of cat.items || []) {
       if (it.earned == null || !it.title) continue;
       const key = `${g.courseId || g.courseName}|${it.title}|${it.dueText || ''}`, sig = `${it.earned}/${it.possible == null ? '' : it.possible}`;
       next[key] = sig;
-      const prev = (seen || {})[key];
-      if (baseline && prev !== sig) events.push({ kind: 'grade', id: key + '|' + sig, key, change: prev === undefined ? 'new' : 'changed', prevEarned: prev === undefined ? null : Number(String(prev).split('/')[0]), title: it.title, course: g.courseName || '', courseId: g.courseId || '', earned: it.earned, possible: it.possible == null ? null : it.possible, due: it.dueText || '' });
+      if (baseline && (seen || {})[key] !== sig) events.push({ id: key + '|' + sig, key, title: it.title, course: g.courseName || '', courseId: g.courseId || '', earned: it.earned, possible: it.possible == null ? null : it.possible, due: it.dueText || '' });
     }
     return { events, seen: Object.assign({}, seen, next) };
-  };
-  /** Add events that are not already in the list. Returns how many were added. */
-  S.addNotifs = (events) => {
-    const P = S.prefs, have = new Set((P.notifs || []).map((n) => n.id)), fresh = events.filter((e) => !have.has(e.id)).map((e) => Object.assign(e, { at: Date.now(), read: false }));
-    if (fresh.length) P.notifs = [...fresh, ...(P.notifs || [])].slice(0, CAP);
-    return fresh.length;
   };
   /** Compare the latest gradebook with what was seen. Returns true when new notifications were added. */
   S.noteGrades = () => {
     const P = S.prefs; if (!S.state.grades || !S.state.grades.length) return false;
     const known = P.gradeSeen || {};
     // a lost memory is treated like a first read, never as a flood of new grades
-    const r = S.gradeEvents(S.state.grades, known, !!P.gradeBase && Object.keys(known).length > 0), added = S.addNotifs(r.events);
+    const r = S.gradeEvents(S.state.grades, known, !!P.gradeBase && Object.keys(known).length > 0), have = new Set((P.gradeNotifs || []).map((n) => n.id));
+    const fresh = r.events.filter((e) => !have.has(e.id)).map((e) => Object.assign(e, { at: Date.now(), read: false }));
     P.gradeBase = true; P.gradeSeen = r.seen;
+    if (fresh.length) P.gradeNotifs = [...fresh, ...(P.gradeNotifs || [])].slice(0, 60);
     S.savePrefs();
-    return added > 0;
+    return fresh.length > 0;
   };
-  /** New teacher-assigned work and deadlines within 24 hours. `items` are the student's real assignments. */
-  S.noteWork = (items, now = Date.now()) => {
-    const P = S.prefs, seen = P.assignSeen || (P.assignSeen = {}), list = (items || []).filter((i) => i && i.key && i.title && !i.manual);
-    if (!list.length) return false;
-    const events = [], href = (i) => (S.itemHref ? S.itemHref(i) : i.url || '/home#/assignments');
-    const open = (i) => !S.isComplete(i) && !S.isStale(i), name = (i) => S.cn(i.courseId, i.courseName) || i.courseName || '';
-    if (P.assignBase) list.filter((i) => !(i.key in seen) && open(i)).forEach((i) => events.push({ kind: 'assignment', id: 'asg|' + i.key, key: i.key, title: i.title, course: name(i), courseId: i.courseId || '', due: i.due || null, href: href(i) }));
-    list.forEach((i) => { if (!(i.key in seen)) seen[i.key] = now; });
-    const keys = Object.keys(seen); if (keys.length > 800) keys.sort((a, b) => seen[a] - seen[b]).slice(0, keys.length - 800).forEach((k) => delete seen[k]);
-    P.assignBase = true;
-    const announced = new Set(events.map((e) => e.key)); // an item that is both new and due soon is announced once
-    (items || []).filter((i) => i && i.key && i.title && i.due && open(i) && i.due > now && i.due - now <= S.DAY && !announced.has(i.key)).forEach((i) => events.push({ kind: 'deadline', id: 'due|' + i.key + '|' + i.due, key: i.key, title: i.title, course: name(i), courseId: i.courseId || '', due: i.due, href: href(i) }));
-    const added = S.addNotifs(events); S.savePrefs();
-    return added > 0;
-  };
-  S.notifs = () => S.prefs.notifs || [];
-  S.unreadNotifs = (kind) => S.notifs().filter((n) => !n.read && (!kind || n.kind === kind)).length;
-  S.markNotifRead = (id) => { const n = S.notifs().find((x) => x.id === id); if (n && !n.read) { n.read = true; S.savePrefs(); } };
-  S.markAllNotifsRead = () => { S.notifs().forEach((n) => { n.read = true; }); S.savePrefs(); };
-  S.clearReadNotifs = () => { S.prefs.notifs = S.notifs().filter((n) => !n.read); S.savePrefs(); };
-  /** Problems reaching Schoology right now, taken from the current state. Never stored, so a refresh that succeeds clears them. */
-  S.syncIssues = () => {
-    const out = [];
-    if (S.state.session === 'expired') out.push({ id: 'sync-session', title: 'Your Schoology session has ended', detail: 'Data cannot refresh until you sign in again. What you see is the last saved copy.', href: '/login', cta: 'Sign in' });
-    (S.state.diag || []).filter((d) => !d.ok && /^Fetch/.test(d.name) && / — /.test(d.note || '') && S.state.session !== 'expired').forEach((d) => out.push({ id: 'sync-' + d.name, title: `Couldn’t refresh ${d.name.replace(/^Fetch: /, '')}`, detail: 'Showing the last saved copy. Use Refresh to try again.', at: d.at }));
-    return out;
-  };
+  S.unreadGrades = () => (S.prefs.gradeNotifs || []).filter((n) => !n.read).length;
+  S.markGradeRead = (id) => { const n = (S.prefs.gradeNotifs || []).find((x) => x.id === id); if (n && !n.read) { n.read = true; S.savePrefs(); } };
+  S.markAllGradesRead = () => { (S.prefs.gradeNotifs || []).forEach((n) => { n.read = true; }); S.savePrefs(); };
 })();

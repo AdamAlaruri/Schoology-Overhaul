@@ -14,15 +14,14 @@ Your school's Schoology address must match `*://*.schoology.com/*`. If your dist
 
 | Area | Route | Notes |
 |---|---|---|
-| Dashboard | `/home` | A compact greeting, one summary line, urgent work (overdue, due today, next 7 days), a course list and the latest updates. |
-| Assignments | `/home#/assignments` | To do / Overdue / Completed / All, search, course filter, sort by due date, course or title; one row style everywhere. Detail pages at `/home#/a/...`. |
-| Courses | `/courses` | A list of your courses with their Schoology image, what is coming up and the next assignment. Pin a course or move it up or down from its menu. |
-| Course pages | `/course/ID/...` | Overview, Materials, Assignments, Grades and Announcements, in the same look as the rest of the app. |
-| Calendar | `/calendar` | Month, week and agenda views. |
-| Grades | `/grades/grades` | Current grade per course, recently graded work with teacher feedback, and the full gradebook one tap away. |
-| Messages | `/messages` | Inbox and sent, reading, replying and composing through your Schoology account. |
-| Groups, Class posts, Settings | `/groups`, `/home#/posts`, `/home#/settings` | Your groups; announcements from your classes; appearance, names and diagnostics. |
-| Everything else | submission pages, resources... | Left as native Schoology with the navigation added. |
+| Dashboard | `/home` | Notes, course cards (banner, grade, code, term, announcements, Due list) and a Tasks panel with a week picker, course filter, progress ring, tabs for announcements, assignments and submitted items, recent feedback and a View Grades link. |
+| Assignments | `/home#/assignments` | Filters (all, upcoming, missing, overdue, completed), sort by due date, class or status, search, per-class filter. |
+| Assignment detail | `/home#/a/...` | Description, due info, status, and **Open in Schoology to submit**. |
+| Courses | `/courses` | Courses detected from your account, shown as cover-and-title cards in a responsive grid. Hover a card to **rename** it or **customize** colour and cover (gradients or your own image). Drag to rearrange, or switch to A-Z. Entire card opens the real course. |
+| Calendar | `/calendar` | Month, week, day and agenda views. |
+| Grades | `/grades/grades` | Course cards with assignment-level rows grouped by category, as reported by Schoology. |
+| Settings | `/home#/settings` | Theme, accent, course colours, school links, banners, diagnostics, clear cache. |
+| Everything else | course pages, submission pages, messages, resources... | Left as native Schoology, with the sidebar, a course-colour accent bar, "This course" shortcuts and light dark-mode styling. |
 
 ## Course cards
 
@@ -48,25 +47,21 @@ Every course opens inside the app; the legacy Schoology course page is never sho
 
 ## Design system
 
-One stylesheet, `src/ui.css`, owns the look. The default is a light, blue-and-white interface; choosing a dark background colour in Settings switches the whole UI to a dark palette.
+One stylesheet owns the look (`src/theme.css`); `src/styles.css` holds component layout only and consumes its tokens.
 
-- **Colour:** background `#F8FAFC`, surface `#FFFFFF`, secondary surface `#F1F5F9`, text `#0F172A`, secondary text `#475569`, border `#E2E8F0`, accent `#2563EB`. No gradients, glow, background patterns or shadows except on menus and dialogs. Text pairs are 7:1 or better, status colours 5:1 or better, and control borders are 3.4:1 or better (WCAG 2.2 AA).
-- **Type:** Inter (bundled in `fonts/`, SIL Open Font License): 28 for page titles, 18 for section headings, 16 for assignment titles, 15 for body, 14 and 13 for metadata. Nothing is shrunk to fit.
-- **Spacing and shape:** a 4/8/12/16/24/32/48 scale; radii 6, 8 and 12; 40px controls and 44px touch targets for the tick boxes and the bottom navigation.
-- **Structure:** content sits on the page background; each list is one white surface with hairline dividers between rows, not a card per item. Status is written as text ("Overdue", "Graded"), not as badges.
-- **Navigation:** eight destinations (Dashboard, Courses, Assignments, Calendar, Grades, Messages, Groups, Settings) in a narrow rail; below 900px a bottom bar with the four everyday destinations and a More menu. The top bar only holds search and the notification bell; refresh, the theme switch, the school portal link and sign out live in the account menu.
+- **Typography:** one font, Inter (bundled in `fonts/`, SIL Open Font License), declared once and inherited everywhere, with controls set to `font: inherit`. Seven sizes only: H1 48/700, H2 36/600, H3 28/600, H4 22/500, Body 16/400, Small 14/400, Caption 12/400, with the line heights from the brief. Page titles and the welcome line are H1, the clock H2, section headings H3, card titles H4. On phones the headings step down one level.
+- **Spacing:** an 8px scale (`--space-1` 4px for micro adjustments, then 8, 16, 24, 32, 40, 48, 64), 40px buttons and inputs, 32px compact controls, 48px rows. Radii are 4, 8 and 12px.
+- **Surfaces:** background (one SVG) → app shell → panels (subtle 8px blur) → menus and dialogs. The interface switches between light and dark text according to the background colour, so contrast always holds.
 
-## Dashboard
+## Topographic background
 
-- **Greeting and summary:** "Good evening, Adam." and one factual sentence ("You have 3 assignments due this week."), then `9 outstanding · 5 due this week · 0 unread grade updates`, each part a link. *Outstanding* = open work, overdue included; *due this week* = open work due today through 7 days out, overdue not counted; *unread grade updates* = unread grade notifications.
-- **Urgent work:** Overdue, Due today and Upcoming (next 7 days), in that order. Empty groups do not appear. Each row has a tick box, the assignment title, course, due date and a status only when it says something. Eight rows show at first, with "Show more" and a link to all assignments. Due date order is not importance, and the app does not claim otherwise.
-- **Courses:** a list with the original Schoology image, the course name, upcoming and overdue counts and the next assignment. A course with nothing coming up shows only its name. Pin, move up/down, change image and rename are in each row's menu. Courses are not split into current, supplementary or archived because Schoology's course list has no reliable metadata for that.
-- **Recent updates:** up to five new grades, grade changes and new assignments from the notification history (with teacher feedback when the gradebook has it), unread ones marked "New"; "Show more" reveals the rest. Deadlines within 24 hours stay in the bell and in the urgent list rather than being repeated here.
-- **Status words (only what Schoology's data supports):** *Graded* (the gradebook shows a score), *Submitted* (handed in, not graded), *Marked done* (you checked an assigned item off here; never shown as submitted), *Completed* (a personal task you finished), *Overdue* (on Schoology's missing list), *Open* and *To do*. "Not started" and "In progress" are not offered because Schoology does not expose them.
+`src/topo.js` generates a real contour map in code: a warped elevation field built from several hills, with iso-lines extracted by marching squares and written as smooth cubic Bézier `<path>` elements. It is one fixed, full-viewport SVG with a soft permanent blur (1.5px, background layer only, not adjustable) (`#sgo-bg`, `pointer-events: none`, behind everything), drawn at document start from `src/early.js` so it is there before the page paints. The geometry is generated once and kept; nothing animates. Strokes read CSS variables, so recolouring changes the paths themselves.
 
-## Notifications
+**Settings → Appearance** has buttons to turn the **topographic map** on or off, set its **line density** (Light, Standard, Dense) and draw a **New map**, and four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
 
-The bell keeps one history (up to 80, read items dimmed, "Clear read" asks first) of: **new grades**, **grade changes** (shows the earlier and new score), **new assignments** and **deadlines within 24 hours**, each with a title, course, timestamp and a link to the right page. The first read of grades and of assignments only records what already exists, so nothing old is announced, and each event has an id built from what happened so background refreshes never repeat it. Connection problems (an ended session or a failed refresh) are shown at the top of the list from the live state, so they never pile up and disappear when the refresh succeeds.
+## Dashboard header
+
+The greeting (Good morning / afternoon / evening plus your first name from Schoology, or just the greeting when no name is known) is the page heading, with a live clock beside it. The clock uses the browser's own local time and timezone, updates on the minute, and its timer stops whenever the dashboard is not on screen. On narrow screens the order is welcome, tasks, classes. Spacing uses the `--space-*` tokens in `theme.css`; every page shares one card surface, one page width (`--page`) and the same left edge. "Your classes" and "Tasks" open with the same heading row so their first cards start on the same line.
 
 ## Calendar, Inbox and Groups
 
@@ -75,6 +70,10 @@ All three open in the redesigned app (no legacy flash, refresh and back/forward 
 - **Calendar** (`/calendar`): month, week, day and agenda views, tests and events marked, "Add personal task" for your own dated items (saved only in this browser).
 - **Inbox** (`/messages`, `/messages/sent`, `/messages/view/ID`): list, reading pane, search and an Unread filter. Message text is kept in memory only. Replying and composing (`/messages/new`) happen inside the app: the extension reads Schoology's own message form with your signed-in session, fills in your text and submits it, so Schoology delivers it and keeps it in Sent. Errors from Schoology are shown as-is, and "Open in Schoology" is always offered. Opening a message marks it read, as in Schoology.
 - **Groups** (`/groups`): your groups with their latest posts. A single group (`/group/ID`) still opens on Schoology's own page.
+
+## Quirky messages
+
+A short, friendly line appears under the dashboard greeting. There are 20 for each part of the day (really late 0:00-4:59, morning, afternoon, evening, night from 22:00), and one is picked at random each time the extension opens. The last one shown is remembered so it is not repeated back to back. Edit them in `src/quips.js`; `node tests/quip-cases.js` checks the counts and time bands.
 
 ## How it stays safe and compatible
 
@@ -92,7 +91,7 @@ src/core.js    namespace, local prefs store, DOM helper h(), icons, date parsing
 src/data.js    all Schoology selectors (SEL), parsers, same-origin fetches, cache, derived helpers
 src/views.js   screens as functions of state -> DOM (dashboard, assignments, calendar, ...)
 src/app.js     sidebar/topbar shell, router, theme, MutationObserver, native-page handling
-src/ui.css     the design system and every component style
+src/styles.css design tokens, light/dark, components
 tests/mock-server.js   fake Schoology used to smoke-test the UI locally
 ```
 
@@ -117,6 +116,8 @@ Known limits:
 node tests/mock-server.js    # then open http://localhost:4173/home
 ```
 
-## Accent colour
+## Grade updates, accent colour, Help
 
-Settings → Appearance has a square that opens a grid of colours (or any custom colour) plus a solid background colour and four presets. Text on the accent switches between near-black and white for contrast, and accent-coloured text is adjusted to stay readable. There is no Help item in the sidebar, top bar or settings.
+- **Grade updates:** the bell in the top bar counts unread grading updates. When the gradebook shows a score that was not there before (a new grade, or a changed one) one notification is kept, showing the assignment, class, score and percentage, the due date and the date it was first seen here (Schoology does not publish when a grade was entered). The first read only records what is already graded, so old grades never flood in, and a grading event is never announced twice. Mark one or all as read. Checked whenever the gradebook is read (dashboard, Grades and course pages). Tests: `node tests/grade-cases.js`.
+- **Accent colour:** Settings → Appearance has eight named accents plus a custom hex. Text on the accent switches between near-black and white for contrast, and accent-coloured text is darkened or lightened to stay readable on either interface. Saved with your other preferences.
+- There is no Help item in the sidebar, top bar or settings.

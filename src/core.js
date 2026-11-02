@@ -34,8 +34,8 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#2563eb', background: '#f8fafc', notifs: [], gradeSeen: {}, gradeBase: false, assignSeen: {}, assignBase: false, classic: false,
-    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], pinned: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
+    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', topoOn: true, topoDensity: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false,
+    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
   S.prefs = DEFAULTS();
@@ -47,42 +47,44 @@
     p.widgets = (p.widgets || []).filter((w) => S.WIDGETS[w.id]);
     Object.keys(S.WIDGETS).forEach((id) => { if (!known.has(id)) p.widgets.push({ id, size: S.WIDGETS[id].size, hidden: false }); });
     S.prefs = p;
-    if ((p.designV || 0) < 9) { // the light interface is the default now; earlier default colours move to it, a colour the student picked stays
-      const old = { accent: ['#65a9ff', '#3b82f6', '#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], background: ['#0f1115', '#000000'] }, now = DEFAULTS();
+    if ((p.designV || 0) < 7) { // one-time: colours that were earlier defaults move to the current defaults; a colour the student picked stays
+      const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], contour: ['#40526d'], contourGlow: ['#1d4f91'], background: [] }, now = DEFAULTS();
       Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });
-      p.designV = 9; S.savePrefs();
-    }
-    if ((p.designV || 0) < 8) { // one-time: the earlier default colours move to the current ones; a colour the student picked stays
-      const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff', '#3b82f6'], background: ['#000000'] }, now = DEFAULTS();
-      Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });
-      // the map and its colours are gone; grade notifications become part of the general notification list
-      ['contour', 'contourGlow', 'topoOn', 'topoDensity', 'topoSeed', 'theme', 'history'].forEach((k) => { delete p[k]; });
-      if (Array.isArray(p.gradeNotifs)) { p.notifs = [...(p.notifs || []), ...p.gradeNotifs.map((n) => Object.assign({ kind: 'grade' }, n))].slice(0, 80); delete p.gradeNotifs; }
-      p.designV = 8; S.savePrefs();
+      delete p.theme; p.designV = 7; S.savePrefs();
     }
     if ('bgBlur' in p) { delete p.bgBlur; S.savePrefs(); } // the blur used to be adjustable; it is part of the design now
     return p;
   };
   let saveT;
   S.savePrefs = () => { clearTimeout(saveT); saveT = setTimeout(() => S.store.set('sgo_prefs', S.prefs), 150); };
-  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 9; S.savePrefs(); };
+  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 7; S.savePrefs(); };
   const C = window.SGO_COLOR;
   S.normHex = C.normHex; S.onAccent = C.onAccent;
-  S.ACCENTS = [['Blue', '#2563eb'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
-  /* Curated looks: accent and solid background. */
+  S.ACCENTS = [['Blue', '#3b82f6'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
+  /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
-    { id: 'light', name: 'Light', accent: '#2563eb', background: '#f8fafc' },
-    { id: 'dark', name: 'Dark', accent: '#65a9ff', background: '#0f1115' },
-    { id: 'graphite', name: 'Graphite', accent: '#d4d4d8', background: '#111113' },
+    { id: 'midnight', name: 'Midnight', accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000' },
+    { id: 'ocean', name: 'Ocean', accent: '#22d3ee', contour: '#255a66', contourGlow: '#0e7490', background: '#000000' },
+    { id: 'forest', name: 'Forest', accent: '#10b981', contour: '#2b4a3c', contourGlow: '#15803d', background: '#000000' },
+    { id: 'graphite', name: 'Graphite', accent: '#d4d4d8', contour: '#3f3f46', contourGlow: '#71717a', background: '#000000' },
+    { id: 'paper', name: 'Paper', accent: '#2563eb', contour: '#cbd5e1', contourGlow: '#93c5fd', background: '#ffffff' },
   ];
-  /** Push the accent and background colours to the page. Called after every change; nothing reloads. */
+  /** Push the four appearance colours (accent, contour, glow, background) to the page. Called after every change; nothing reloads. */
   S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
   S.setAppearance = (patch) => {
     const out = {};
     for (const k of Object.keys(patch)) { const hex = C.normHex(patch[k]); if (!hex) return false; out[k] = hex; }
     Object.assign(S.prefs, out); S.savePrefs(); S.applyTheme(); return true;
   };
-  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, background: d.background }); };
+  /** The map's own settings: on or off, line density and which map (seed). Its blur is fixed in the design (theme.css). */
+  S.setMap = (patch) => {
+    const P = S.prefs;
+    if ('topoOn' in patch) P.topoOn = !!patch.topoOn;
+    if ('topoDensity' in patch && ['light', 'standard', 'dense'].includes(patch.topoDensity)) P.topoDensity = patch.topoDensity;
+    if ('topoSeed' in patch) P.topoSeed = Math.max(1, Math.round(Number(patch.topoSeed) || 20260));
+    S.savePrefs(); S.applyTheme();
+  };
+  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); S.setMap({ topoOn: d.topoOn, topoDensity: d.topoDensity, topoSeed: d.topoSeed }); };
 
   /* ---------- DOM helper (text is always a text node => no injection) ---------- */
   S.h = function h(tag, props, ...kids) {
@@ -314,20 +316,10 @@
   S.resetCourse = (id) => { delete S.prefs.courseMeta[id]; delete S.prefs.courseColors[id]; S.savePrefs(); };
   /** Courses detected from Schoology, ordered by the user's choice (custom drag order or A-Z). */
   S.orderedCourses = () => {
-    const all = S.state.courses.slice(), pins = new Set(S.prefs.pinned || []);
-    let list;
-    if (S.prefs.courseSort === 'alpha') list = all.sort((a, b) => S.cn(a.id, a.name).localeCompare(S.cn(b.id, b.name), undefined, { sensitivity: 'base' }));
-    else { const pos = new Map(S.prefs.courseOrder.map((id, i) => [id, i])); list = all.map((c, i) => [c, pos.has(c.id) ? pos.get(c.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]); }
-    return [...list.filter((c) => pins.has(c.id)), ...list.filter((c) => !pins.has(c.id))]; // pinned classes lead, each group keeps its own order
-  };
-  S.isPinned = (id) => (S.prefs.pinned || []).includes(id);
-  S.togglePin = (id) => { const p = S.prefs.pinned || []; S.prefs.pinned = p.includes(id) ? p.filter((x) => x !== id) : [...p, id]; S.savePrefs(); };
-  /** Move a class one place earlier (-1) or later (1) among the classes it is grouped with (pinned or not). A keyboard-friendly alternative to dragging. */
-  S.moveCourse = (id, dir) => {
-    const list = S.orderedCourses(), i = list.findIndex((c) => c.id === id), j = i + dir;
-    if (i < 0 || j < 0 || j >= list.length || S.isPinned(list[j].id) !== S.isPinned(id)) return false;
-    [list[i], list[j]] = [list[j], list[i]];
-    S.prefs.courseOrder = list.map((c) => c.id); S.prefs.courseSort = 'custom'; S.savePrefs(); return true;
+    const all = S.state.courses.slice();
+    if (S.prefs.courseSort === 'alpha') return all.sort((a, b) => S.cn(a.id, a.name).localeCompare(S.cn(b.id, b.name), undefined, { sensitivity: 'base' }));
+    const pos = new Map(S.prefs.courseOrder.map((id, i) => [id, i]));
+    return all.map((c, i) => [c, pos.has(c.id) ? pos.get(c.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
   };
   /** Downscale an uploaded image locally so it stays small in chrome.storage. */
   S.imageToDataUrl = (file) => new Promise((res, rej) => {

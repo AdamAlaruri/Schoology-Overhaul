@@ -21,10 +21,12 @@
         "*://*.schoology.com/login/*"
       ],
       "css": [
-        "src/ui.css"
+        "src/styles.css",
+        "src/theme.css"
       ],
       "js": [
         "src/color.js",
+        "src/topo.js",
         "src/early.js"
       ],
       "run_at": "document_start"
@@ -40,6 +42,7 @@
       "js": [
         "src/core.js",
         "src/banners.js",
+        "src/quips.js",
         "src/data.js",
         "src/social.js",
         "src/views.js",
