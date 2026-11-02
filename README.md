@@ -14,14 +14,15 @@ Your school's Schoology address must match `*://*.schoology.com/*`. If your dist
 
 | Area | Route | Notes |
 |---|---|---|
-| Dashboard | `/home` | A compact greeting with a factual summary line, three statistics, class cards, recent teacher feedback and a Tasks panel (see "Dashboard" below). |
-| Assignments | `/home#/assignments` | Filters (all, upcoming, missing, overdue, completed), sort by due date, class or status, search, per-class filter. |
-| Assignment detail | `/home#/a/...` | Description, due info, status, and **Open in Schoology to submit**. |
-| Courses | `/courses` | Courses detected from your account, shown as cover-and-title cards in a responsive grid. Hover a card to **rename** it or **customize** colour and cover (gradients or your own image). Drag to rearrange, or switch to A-Z. Entire card opens the real course. |
-| Calendar | `/calendar` | Month, week, day and agenda views. |
-| Grades | `/grades/grades` | Course cards with assignment-level rows grouped by category, as reported by Schoology. |
-| Settings | `/home#/settings` | Theme, accent, course colours, school links, banners, diagnostics, clear cache. |
-| Everything else | course pages, submission pages, messages, resources... | Left as native Schoology, with the sidebar, a course-colour accent bar, "This course" shortcuts and light dark-mode styling. |
+| Dashboard | `/home` | A compact greeting, one summary line, urgent work (overdue, due today, next 7 days), a course list and the latest updates. |
+| Assignments | `/home#/assignments` | To do / Overdue / Completed / All, search, course filter, sort by due date, course or title; one row style everywhere. Detail pages at `/home#/a/...`. |
+| Courses | `/courses` | A list of your courses with their Schoology image, what is coming up and the next assignment. Pin a course or move it up or down from its menu. |
+| Course pages | `/course/ID/...` | Overview, Materials, Assignments, Grades and Announcements, in the same look as the rest of the app. |
+| Calendar | `/calendar` | Month, week and agenda views. |
+| Grades | `/grades/grades` | Current grade per course, recently graded work with teacher feedback, and the full gradebook one tap away. |
+| Messages | `/messages` | Inbox and sent, reading, replying and composing through your Schoology account. |
+| Groups, Class posts, Settings | `/groups`, `/home#/posts`, `/home#/settings` | Your groups; announcements from your classes; appearance, names and diagnostics. |
+| Everything else | submission pages, resources... | Left as native Schoology with the navigation added. |
 
 ## Course cards
 
@@ -47,21 +48,21 @@ Every course opens inside the app; the legacy Schoology course page is never sho
 
 ## Design system
 
-One stylesheet owns the look (`src/theme.css`); `src/styles.css` holds component layout only and consumes its tokens.
+One stylesheet, `src/ui.css`, owns the look. The default is a light, blue-and-white interface; choosing a dark background colour in Settings switches the whole UI to a dark palette.
 
-- **Typography:** one font, Inter (bundled in `fonts/`, SIL Open Font License), declared once and inherited everywhere. Seven sizes: H1 30 (greeting), H2 28, H3 24 (section headings), H4 18 (course titles), Body 15 (assignment titles), Small 14, Caption 13 (metadata).
-- **Spacing:** an 8px scale (`--space-1` 4px for micro adjustments, then 8, 16, 24, 32, 40, 48, 64), 40px buttons and inputs, 32px compact controls, 48px rows. Radii are 4, 8 and 12px.
-- **Surfaces:** one solid page colour (default `#0F1115`), panels `#171A21`, elevated surfaces and menus `#1D222B`, borders `#303640`, text `#F3F5F8` / `#A8B0BE`, accent `#65A9FF`. No gradients, glow, blur or background graphics. The interface switches between light and dark according to the background colour; text pairs are 7:1 or better in dark and controls have a 3:1 boundary (WCAG 2.2 AA).
+- **Colour:** background `#F8FAFC`, surface `#FFFFFF`, secondary surface `#F1F5F9`, text `#0F172A`, secondary text `#475569`, border `#E2E8F0`, accent `#2563EB`. No gradients, glow, background patterns or shadows except on menus and dialogs. Text pairs are 7:1 or better, status colours 5:1 or better, and control borders are 3.4:1 or better (WCAG 2.2 AA).
+- **Type:** Inter (bundled in `fonts/`, SIL Open Font License): 28 for page titles, 18 for section headings, 16 for assignment titles, 15 for body, 14 and 13 for metadata. Nothing is shrunk to fit.
+- **Spacing and shape:** a 4/8/12/16/24/32/48 scale; radii 6, 8 and 12; 40px controls and 44px touch targets for the tick boxes and the bottom navigation.
+- **Structure:** content sits on the page background; each list is one white surface with hairline dividers between rows, not a card per item. Status is written as text ("Overdue", "Graded"), not as badges.
+- **Navigation:** eight destinations (Dashboard, Courses, Assignments, Calendar, Grades, Messages, Groups, Settings) in a narrow rail; below 900px a bottom bar with the four everyday destinations and a More menu. The top bar only holds search and the notification bell; refresh, the theme switch, the school portal link and sign out live in the account menu.
 
 ## Dashboard
 
-- **Layout:** a 68% / 32% grid (classes and Tasks) that grows to 1760px, with the Tasks panel never narrower than 360px. Below 1100px it becomes one column with Tasks first; below 900px navigation is a bottom bar.
-- **Header:** your first name from Schoology, today's date and one factual line built from real counts, or "Nothing is overdue or due soon."
-- **Statistics (three buttons that jump to the matching list):** *Outstanding assignments* = open work, overdue included (the same as the Tasks panel with All upcoming and All courses); *Due this week* = open work due today through 7 days out, overdue not counted; *Unread grade updates* = unread grade notifications (opens the bell).
-- **Class cards:** the original Schoology image in one ratio, the course name as the main text, grade only when Schoology reports one, the upcoming count, overdue count, and the nearest assignment with its date. The whole card opens the course; the menu has Open, Assignments, Grades, Announcements, **Pin to top**, **Move earlier / later** (keyboard alternative to dragging on the Courses page), Change banner and Rename. Classes are not split into academic or supplementary groups because Schoology's course list has no reliable metadata for that.
-- **Tasks:** one header ("Tasks" + Add task), a progress line ("2 of 7 completed · Next 7 days"), tabs *To do* and *Completed* with counts, a course filter and a range filter (Today / Next 7 days / All upcoming; overdue is always included), and an order control (Due date by default, or Course or Title). The list, the tab counts and the progress line use the same definition. The first upcoming item in due-date order is highlighted "Up next"; the panel says the order is by due date, not importance. Class announcements moved to their own page, **Class posts** (`/home#/posts`).
-- **Status words (only what Schoology's data supports):** *Graded* (the gradebook shows a score), *Submitted* (handed in, not graded), *Marked done* (you checked an assigned item off here; this is never shown as submitted and is listed apart), *Completed* (a personal task you finished), *Overdue* (on Schoology's missing list), *Open* and *To do*. "Not started" and "In progress" are not offered because Schoology does not expose them. Checking off an assigned item never changes its Schoology state.
-- **Recent activity:** the five latest graded assignments, each with *your score on that assignment*, the course's *current grade* and any *teacher feedback*, linking to the grade details. Schoology's gradebook does not mark curved or original scores, so none is claimed.
+- **Greeting and summary:** "Good evening, Adam." and one factual sentence ("You have 3 assignments due this week."), then `9 outstanding · 5 due this week · 0 unread grade updates`, each part a link. *Outstanding* = open work, overdue included; *due this week* = open work due today through 7 days out, overdue not counted; *unread grade updates* = unread grade notifications.
+- **Urgent work:** Overdue, Due today and Upcoming (next 7 days), in that order. Empty groups do not appear. Each row has a tick box, the assignment title, course, due date and a status only when it says something. Eight rows show at first, with "Show more" and a link to all assignments. Due date order is not importance, and the app does not claim otherwise.
+- **Courses:** a list with the original Schoology image, the course name, upcoming and overdue counts and the next assignment. A course with nothing coming up shows only its name. Pin, move up/down, change image and rename are in each row's menu. Courses are not split into current, supplementary or archived because Schoology's course list has no reliable metadata for that.
+- **Recent updates:** up to five new grades, grade changes and new assignments from the notification history (with teacher feedback when the gradebook has it), unread ones marked "New"; "Show more" reveals the rest. Deadlines within 24 hours stay in the bell and in the urgent list rather than being repeated here.
+- **Status words (only what Schoology's data supports):** *Graded* (the gradebook shows a score), *Submitted* (handed in, not graded), *Marked done* (you checked an assigned item off here; never shown as submitted), *Completed* (a personal task you finished), *Overdue* (on Schoology's missing list), *Open* and *To do*. "Not started" and "In progress" are not offered because Schoology does not expose them.
 
 ## Notifications
 
@@ -91,8 +92,7 @@ src/core.js    namespace, local prefs store, DOM helper h(), icons, date parsing
 src/data.js    all Schoology selectors (SEL), parsers, same-origin fetches, cache, derived helpers
 src/views.js   screens as functions of state -> DOM (dashboard, assignments, calendar, ...)
 src/app.js     sidebar/topbar shell, router, theme, MutationObserver, native-page handling
-src/theme.css  design tokens, light/dark, dashboard and notification styles
-src/styles.css component layout
+src/ui.css     the design system and every component style
 tests/mock-server.js   fake Schoology used to smoke-test the UI locally
 ```
 
