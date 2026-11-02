@@ -14,10 +14,11 @@
   const RAIL = () => [
     ['dashboard', 'Dashboard', 'home', '/home'],
     ['courses', 'Courses', 'book', '/courses'],
-    ['groups', 'Groups', 'groups', '/groups'],
     ['calendar', 'Calendar', 'calendar', '/calendar'],
+    ['grades', 'Grades', 'grades', '/grades/grades'],
+    ['groups', 'Groups', 'groups', '/groups'],
     ['inbox', 'Inbox', 'inbox', '/messages'],
-    ['settings', 'Accessibility', 'access', '/home#/settings'],
+    ['settings', 'Settings', 'settings', '/home#/settings'],
   ];
 
   /* ---------- routing ---------- */
@@ -44,7 +45,7 @@
   const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups' };
 
   /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
-  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); };
+  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, background: t.background }); S.render(true); };
 
   /* ---------- hide native content but keep it alive ---------- */
   function clearHidden() {
@@ -82,26 +83,48 @@
         onclick: () => { S.prefs.collapsed = !collapsed; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon('left', 17)));
   }
 
-  /* ---------- grade updates: a bell with an unread count and a small list ---------- */
+  /* ---------- notifications: a bell with an unread count, the list as history, and any connection problem on top ---------- */
+  const KIND = { grade: ['grades', 'Grade'], assignment: ['notepad', 'Assignment'], deadline: ['clock', 'Deadline'] };
   const pct = (n) => (n.possible ? Math.round((n.earned / n.possible) * 1000) / 10 + '%' : '');
-  function notifPanel(list) {
-    const row = (n) => h('li', { class: 'notif-i' + (n.read ? '' : ' unread') },
-      h('div', { class: 'notif-t' },
-        h('a', { href: '/grades/grades', onclick: () => { S.markGradeRead(n.id); S.ui.notifOpen = false; } }, n.title),
-        h('span', { class: 'notif-g' }, `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}`)),
-      h('div', { class: 'notif-m' }, [S.cn(n.courseId, n.course) || n.course, n.due && 'Due ' + n.due.replace(/^Due:?\s*/i, ''), 'Seen ' + S.fmtDate(n.at)].filter(Boolean).join(' · ')),
-      n.read ? null : h('button', { class: 'sgo-icon-btn notif-r', type: 'button', title: 'Mark as read', 'aria-label': 'Mark ' + n.title + ' as read', onclick: () => { S.markGradeRead(n.id); S.render(true); } }, icon('check', 16)));
-    return h('div', { class: 'notif-p', role: 'dialog', 'aria-label': 'Grade updates' },
-      h('div', { class: 'notif-h' }, h('b', null, 'Grade updates'), list.some((n) => !n.read) ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all as read') : null),
-      list.length ? h('ul', { class: 'notif-l' }, list.map(row)) : h('p', { class: 'sgo-muted notif-none' }, 'No grade updates yet. When a teacher grades an assignment, it shows up here.'));
+  const stampOf = (ts) => `${S.fmtDate(ts)} · ${S.fmtTime(ts)}`;
+  /** Where a notification leads, and its readable title and detail. All text comes from the stored real event. */
+  const describe = (n) => {
+    if (n.kind === 'grade') return {
+      title: (n.change === 'changed' ? 'Grade changed: ' : 'New grade: ') + n.title,
+      detail: n.change === 'changed' && n.prevEarned != null ? `${n.prevEarned} → ${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}` : `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}`,
+      href: n.courseId ? `/course/${n.courseId}/student_grades` : '/grades/grades' };
+    if (n.kind === 'assignment') return { title: 'New assignment: ' + n.title, detail: n.due ? 'Due ' + S.fmtDate(n.due) : 'No due date', href: n.href };
+    return { title: 'Due soon: ' + n.title, detail: 'Due ' + S.fmtDate(n.due) + (new Date(n.due).getHours() || new Date(n.due).getMinutes() ? ' · ' + S.fmtTime(n.due) : ''), href: n.href };
+  };
+  function notifPanel(list, issues) {
+    const ui = S.ui, filter = ui.notifFilter || 'all', shown = filter === 'unread' ? list.filter((n) => !n.read) : list;
+    const row = (n) => { const d = describe(n), [ic, label] = KIND[n.kind] || KIND.grade;
+      return h('li', { class: 'notif-i' + (n.read ? '' : ' unread') },
+        h('span', { class: 'notif-ic', title: label }, icon(ic, 18)),
+        h('div', { class: 'notif-b' },
+          h('a', { class: 'notif-t', href: d.href || '/home', onclick: () => { S.markNotifRead(n.id); ui.notifOpen = false; } }, n.read ? null : h('i', { class: 'notif-dot', 'aria-label': 'Unread' }), d.title),
+          h('p', { class: 'notif-d' }, d.detail),
+          h('p', { class: 'notif-m' }, [S.cn(n.courseId, n.course) || n.course, stampOf(n.at)].filter(Boolean).join(' · '))),
+        n.read ? null : h('button', { class: 'sgo-icon-btn notif-r', type: 'button', title: 'Mark as read', 'aria-label': 'Mark ' + d.title + ' as read', onclick: () => { S.markNotifRead(n.id); S.render(true); } }, icon('check', 16)));
+    };
+    const issue = (x) => h('li', { class: 'notif-i issue' }, h('span', { class: 'notif-ic', title: 'Connection' }, icon('alert', 18)),
+      h('div', { class: 'notif-b' }, h('b', { class: 'notif-t' }, x.title), h('p', { class: 'notif-d' }, x.detail), x.href ? h('a', { class: 'sgo-btn ghost notif-cta', href: x.href }, x.cta || 'Open') : null));
+    const anyRead = list.some((n) => n.read), anyUnread = list.some((n) => !n.read);
+    return h('div', { class: 'notif-p', role: 'dialog', 'aria-label': 'Notifications' },
+      h('div', { class: 'notif-h' }, h('b', null, 'Notifications'),
+        h('div', { class: 'notif-ha' }, anyUnread ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { S.markAllNotifsRead(); S.render(true); } }, 'Mark all read') : null,
+          anyRead ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => S.openConfirm({ title: 'Clear read notifications?', body: 'Notifications you have read are removed from this list. Unread ones stay. Nothing changes in Schoology.', ok: 'Clear', danger: true, onOk: () => { S.clearReadNotifs(); S.render(true); } }) }, 'Clear read') : null)),
+      h('div', { class: 'sgo-seg notif-f', role: 'group', 'aria-label': 'Show' }, [['all', 'All'], ['unread', 'Unread']].map(([k, l]) => h('button', { type: 'button', class: filter === k ? 'on' : '', 'aria-pressed': String(filter === k), onclick: () => { ui.notifFilter = k; S.render(true); } }, l))),
+      issues.length || shown.length ? h('ul', { class: 'notif-l' }, issues.map(issue), shown.map(row))
+        : h('p', { class: 'sgo-muted notif-none' }, filter === 'unread' ? 'You have read everything.' : 'No notifications yet. New grades, new assignments and deadlines within 24 hours appear here.'));
   }
   function notifications() {
-    const list = S.prefs.gradeNotifs || [], n = S.unreadGrades(), open = !!S.ui.notifOpen;
+    const list = S.notifs(), n = S.unreadNotifs(), issues = S.syncIssues(), open = !!S.ui.notifOpen;
     return h('div', { class: 'sgo-notif' },
-      h('button', { class: 'sgo-icon-btn sgo-bell', type: 'button', title: 'Grade updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
-        'aria-label': n ? `Grade updates, ${n} unread` : 'Grade updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; S.render(true); } },
-        icon('bell', 18), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
-      open ? notifPanel(list) : null);
+      h('button', { class: 'sgo-icon-btn sgo-bell' + (issues.length ? ' warn' : ''), type: 'button', title: 'Notifications', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
+        'aria-label': 'Notifications' + (n ? `, ${n} unread` : '') + (issues.length ? ', connection problem' : ''), onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; S.render(true); } },
+        icon('bell', 18), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : issues.length ? h('b', { class: 'sgo-bell-n warn' }, '!') : null),
+      open ? notifPanel(list, issues) : null);
   }
   document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen && !(e.target.closest && e.target.closest('.sgo-notif'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.notifOpen) { S.ui.notifOpen = false; S.render(true); } });
@@ -113,7 +136,7 @@
     const q = h('input', { class: 'sgo-input sgo-search', type: 'search', placeholder: 'Search assignments…', 'aria-label': 'Search assignments',
       onkeydown: (e) => { if (e.key === 'Enter') { S.ui.assign.q = e.target.value; S.ui.assign.f = 'all'; S.ui.assign.course = ''; S.go('/home#/assignments'); S.render(); } } });
     const dark = html.classList.contains('sgo-dark');
-    const links = [['Home', '/home'], ...S.TOP_LINKS.map(([k, label]) => [label, linkTo(k)])];
+    const links = [...S.TOP_LINKS.map(([k, label]) => [label, linkTo(k)])];
     return h('div', { class: 'sgo-top' }, q,
       h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
       notifications(),
