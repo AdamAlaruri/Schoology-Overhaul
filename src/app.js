@@ -29,6 +29,7 @@
       if (hp.path.startsWith('/a/')) return 'assignment';
       if (hp.path === '/assignments') return 'assignments';
       if (hp.path === '/settings') return 'settings';
+      if (hp.path === '/posts') return 'posts';
       return 'dashboard';
     }
     if (/[?&]sgo=classic\b/.test(loc.search)) return null; // explicit link to Schoology's own page
@@ -41,8 +42,8 @@
     return null;
   }
   const route = () => routeFor(location);
-  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
-  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups' };
+  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r === 'posts' ? 'dashboard' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
+  const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', posts: 'Class posts', inbox: 'Inbox', groups: 'Groups' };
 
   /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
   const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, background: t.background }); S.render(true); };
@@ -140,8 +141,8 @@
     return h('div', { class: 'sgo-top' }, q,
       h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
       notifications(),
-      h('button', { class: 'sgo-icon-btn', title: 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
-      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
+      h('button', { class: 'sgo-icon-btn', title: 'Refresh data', 'aria-label': 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
+      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', 'aria-label': dark ? 'Switch to light mode' : 'Switch to dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
   }
 
   /** Shown when a request reveals that the Schoology session has ended. Existing data stays visible. */
