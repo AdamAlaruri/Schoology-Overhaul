@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#65a9ff', background: '#0f1115', notifs: [], gradeSeen: {}, gradeBase: false, assignSeen: {}, assignBase: false, classic: false,
+    accent: '#2563eb', background: '#f8fafc', notifs: [], gradeSeen: {}, gradeBase: false, assignSeen: {}, assignBase: false, classic: false,
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], pinned: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
@@ -47,6 +47,11 @@
     p.widgets = (p.widgets || []).filter((w) => S.WIDGETS[w.id]);
     Object.keys(S.WIDGETS).forEach((id) => { if (!known.has(id)) p.widgets.push({ id, size: S.WIDGETS[id].size, hidden: false }); });
     S.prefs = p;
+    if ((p.designV || 0) < 9) { // the light interface is the default now; earlier default colours move to it, a colour the student picked stays
+      const old = { accent: ['#65a9ff', '#3b82f6', '#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], background: ['#0f1115', '#000000'] }, now = DEFAULTS();
+      Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });
+      p.designV = 9; S.savePrefs();
+    }
     if ((p.designV || 0) < 8) { // one-time: the earlier default colours move to the current ones; a colour the student picked stays
       const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff', '#3b82f6'], background: ['#000000'] }, now = DEFAULTS();
       Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });
@@ -60,16 +65,15 @@
   };
   let saveT;
   S.savePrefs = () => { clearTimeout(saveT); saveT = setTimeout(() => S.store.set('sgo_prefs', S.prefs), 150); };
-  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 8; S.savePrefs(); };
+  S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 9; S.savePrefs(); };
   const C = window.SGO_COLOR;
   S.normHex = C.normHex; S.onAccent = C.onAccent;
-  S.ACCENTS = [['Blue', '#65a9ff'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
+  S.ACCENTS = [['Blue', '#2563eb'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
   /* Curated looks: accent and solid background. */
   S.THEME_PRESETS = [
-    { id: 'midnight', name: 'Midnight', accent: '#65a9ff', background: '#0f1115' },
+    { id: 'light', name: 'Light', accent: '#2563eb', background: '#f8fafc' },
+    { id: 'dark', name: 'Dark', accent: '#65a9ff', background: '#0f1115' },
     { id: 'graphite', name: 'Graphite', accent: '#d4d4d8', background: '#111113' },
-    { id: 'forest', name: 'Forest', accent: '#34d399', background: '#0e1311' },
-    { id: 'paper', name: 'Paper', accent: '#2563eb', background: '#f6f7f9' },
   ];
   /** Push the accent and background colours to the page. Called after every change; nothing reloads. */
   S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
