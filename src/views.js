@@ -54,7 +54,7 @@
       h('a', { class: 'sgo-item-main', href: detailHref(it) },
         h('div', { class: 'sgo-item-title' }, it.title),
         h('div', { class: 'sgo-item-meta' }, dot(S.colorOf(it)), S.cn(it.courseId, it.courseName) || 'Course', ' · ', S.relDue(it.due), it.due && it.timed ? ' · ' + S.fmtTime(it.due) : '')),
-      !opts.compact && h('div', { class: 'sgo-item-side' }, mine && pill('Yours', 'mine'), pr !== 'low' && pill(S.PRIORITY[pr], 'pr-' + pr), pill(st.label, 'st-' + st.id)),
+      !opts.compact && h('div', { class: 'sgo-item-side' }, mine && pill('Yours', 'mine'), done || st.id === 'done' ? pill(st.label, 'st-' + st.id) : pr !== 'low' ? pill(S.PRIORITY[pr], 'pr-' + pr) : st.id !== 'upcoming' ? pill(st.label, 'st-' + st.id) : null),
       act);
   }
   const list = (items, opts) => items.length ? h('div', { class: 'sgo-list' }, items.map((i) => itemCard(i, opts))) : null;
@@ -455,7 +455,7 @@
         h('button', { class: 'sgo-chip-btn', title: 'Customize name & colour', 'aria-label': 'Customize ' + name, onclick: (e) => { stop(e); S.openCourseEditor(c); } }, icon('palette', 15)),
         h('button', { class: 'sgo-chip-btn', title: 'Change banner', 'aria-label': 'Change banner for ' + name, onclick: (e) => { stop(e); S.openBannerPicker(c); } }, icon('image', 15))),
       h('div', { class: 'sgo-course-body' }, title,
-        h('div', { class: 'sgo-course-raw' }, c.name),
+        c.name !== name ? h('div', { class: 'sgo-course-raw' }, c.name) : null,
         h('div', { class: 'sgo-course-pills' }, od > 0 && pill(od + ' overdue', 'pr-critical'), soon > 0 && pill(soon + ' this week', 'pr-medium'), !od && !soon && pill('All clear', 'st-done'))),
       !opts.dash && h('div', { class: 'sgo-course-foot' }, h('a', { href: assignmentsHref('course=' + c.id) }, 'Assignments'), h('a', { href: `/course/${c.id}/materials` }, 'Materials')));
     { const cov = card.querySelector('.sgo-course-cover'); paintCover(cov, c, name, coverFor(c, name), true); if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cov, c.id, c.name); }
@@ -784,7 +784,93 @@
     });
     return h('div', { class: 'gr2-body' }, blocks.length ? blocks : h('div', { class: 'gr2-none' }, 'Schoology has not published grades for this course yet.'));
   }
-  V.grades = () => {
+  /* ---------- Hypothetical grades: the student's own categories, weights and scores, kept only in this browser ---------- */
+  const hyNum = (v) => { const x = parseFloat(String(v).replace(',', '.')); return Number.isFinite(x) && x >= 0 ? x : null; };
+  const hyId = () => 'h' + Math.random().toString(36).slice(2, 9);
+  const hyR2 = (n) => Math.round(n * 100) / 100;
+  const hyCourse = () => { const list = S.orderedCourses(); return list.find((c) => c.id === S.ui.hypoCourse) || list[0] || null; };
+  const hyData = (id, create) => { const all = S.prefs.hypo || (S.prefs.hypo = {}); if (!all[id] && create) all[id] = { cats: [], items: [] }; return all[id] || { cats: [], items: [] }; };
+
+  /** The big number, how it was reached, and a plain note whenever the weights or the scores need the student's attention. */
+  function hyResult(d, official) {
+    const r = S.hypoGrade(d.cats, d.items), total = hyR2(r.totalWeight), notes = [];
+    if (!d.cats.length) notes.push('Add a category to begin.');
+    else if (r.percent == null) notes.push('Add a score to a category to see a grade.');
+    else {
+      if (r.weighted && Math.abs(total - 100) > 0.01) notes.push(`Your weights add up to ${total}%. The grade uses the weights you entered, scaled to 100%.`);
+      if (r.weighted && r.usedWeight < r.totalWeight) notes.push('Categories with no scores yet are left out, and the others are scaled up.');
+      if (!r.weighted) notes.push('Every weight is 0, so every point counts equally.');
+    }
+    return h('section', { class: 'hy-result', 'aria-live': 'polite', 'aria-label': 'Hypothetical grade' },
+      h('div', { class: 'hy-big' }, h('span', { class: 'hy-label' }, 'Hypothetical grade'), h('b', null, r.percent == null ? '—' : gPct(hyR2(r.percent)))),
+      official && official.percent != null ? h('p', { class: 'hy-off' }, 'Schoology reports ', h('b', null, gPct(official.percent)), ' as your official grade. This page does not change it.') : h('p', { class: 'hy-off' }, 'Only for planning. Your teacher’s grade in Schoology is the official one.'),
+      notes.map((n) => h('p', { class: 'hy-note' }, icon('help', 14), n)),
+      r.rows.some((x) => x.count) ? h('ul', { class: 'hy-break' }, r.rows.map((x) => h('li', null, h('b', null, x.name || 'Untitled'), h('span', null, `${hyR2(x.weight)}% of grade`),
+        h('span', null, x.count ? `${gNum(x.earned)} / ${gNum(x.possible)} points` : 'No scores'), h('strong', null, x.percent == null ? '—' : gPct(hyR2(x.percent)))))) : null);
+  }
+
+  function hypoView() {
+    const course = hyCourse();
+    if (!course) return empty('No courses found', 'Courses are read from your Schoology account.');
+    const id = course.id, d = hyData(id), official = S.gradeFor(id), D = () => hyData(id, true);
+    const live = () => { const el = document.querySelector('.hy-result'); if (el) el.replaceWith(hyResult(d, official)); };
+    const commit = () => { S.savePrefs(); S.render(true); };
+    const total = hyR2(d.cats.reduce((a, c) => a + (Number(c.weight) || 0), 0));
+
+    const catRow = (c) => h('div', { class: 'hy-row hy-cat', role: 'group', 'aria-label': 'Category ' + (c.name || 'untitled') },
+      h('label', { class: 'hy-f hy-name' }, h('span', null, 'Category'), h('input', { class: 'sgo-input', type: 'text', value: c.name, maxlength: '40', placeholder: 'e.g. Tests', dataset: { fk: 'hc-n-' + c.id },
+        oninput: (e) => { c.name = e.target.value; S.savePrefs(); live(); }, onchange: commit })),
+      h('label', { class: 'hy-f hy-num' }, h('span', null, 'Weight'), h('span', { class: 'hy-suf' }, h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', max: '100', step: 'any', value: c.weight == null ? '' : c.weight, placeholder: '0', dataset: { fk: 'hc-w-' + c.id },
+        oninput: (e) => { c.weight = hyNum(e.target.value) ?? 0; S.savePrefs(); live(); }, onchange: commit }), h('i', null, '%'))),
+      h('button', { class: 'sgo-icon-btn hy-del', type: 'button', title: 'Delete category', 'aria-label': 'Delete category ' + (c.name || 'untitled'), onclick: () => {
+        const n = d.items.filter((i) => i.cat === c.id).length;
+        const go = () => { const x = D(); x.cats = x.cats.filter((k) => k.id !== c.id); x.items = x.items.filter((i) => i.cat !== c.id); commit(); };
+        if (n) S.openConfirm({ title: 'Delete this category?', body: `Its ${n} ${n === 1 ? 'score' : 'scores'} will be deleted too. Nothing changes in Schoology.`, ok: 'Delete', danger: true, onOk: go }); else go();
+      } }, icon('trash', 16)));
+
+    const itemRow = (it) => {
+      const pc = it.earned != null && it.possible ? hyR2((it.earned / it.possible) * 100) : null;
+      return h('div', { class: 'hy-row hy-item', role: 'group', 'aria-label': 'Score ' + (it.title || 'untitled') },
+        h('label', { class: 'hy-f hy-name' }, h('span', null, 'Assignment'), h('input', { class: 'sgo-input', type: 'text', value: it.title, maxlength: '80', placeholder: 'e.g. Unit 3 test', dataset: { fk: 'hi-t-' + it.id }, oninput: (e) => { it.title = e.target.value; S.savePrefs(); }, onchange: commit })),
+        h('label', { class: 'hy-f hy-cat-sel' }, h('span', null, 'Category'), h('select', { class: 'sgo-input', dataset: { fk: 'hi-c-' + it.id }, onchange: (e) => { it.cat = e.target.value; commit(); } },
+          d.cats.map((c) => h('option', { value: c.id, selected: it.cat === c.id ? 'selected' : null }, c.name || 'Untitled')))),
+        h('label', { class: 'hy-f hy-num' }, h('span', null, 'Earned'), h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: it.earned == null ? '' : it.earned, dataset: { fk: 'hi-e-' + it.id }, oninput: (e) => { it.earned = hyNum(e.target.value); S.savePrefs(); live(); }, onchange: commit })),
+        h('label', { class: 'hy-f hy-num' }, h('span', null, 'Possible'), h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: it.possible == null ? '' : it.possible, dataset: { fk: 'hi-p-' + it.id }, oninput: (e) => { it.possible = hyNum(e.target.value); S.savePrefs(); live(); }, onchange: commit })),
+        h('div', { class: 'hy-pc', 'aria-label': 'Percent' }, h('span', null, 'Percent'), h('b', null, pc == null ? '—' : pc + '%')),
+        h('button', { class: 'sgo-icon-btn hy-del', type: 'button', title: 'Delete score', 'aria-label': 'Delete score ' + (it.title || 'untitled'), onclick: () => { const x = D(); x.items = x.items.filter((k) => k.id !== it.id); commit(); } }, icon('trash', 16)));
+    };
+
+    const importIt = () => {
+      const g = S.gradeFor(id); if (!g) return;
+      const go = () => { const imp = S.hypoFromGradebook(g), x = D(); x.cats = imp.cats; x.items = imp.items; S.ui.hypoNote = imp.evenSplit ? 'Schoology did not report category weights for this course, so they were split evenly. Edit them to match your syllabus.' : ''; commit(); };
+      if (d.cats.length || d.items.length) S.openConfirm({ title: 'Replace what is here?', body: 'This copies your Schoology gradebook into this course and replaces the categories and scores you entered.', ok: 'Replace', danger: true, onOk: go }); else go();
+    };
+    const resetIt = () => S.openConfirm({ title: 'Clear this course?', body: 'This deletes the categories and scores you entered for this course. Nothing changes in Schoology.', ok: 'Clear', danger: true, onOk: () => { delete (S.prefs.hypo || {})[id]; S.ui.hypoNote = ''; commit(); } });
+
+    const sel = h('select', { class: 'sgo-input hy-course', 'aria-label': 'Course', dataset: { fk: 'hy-course' }, onchange: (e) => { S.ui.hypoCourse = e.target.value; S.ui.hypoNote = ''; S.render(true); } },
+      S.orderedCourses().map((c) => h('option', { value: c.id, selected: c.id === id ? 'selected' : null }, S.cn(c.id, c.name))));
+    const wOk = d.cats.length && Math.abs(total - 100) < 0.01;
+    return h('div', { class: 'hy' },
+      h('div', { class: 'hy-bar' }, h('label', { class: 'hy-f' }, h('span', null, 'Course'), sel),
+        h('div', { class: 'sgo-head-a' }, official ? btn('Copy from Schoology', importIt, 'ghost', 'download') : null, d.cats.length || d.items.length ? btn('Clear', resetIt, 'ghost', 'trash') : null)),
+      S.ui.hypoNote ? h('p', { class: 'hy-note warn', role: 'status' }, icon('alert', 14), S.ui.hypoNote) : null,
+      hyResult(d, official),
+      h('section', { class: 'hy-sec', 'aria-labelledby': 'hy-c-h' },
+        h('div', { class: 'hy-sh' }, h('div', null, h('h2', { id: 'hy-c-h' }, 'Categories'), h('p', null, 'Group scores the way your teacher weights them, for example Tests 50%, Homework 30%.')),
+          d.cats.length ? h('span', { class: 'hy-total ' + (wOk ? 'ok' : 'warn') }, wOk ? 'Weights total 100%' : `Weights total ${total}%`) : null),
+        d.cats.length ? h('div', { class: 'hy-rows' }, d.cats.map(catRow)) : h('p', { class: 'hy-empty' }, 'No categories yet.'),
+        h('div', { class: 'hy-add' }, btn('Add category', () => { const x = D(); const c = { id: hyId(), name: '', weight: x.cats.length ? 0 : 100 }; x.cats.push(c); S.ui.hypoFocus = 'hc-n-' + c.id; commit(); setTimeout(() => { const el = document.querySelector(`[data-fk="${S.ui.hypoFocus}"]`); if (el) el.focus(); }, 30); }, 'ghost', 'plus'))),
+      h('section', { class: 'hy-sec', 'aria-labelledby': 'hy-s-h' },
+        h('div', { class: 'hy-sh' }, h('div', null, h('h2', { id: 'hy-s-h' }, 'Scores'), h('p', null, 'Add real or imagined scores. Leave Earned empty for work you have not done yet.'))),
+        d.items.length ? h('div', { class: 'hy-rows' }, d.items.map(itemRow)) : h('p', { class: 'hy-empty' }, d.cats.length ? 'No scores yet.' : 'Add a category first, then add scores to it.'),
+        h('div', { class: 'hy-add' }, d.cats.length ? btn('Add score', () => { const x = D(); const it = { id: hyId(), title: '', cat: x.cats[x.cats.length - 1].id, earned: null, possible: null }; x.items.push(it); commit(); setTimeout(() => { const el = document.querySelector(`[data-fk="hi-t-${it.id}"]`); if (el) el.focus(); }, 30); }, 'ghost', 'plus') : null)),
+      h('p', { class: 'sgo-note' }, 'Inside a category the grade is points earned divided by points possible. The course grade is the weighted average of the categories that have scores. Your entries are saved only in this browser and are never sent to Schoology.'));
+  }
+
+  const gradeModeSeg = () => h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Grades view' }, [['official', 'Schoology grades'], ['hypo', 'Hypothetical']].map(([k, l]) =>
+    h('button', { type: 'button', class: (S.prefs.gradeMode || 'official') === k ? 'on' : '', 'aria-pressed': String((S.prefs.gradeMode || 'official') === k), dataset: { fk: 'gm-' + k }, onclick: () => { S.prefs.gradeMode = k; S.savePrefs(); S.render(true); } }, l)));
+
+  function officialGrades() {
     const g = S.state.grades;
     const courseBlock = (c, idx) => {
       const key = c.gradebookId || c.courseName, color = S.courseColor(c.courseId, c.courseName);
@@ -801,11 +887,14 @@
       const body = open ? gradeBody(c, shown) : null;
       return h('section', { class: 'gr2-course' + (open ? ' open' : '') }, head, body);
     };
-    return h('div', { class: 'sgo-page' }, pageHead('Grades', g.length ? `${g.length} ${g.length === 1 ? 'course' : 'courses'} · course, period and category grades are shown as Schoology reports them` : 'Shown as Schoology reports them', [btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
+    return h('div', { class: 'sgo-page' }, pageHead('Grades', g.length ? `${g.length} ${g.length === 1 ? 'course' : 'courses'} · course, period and category grades are shown as Schoology reports them` : 'Shown as Schoology reports them', [gradeModeSeg(), btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
       g.length ? h('div', { class: 'gr2-list' }, g.map(courseBlock))
         : empty('No grades loaded', S.state.loading ? 'Loading…' : 'Grades could not be read from Schoology’s page. Use Classic view to see your gradebook, and check Settings → Diagnostics.'),
       g.length ? h('p', { class: 'sgo-note' }, 'The % column for each assignment is points earned divided by points possible. Nothing else is calculated here.') : null);
-  };
+  }
+  V.grades = () => ((S.prefs.gradeMode || 'official') === 'hypo'
+    ? h('div', { class: 'sgo-page' }, pageHead('Grades', 'Plan with your own categories, weights and scores. Official grades stay in Schoology.', [gradeModeSeg()]), hypoView())
+    : officialGrades());
 
   /* ===================== COURSE ===================== */
   /* One workspace per course, built from Schoology's own course data. Addresses stay Schoology's own, so refresh and links work:
@@ -979,9 +1068,14 @@
     if (!items && st.error) body = failure('announcements', st.error, null, originalHref(`/course/${c.id}/updates`));
     else if (!items) body = SKELETON(3);
     else if (!items.length) body = h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'No announcements'), h('div', { class: 'sgo-empty-s' }, 'Nothing has been posted in this course yet.'));
-    else body = h('ul', { class: 'an-list' }, items.map((a, i) => { const id = a.id + ':' + i, long = a.body.length > 280, open = !!ui[id];
-      return h('li', { class: 'an' }, h('div', { class: 'an-h' }, h('b', null, a.author || 'Teacher'), a.time ? h('span', null, a.time) : null),
-        h('p', { class: open || !long ? '' : 'clamp' }, a.body), long ? h('button', { class: 'bk-more', type: 'button', dataset: { fk: 'an-' + id }, 'aria-expanded': String(open), onclick: () => { ui[id] = !open; S.render(true); } }, open ? 'Show less' : 'Show more') : null); }));
+    else body = h('ul', { class: 'an-list an-cards', 'aria-label': `${plural(items.length, 'announcement')} in ${S.cn(c.id, c.name)}` }, items.map((a, i) => { const id = a.id + ':' + i, long = a.body.length > 280, open = !!ui[id], ts = S.parseStamp ? S.parseStamp(a.time) : null;
+      return h('li', { class: 'an' },
+        h('article', { 'aria-label': `Announcement by ${a.author || 'your teacher'}` },
+          h('div', { class: 'an-head' }, h('span', { class: 'an-av', 'aria-hidden': 'true' }, (a.author || 'T').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()),
+            h('div', { class: 'an-who' }, h('b', null, a.author || 'Teacher'), h('span', null, 'Posted in ' + S.cn(c.id, c.name))),
+            a.time ? h('time', { class: 'an-time', datetime: ts ? new Date(ts).toISOString() : null }, a.time) : null),
+          h('div', { class: 'an-text' }, h('p', { class: open || !long ? '' : 'clamp' }, a.body),
+            long ? h('button', { class: 'bk-more', type: 'button', dataset: { fk: 'an-' + id }, 'aria-expanded': String(open), onclick: () => { ui[id] = !open; S.render(true); } }, open ? 'Show less' : 'Show more') : null))); }));
     return h('section', { class: 'crs-pane', 'aria-label': 'Announcements' }, body);
   }
 
@@ -1043,10 +1137,7 @@
       h('div', { class: 'crs-col' },
         card('Up next', ['All assignments', cHref(c.id, 'assignments')], next.length ? h('ol', { class: 'tl' }, next.map((x) => timelineRow(c, x))) : S.state.loaded ? none('check', 'Nothing due soon.') : SKELETON(2)),
         card('Announcements', ['All announcements', cHref(c.id, 'announcements')], feed.items ? (feedBody || none('mega', 'No announcements yet.')) : feed.error ? none('alert', 'Announcements could not be loaded.') : SKELETON(2), feed.items && !feed.items.length ? 'compact' : ''),
-        card('Course', null, h('dl', { class: 'crs-dl' },
-          h('div', null, h('dt', null, 'Teacher'), h('dd', null, teacher || 'Not listed')),
-          h('div', null, h('dt', null, 'Code'), h('dd', null, S.courseCode(c.name) || '\u2014')),
-          h('div', null, h('dt', null, 'Term'), h('dd', null, S.courseTerm(c) || '\u2014')),
+        card('Course', null, h('dl', { class: 'crs-dl' }, [['Teacher', teacher], ['Code', S.courseCode(c.name)], ['Term', S.courseTerm(c)]].filter(([, val]) => val).map(([k, val]) => h('div', null, h('dt', null, k), h('dd', null, val))),
           h('div', { class: 'crs-dl-g' }, h('dt', null, 'Current grade'), h('dd', null, grade)))),
         h('p', { class: 'crs-micro' }, icon('help', 14), h('span', null, 'Schoology doesn\u2019t share when materials were added, so recent additions can\u2019t be listed.'))));
   }
