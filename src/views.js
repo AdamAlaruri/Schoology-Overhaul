@@ -330,6 +330,7 @@
   }
 
   /* ---- courses ---- */
+  const visibleCourse = (id) => { const c = S.state.courses.find((x) => x.id === id); return !!c && !hiddenCourse(c); };
   function dashCard(c, tasks, now, featured) {
     const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), g = S.gradeFor(c.id);
     const open = tasks.filter((i) => i.courseId === c.id && !S.isComplete(i) && (S.isOverdue(i) || (i.due && i.due >= S.sod(now)))).sort((a, b) => (S.isOverdue(b) - S.isOverdue(a)) || (a.due ?? 9e15) - (b.due ?? 9e15));
@@ -340,9 +341,9 @@
     const editing = S.ui.renaming === c.id, cv = coverFor(c, name), metaLine = [S.courseCode(c.name) || c.section, term].filter(Boolean).join(' · ');
     const cover = h('div', { class: 'dc-banner' + (cv.typo ? ' typo' : ''), style: cv.css ? { background: cv.css } : null }, cv.typo ? typoBanner(c, name, S.courseCode(c.name) || 'Course') : null,
       h('button', { class: 'sgo-icon-btn dc-rename', type: 'button', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: () => { S.ui.renaming = c.id; S.render(); } }, icon('edit', 16)),
-      S.menu('Options for ' + name, [['Rename', () => { S.ui.renaming = c.id; S.render(); }], ['Change banner', () => S.openBannerPicker(c)], ['Notification icon…', () => S.openIconPicker(c)], ['Colour and name…', () => S.openCourseEditor(c)], ['Hide from dashboard', () => S.setCourseHidden(c, true)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn dc-dots', type: 'button' }, icon('dots', 18)), 'dc-menu'));
+      S.menu('Options for ' + name, [['Rename', () => { S.ui.renaming = c.id; S.render(); }], ['Change banner', () => S.openBannerPicker(c)], ['Notification icon…', () => S.openIconPicker(c)], ['Colour and name…', () => S.openCourseEditor(c)], ['Move earlier', () => { S.moveCourse(c.id, -1, visibleCourse); S.render(true); }], ['Move later', () => { S.moveCourse(c.id, 1, visibleCourse); S.render(true); }], ['Hide from dashboard', () => S.setCourseHidden(c, true)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn dc-dots', type: 'button' }, icon('dots', 18)), 'dc-menu'));
     if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cover, c.id, c.name);
-    return h('article', { class: 'dc' + (featured ? ' featured' : '') + (cv.typo && !editing ? ' has-typo' : ''), style: { '--c': color }, 'aria-label': name }, cover,
+    const card = h('article', { class: 'dc' + (featured ? ' featured' : '') + (cv.typo && !editing ? ' has-typo' : ''), style: { '--c': color }, 'aria-label': name, dataset: { id: c.id } }, cover,
       h('div', { class: 'dc-body' },
         h('h2', null, editing ? renameField(c) : h('a', { href: `/course/${c.id}/materials` }, name)),
         h('div', { class: 'dc-meta' }, metaLine || 'Course'),
@@ -355,6 +356,8 @@
         next ? [h('a', { class: 'dc-nt', href: itemHref(next) }, next.title),
           h('div', { class: 'dc-nw' }, h('span', { class: 'badge b-' + u.id }, icon(u.icon, 12), u.label), h('span', null, S.isOverdue(next) ? dueLabel(next, now) : next.due ? shortDate(next.due) : ''))]
           : h('span', { class: 'dc-gna' }, 'Nothing due')));
+    if (!editing) bindCourseDrag(card, c);
+    return card;
   }
 
   /* ---- right column: weekly progress, announcements, recent feedback ---- */
@@ -413,11 +416,26 @@
   }
 
   /* ===================== COURSES ===================== */
+  /** Drag a course card onto another to move it there. The new order is saved and used on every page. Links inside the card are not draggable themselves. */
+  function bindCourseDrag(card, c) {
+    card.draggable = true;
+    card.querySelectorAll('a').forEach((a) => { a.draggable = false; });
+    card.addEventListener('dragstart', (e) => { S.ui.dragCourse = c.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', c.id); } catch (x) { /* ignore */ } });
+    card.addEventListener('dragend', () => { S.ui.dragCourse = null; card.classList.remove('dragging'); document.querySelectorAll('.over').forEach((n) => n.classList.remove('over')); });
+    card.addEventListener('dragover', (e) => { if (S.ui.dragCourse && S.ui.dragCourse !== c.id) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; card.classList.add('over'); } });
+    card.addEventListener('dragleave', (e) => { if (!card.contains(e.relatedTarget)) card.classList.remove('over'); });
+    card.addEventListener('drop', (e) => {
+      e.preventDefault(); const from = S.ui.dragCourse; S.ui.dragCourse = null;
+      if (!from || from === c.id) return;
+      const ids = S.orderedCourses().map((x) => x.id); ids.splice(ids.indexOf(c.id), 0, ids.splice(ids.indexOf(from), 1)[0]);
+      S.prefs.courseOrder = ids; S.savePrefs(); S.render(true);
+    });
+  }
   function courseCard(c, opts = {}) {
     const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), custom = !!S.cmeta(c.id, c.name).name;
     const items = tasksOnly().filter((i) => i.courseId === c.id);
     const od = items.filter(S.isOverdue).length, soon = items.filter((i) => !S.isDone(i) && i.due && i.due >= Date.now() && i.due < Date.now() + 7 * S.DAY).length;
-    const editing = S.ui.renaming === c.id, canDrag = !opts.dash && S.prefs.courseSort === 'custom' && !editing;
+    const editing = S.ui.renaming === c.id, canDrag = !opts.dash && !editing;
     const stop = (e) => e.stopPropagation();
     let title;
     if (editing) {
@@ -441,18 +459,7 @@
         h('div', { class: 'sgo-course-pills' }, od > 0 && pill(od + ' overdue', 'pr-critical'), soon > 0 && pill(soon + ' this week', 'pr-medium'), !od && !soon && pill('All clear', 'st-done'))),
       !opts.dash && h('div', { class: 'sgo-course-foot' }, h('a', { href: assignmentsHref('course=' + c.id) }, 'Assignments'), h('a', { href: `/course/${c.id}/materials` }, 'Materials')));
     { const cov = card.querySelector('.sgo-course-cover'); paintCover(cov, c, name, coverFor(c, name), true); if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cov, c.id, c.name); }
-    if (canDrag) {
-      card.addEventListener('dragstart', (e) => { S.ui.dragCourse = c.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', c.id); } catch (x) { /* ignore */ } });
-      card.addEventListener('dragend', () => { card.classList.remove('dragging'); document.querySelectorAll('.sgo-course.over').forEach((n) => n.classList.remove('over')); });
-      card.addEventListener('dragover', (e) => { if (S.ui.dragCourse) { e.preventDefault(); card.classList.add('over'); } });
-      card.addEventListener('dragleave', () => card.classList.remove('over'));
-      card.addEventListener('drop', (e) => {
-        e.preventDefault(); const from = S.ui.dragCourse; S.ui.dragCourse = null;
-        if (!from || from === c.id) return;
-        const ids = S.orderedCourses().map((x) => x.id); ids.splice(ids.indexOf(c.id), 0, ids.splice(ids.indexOf(from), 1)[0]);
-        S.prefs.courseOrder = ids; S.savePrefs(); S.render();
-      });
-    }
+    if (canDrag) bindCourseDrag(card, c);
     return card;
   }
 
@@ -567,11 +574,9 @@
   }
 
   V.courses = () => {
-    const alpha = S.prefs.courseSort === 'alpha', setSort = (v) => { S.prefs.courseSort = v; S.savePrefs(); S.render(); };
-    const seg = h('div', { class: 'sgo-seg' }, [['custom', 'My order'], ['alpha', 'A – Z']].map(([k, l]) => h('button', { class: S.prefs.courseSort === k ? 'on' : '', onclick: () => setSort(k) }, l)));
     const list = S.orderedCourses();
-    return h('div', { class: 'sgo-page' }, pageHead('Courses', `${list.length} ${list.length === 1 ? 'course' : 'courses'}${alpha ? '' : ' · drag cards to rearrange'}`,
-      [seg, !alpha && S.prefs.courseOrder.length ? btn('Reset order', () => { S.prefs.courseOrder = []; S.savePrefs(); S.render(); }, 'ghost', 'reload') : null]),
+    return h('div', { class: 'sgo-page' }, pageHead('Courses', `${list.length} ${list.length === 1 ? 'course' : 'courses'} · drag cards to rearrange`,
+      [S.prefs.courseOrder.length ? btn('Reset order', () => { S.prefs.courseOrder = []; S.savePrefs(); S.render(); }, 'ghost', 'reload') : null]),
       list.length ? h('div', { class: 'sgo-cgrid' }, list.map((c) => courseCard(c))) : empty('No courses found', 'Courses are read from your Schoology account. Open Settings → Diagnostics to see what was detected, or use Classic view.'));
   };
 
