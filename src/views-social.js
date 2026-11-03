@@ -91,13 +91,13 @@
           h('span', { class: 'ib-snip' }, (m.tag ? m.tag + ' — ' : '') + m.snippet))))))
       : empty(items.length ? 'No messages match' : box === 'sent' ? 'No sent messages' : 'Your inbox is empty', items.length ? 'Try a different search or filter.' : 'Messages from teachers and classmates show up here.'));
     const redo = () => S.render(true);
-    return h('div', { class: 'sgo-page ib-page' }, head('Inbox', 'Your Schoology messages', [h('a', { class: 'sgo-btn primary', href: '/messages/new' }, icon('plus', 16), 'New message')]),
+    return h('div', { class: 'sgo-page ib-page' }, head('Messages', null, [h('a', { class: 'sgo-btn primary', href: '/messages/new' }, icon('plus', 16), 'New message')]),
       h('div', { class: 'ib' + (id || composing ? ' has-sel' : '') },
         h('section', { class: 'ib-list', 'aria-label': 'Messages' },
           h('nav', { class: 'ib-tabs', 'aria-label': 'Mailbox' }, tab('inbox', 'Inbox', '/messages'), tab('sent', 'Sent', '/messages/sent')),
           searchBox(ui.q, 'Search messages', (v) => { ui.q = v; redo(); }, 'ib-q'),
           h('div', { class: 'sgo-chips' }, [['all', 'All', items.length], ['unread', 'Unread', unread]].map(([k, l, n]) => h('button', { class: 'sgo-chip' + (ui.f === k ? ' on' : ''), type: 'button', 'aria-pressed': String(ui.f === k), onclick: () => { ui.f = k; redo(); } }, l, h('span', null, n)))),
-          listBody, items.length ? h('p', { class: 'sgo-note' }, `Showing the ${items.length} messages Schoology lists.`) : null),
+          listBody),
         pane));
   };
 
