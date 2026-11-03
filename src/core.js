@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false,
+    accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false, hypo: {}, gradeMode: 'official',
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', courseHidden: {}, tagColours: false, cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
@@ -323,6 +323,36 @@
     Object.keys(m).forEach((k) => { if (m[k] === '' || m[k] == null) delete m[k]; });
     Object.keys(m).length ? (S.prefs.courseMeta[id] = m) : delete S.prefs.courseMeta[id];
     S.savePrefs();
+  };
+  /* ---------- hypothetical grades ----------
+   * The student's own categories (each with a weight in %) and scores, for planning. Nothing here is read from or sent to Schoology.
+   * Inside a category the grade is points earned over points possible. The course grade is the weighted average of the categories
+   * that have scores; categories with none are left out and the rest are scaled up, so an empty category never drags the grade down. */
+  const hyNum = (v) => typeof v === 'number' && Number.isFinite(v);
+  S.hypoGrade = (cats, items) => {
+    const rows = (cats || []).map((c) => {
+      const mine = (items || []).filter((i) => i.cat === c.id && hyNum(i.earned) && hyNum(i.possible) && i.earned >= 0 && i.possible >= 0);
+      const earned = mine.reduce((a, i) => a + i.earned, 0), possible = mine.reduce((a, i) => a + i.possible, 0);
+      return { id: c.id, name: c.name, weight: Math.max(0, Number(c.weight) || 0), count: mine.length, earned, possible, percent: possible > 0 ? (earned / possible) * 100 : null };
+    });
+    const scored = rows.filter((r) => r.percent != null), totalWeight = rows.reduce((a, r) => a + r.weight, 0), usedWeight = scored.reduce((a, r) => a + r.weight, 0);
+    let percent = null;
+    if (usedWeight > 0) percent = scored.reduce((a, r) => a + r.weight * r.percent, 0) / usedWeight;
+    else if (scored.length) { const e = scored.reduce((a, r) => a + r.earned, 0), p = scored.reduce((a, r) => a + r.possible, 0); percent = p > 0 ? (e / p) * 100 : null; } // every weight is 0: all points count equally
+    return { percent, rows, totalWeight, usedWeight, weighted: usedWeight > 0 };
+  };
+  /** Copy a course's Schoology gradebook into editable categories and scores. Categories without a reported weight are split evenly (and flagged). */
+  S.hypoFromGradebook = (g) => {
+    const periods = (g.periods || []).filter((p) => p.categories.some((c) => c.items.length)), use = periods.length ? periods : (g.periods || []);
+    const id = () => 'h' + Math.random().toString(36).slice(2, 9), byName = new Map(), items = [];
+    use.forEach((p) => p.categories.forEach((cat) => {
+      let c = byName.get(cat.name);
+      if (!c) { c = { id: id(), name: cat.name, weight: cat.weight == null ? null : Number(cat.weight) }; byName.set(cat.name, c); } else if (c.weight == null && cat.weight != null) c.weight = Number(cat.weight);
+      cat.items.forEach((it) => { if (it.earned != null && it.possible != null) items.push({ id: id(), title: it.title, cat: c.id, earned: it.earned, possible: it.possible }); });
+    }));
+    const cats = [...byName.values()], known = cats.filter((c) => c.weight != null).length, evenSplit = known === 0 && cats.length > 0, even = evenSplit ? Math.round((100 / cats.length) * 100) / 100 : 0;
+    cats.forEach((c) => { if (c.weight == null) c.weight = even; });
+    return { cats, items, evenSplit };
   };
   S.resetCourse = (id) => { delete S.prefs.courseMeta[id]; delete S.prefs.courseColors[id]; S.savePrefs(); };
   /** Courses detected from Schoology, ordered by the user's choice (custom drag order or A-Z). */
