@@ -1,6 +1,6 @@
 # Course banner photographs
 
-Real photographs from Wikimedia Commons, all public domain or CC0, cropped to 3:1 and resized. Nothing here is AI-generated. They are bundled with the extension; nothing is downloaded at run time.
+Real photographs and archival images from Wikimedia Commons, all public domain or CC0, cropped to 3:1 and resized. Nothing here is AI-generated. They are bundled with the extension; nothing is downloaded at run time.
 
 | Banner | File on Commons | Author | License | Source |
 |---|---|---|---|---|
@@ -11,3 +11,8 @@ Real photographs from Wikimedia Commons, all public domain or CC0, cropped to 3:
 | languages | Flat-globe map of the world.jpg | H. Wise & Co. | Public domain | https://commons.wikimedia.org/wiki/File:Flat-globe_map_of_the_world.jpg |
 | electives | Bartolomeo Bettera - A painter's palette and brushes and others.jpg | Bartolomeo Bettera | Public domain | https://commons.wikimedia.org/wiki/File:Bartolomeo_Bettera_-_A_painter%27s_palette_and_brushes_and_others.jpg |
 | english | Library Books Bookshelves (Unsplash).jpg | Davide Cantelli cant89 | CC0 | https://commons.wikimedia.org/wiki/File:Library_Books_Bookshelves_(Unsplash).jpg |
+| calculus | Pure-mathematics-formulæ-blackboard.jpg | Wallpoper | Public domain | https://commons.wikimedia.org/wiki/File:Pure-mathematics-formul%C3%A6-blackboard.jpg |
+| cells | HeLa-I.jpg | National Institutes of Health (NIH) | Public domain | https://commons.wikimedia.org/wiki/File:HeLa-I.jpg |
+| economics | US Federal Reserve Eccles Building 1937.jpg | Federal Reserve | Public domain | https://commons.wikimedia.org/wiki/File:US_Federal_Reserve_Eccles_Building_1937.jpg |
+| apush | Engrossed Declaration of Independence, front.jpg | Second Continental Congress (US National Archives) | Public domain | https://commons.wikimedia.org/wiki/File:Engrossed_Declaration_of_Independence,_front.jpg |
+| anatomy | 0 The Vitruvian Man - by Leonardo da Vinci.jpg | Leonardo da Vinci | Public domain | https://commons.wikimedia.org/wiki/File:0_The_Vitruvian_Man_-_by_Leonardo_da_Vinci.jpg |

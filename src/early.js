@@ -7,7 +7,7 @@
   const p = location.pathname.replace(/\/+$/, '') || '/';
   const classic = /[?&]sgo=classic\b/.test(location.search); // the explicit "Open in Schoology" link: show the original page
   const C = window.SGO_COLOR, T = window.SGO_TOPO;
-  const DEFAULTS = { accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000' };
+  const DEFAULTS = { accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311' };
 
   /* The four colours that define the look. They are CSS variables on <html>: the contour map, its glow, the page surface and every
    * interactive element read them, so a change here recolours the real paths and controls at once. The theme (light or dark UI)
@@ -23,8 +23,26 @@
     html.classList.toggle('sgo-dark', C.isDark(bg));
     // the map itself: shown or hidden, how dense and which seed (its blur is fixed in theme.css)
     html.dataset.sgoTopo = prefs && prefs.topoOn === false ? 'off' : 'on';
+    st.setProperty('--topo-w', String({ thin: .55, standard: 1, bold: 1.9 }[(prefs && prefs.topoWeight) || 'standard'] || 1)); // line weight scales both the index and the ordinary contours
     buildLayer((prefs && prefs.topoDensity) || 'standard', Number(prefs && prefs.topoSeed) || 20260);
+    buildArt(pick('contour'));
   };
+
+  /* Small contour pieces for the hero, featured and hovered course cards, section dividers, the navigation rail and empty states.
+   * Each is generated once from the same contour engine as the background, written as a data-URI image (so the dashboard repeats
+   * no SVG markup) and exposed as a CSS variable. CSS decides where it shows, how strongly and under which mask. */
+  const ART = { hero: [960, 360, 7311, 'light'], card: [560, 320, 4402, 'light'], divider: [1600, 90, 9121, 'light'], rail: [160, 220, 2207, 'light'], empty: [640, 240, 5530, 'light'] };
+  let artKey = '';
+  function buildArt(color) {
+    if (artKey === color || !html.classList.contains('sgo-app')) return;
+    artKey = color;
+    for (const [name, [w, h, seed, density]] of Object.entries(ART)) {
+      const m = T.build(w, h, seed, density);
+      const paths = m.paths.map((x) => `<path d="${x.d}"${x.major ? '' : ' stroke-opacity="' + x.o + '"'}/>`).join('');
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" fill="none" stroke="${color}" stroke-width="1" stroke-linecap="round">${paths}</svg>`;
+      html.style.setProperty('--topo-' + name, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
+    }
+  }
 
   /* One fixed full-viewport SVG behind everything. The geometry is generated once (see topo.js) and kept for the page's life. */
   let drawn = '';

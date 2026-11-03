@@ -34,8 +34,8 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000', topoOn: true, topoDensity: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false,
-    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
+    accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false,
+    widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', courseHidden: {}, tagColours: false, cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
   S.prefs = DEFAULTS();
@@ -61,13 +61,16 @@
   const C = window.SGO_COLOR;
   S.normHex = C.normHex; S.onAccent = C.onAccent;
   S.ACCENTS = [['Blue', '#3b82f6'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
+  S.ACCENT_GROUPS = [['Blue', ['Blue', 'Sky', 'Cyan', 'Indigo']], ['Green', ['Teal', 'Emerald', 'Green', 'Lime']], ['Warm', ['Yellow', 'Amber', 'Orange', 'Red']], ['Purple & pink', ['Rose', 'Pink', 'Fuchsia', 'Purple', 'Violet']], ['Neutral', ['Slate']]];
   /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
-    { id: 'midnight', name: 'Midnight', accent: '#3b82f6', contour: '#34465f', contourGlow: '#245b9b', background: '#000000' },
-    { id: 'ocean', name: 'Ocean', accent: '#22d3ee', contour: '#255a66', contourGlow: '#0e7490', background: '#000000' },
-    { id: 'forest', name: 'Forest', accent: '#10b981', contour: '#2b4a3c', contourGlow: '#15803d', background: '#000000' },
-    { id: 'graphite', name: 'Graphite', accent: '#d4d4d8', contour: '#3f3f46', contourGlow: '#71717a', background: '#000000' },
-    { id: 'paper', name: 'Paper', accent: '#2563eb', contour: '#cbd5e1', contourGlow: '#93c5fd', background: '#ffffff' },
+    { id: 'hearth', name: 'Hearth', note: 'Warm charcoal', accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311' },
+    { id: 'slate', name: 'Slate', note: 'Cool slate', accent: '#7fb0ff', contour: '#9fb0c8', contourGlow: '#3f6fb5', background: '#12161c' },
+    { id: 'midnight', name: 'Midnight', note: 'Blue-black', accent: '#8fa2ff', contour: '#8aa0d0', contourGlow: '#3b52a8', background: '#0b0e16' },
+    { id: 'forest', name: 'Forest', note: 'Deep green', accent: '#6fd3a0', contour: '#a8c4a8', contourGlow: '#3f8a5c', background: '#111613' },
+    { id: 'plum', name: 'Plum', note: 'Dusk violet', accent: '#d1a2f0', contour: '#c7b0d6', contourGlow: '#8a4fa8', background: '#181319' },
+    { id: 'ember', name: 'Ember', note: 'Warm brown', accent: '#f0a070', contour: '#d6b49c', contourGlow: '#c2562f', background: '#1a1411' },
+    { id: 'paper', name: 'Paper', note: 'Light', accent: '#2563eb', contour: '#cbd5e1', contourGlow: '#93c5fd', background: '#ffffff' },
   ];
   /** Push the four appearance colours (accent, contour, glow, background) to the page. Called after every change; nothing reloads. */
   S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
@@ -81,10 +84,11 @@
     const P = S.prefs;
     if ('topoOn' in patch) P.topoOn = !!patch.topoOn;
     if ('topoDensity' in patch && ['light', 'standard', 'dense'].includes(patch.topoDensity)) P.topoDensity = patch.topoDensity;
+    if ('topoWeight' in patch && ['thin', 'standard', 'bold'].includes(patch.topoWeight)) P.topoWeight = patch.topoWeight;
     if ('topoSeed' in patch) P.topoSeed = Math.max(1, Math.round(Number(patch.topoSeed) || 20260));
     S.savePrefs(); S.applyTheme();
   };
-  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); S.setMap({ topoOn: d.topoOn, topoDensity: d.topoDensity, topoSeed: d.topoSeed }); };
+  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); S.setMap({ topoOn: d.topoOn, topoDensity: d.topoDensity, topoWeight: d.topoWeight, topoSeed: d.topoSeed }); };
 
   /* ---------- DOM helper (text is always a text node => no injection) ---------- */
   S.h = function h(tag, props, ...kids) {
@@ -154,6 +158,8 @@
     sheet: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>',
     download: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
     reload: '<path d="M20 11a8 8 0 10-2.3 5.7M20 5v6h-6"/>',
+    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   };
   S.icon = (name, size = 18) => {
     const t = document.createElement('template');
@@ -228,8 +234,12 @@
   S.greetingSub = (now = new Date()) => { const hr = now.getHours(); return hr >= 5 && hr < 12 ? "Here's what's happening with your classes today." : hr >= 12 && hr < 17 ? "Let's see what's coming up." : 'Your academic overview.'; };
 
   /* ---------- colour ---------- */
-  const PALETTE = ['#111214', '#2c2d2f', '#424346', '#58595c', '#707174', '#898a8d', '#a2a3a5'];
+  /* Fourteen distinct, evenly weighted colours for tagging courses. They read on every theme; new courses are given one by a stable hash of their id. */
+  const PALETTE = ['#ef8a80', '#f2a65a', '#f2c14e', '#c4d65a', '#6fd3a0', '#3fc1b0', '#5ec2e8', '#6ea0ff', '#8f8cf5', '#b58af0', '#e58ad6', '#f07aa3', '#c9a27a', '#9aa5b4'];
   S.PALETTE = PALETTE;
+  /* The same fourteen, organised by family so the picker reads as five small groups instead of one wall of colour. */
+  S.COURSE_GROUPS = [['Warm', [['Coral', '#ef8a80'], ['Orange', '#f2a65a'], ['Amber', '#f2c14e'], ['Sand', '#c9a27a']]], ['Green', [['Lime', '#c4d65a'], ['Mint', '#6fd3a0'], ['Teal', '#3fc1b0']]],
+    ['Blue', [['Sky', '#5ec2e8'], ['Blue', '#6ea0ff'], ['Indigo', '#8f8cf5']]], ['Purple & pink', [['Violet', '#b58af0'], ['Orchid', '#e58ad6'], ['Rose', '#f07aa3']]], ['Neutral', [['Slate', '#9aa5b4']]]];
   S.courseColor = (courseId, name) => {
     const k = courseId || name || '';
     if (S.prefs.courseColors[k]) return S.prefs.courseColors[k];
@@ -281,8 +291,8 @@
     cleanCache.set(raw, out);
     return out;
   };
-  /** The name Schoology gives, tidied automatically unless the user turned that off. */
-  S.autoName = (name) => (S.prefs.cleanNames === false ? name || '' : S.cleanName(name));
+  /** The name exactly as Schoology gives it (spaces tidied, nothing parsed). Courses are renamed by hand, inline. S.cleanName stays only to match the same course across pages. */
+  S.autoName = (name) => String(name || '').replace(/\s+/g, ' ').trim();
   /** Course code from the raw title, e.g. "MATH&151". */
   S.courseCode = (name) => { const m = /\(([A-Z]{2,6}\s?&?\s?\d{2,4}[A-Z]?)\)/.exec(name || ''); return m ? m[1] : ''; };
   S.cn = (id, name) => S.cmeta(id, name).name || S.autoName(name);

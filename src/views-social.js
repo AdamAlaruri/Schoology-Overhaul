@@ -67,7 +67,7 @@
     const d = t.data;
     return h('section', { class: 'ib-read' },
       h('a', { class: 'ib-back', href: '/messages' }, icon('left', 16), 'Inbox'),
-      h('div', { class: 'ib-rh' }, d.tag ? h('span', { class: 'ib-tag' }, S.cleanName(d.tag) || d.tag) : null, h('h2', null, d.subject), d.people ? h('p', null, d.people) : null),
+      h('div', { class: 'ib-rh' }, d.tag ? h('span', { class: 'ib-tag' }, d.tag) : null, h('h2', null, d.subject), d.people ? h('p', null, d.people) : null),
       h('div', { class: 'ib-thread' }, d.rows.map((r) => h('article', { class: 'ib-msg' },
         h('div', { class: 'ib-mh' }, h('span', { class: 'ib-av' }, initials(r.name)), h('b', null, r.name || 'Unknown sender'), h('span', null, r.ts != null ? S.fmtDate(r.ts, true) + ' · ' + S.fmtTime(r.ts) : r.when)),
         h('div', { class: 'sgo-desc ib-body' }, S.sanitize(r.html)),
@@ -88,7 +88,7 @@
         h('span', { class: 'ib-av' }, initials(m.people)),
         h('span', { class: 'ib-rt' }, h('span', { class: 'ib-top' }, h('b', null, m.people || (box === 'sent' ? 'Sent' : 'Unknown')), h('time', null, stamp(m.ts, m.when))),
           h('span', { class: 'ib-sub' }, m.unread ? h('i', { class: 'ib-dot', 'aria-label': 'Unread' }) : null, m.subject),
-          h('span', { class: 'ib-snip' }, (m.tag ? (S.cleanName(m.tag) || m.tag) + ' — ' : '') + m.snippet))))))
+          h('span', { class: 'ib-snip' }, (m.tag ? m.tag + ' — ' : '') + m.snippet))))))
       : empty(items.length ? 'No messages match' : box === 'sent' ? 'No sent messages' : 'Your inbox is empty', items.length ? 'Try a different search or filter.' : 'Messages from teachers and classmates show up here.'));
     const redo = () => S.render(true);
     return h('div', { class: 'sgo-page ib-page' }, head('Inbox', 'Your Schoology messages', [h('a', { class: 'sgo-btn primary', href: '/messages/new' }, icon('plus', 16), 'New message')]),

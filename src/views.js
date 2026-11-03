@@ -61,7 +61,9 @@
 
   /* ---------- popover menu (three-dot menus, account menu) ---------- */
   let openMenu = null;
-  const closeMenu = (refocus) => { if (!openMenu) return; const m = openMenu; openMenu = null; m.panel.hidden = true; m.btn.setAttribute('aria-expanded', 'false'); if (refocus) m.btn.focus(); };
+  const closeMenu = (refocus) => { if (!openMenu) return; const m = openMenu; openMenu = null; m.panel.hidden = true; m.panel.remove(); m.btn.setAttribute('aria-expanded', 'false'); if (refocus) m.btn.focus(); };
+  /** Open menus live on <html>, not inside the card: a card's hover lift (transform) or clipping can never move or cut them off. */
+  const menuHost = () => { let hst = document.getElementById('sgo-menus'); if (!hst) { hst = h('div', { id: 'sgo-menus', class: 'sgo' }); document.documentElement.append(hst); } return hst; };
   document.addEventListener('click', () => closeMenu());
   addEventListener('scroll', () => closeMenu(), true);
   /** items: [label, onSelect] pairs; falsy entries are skipped. The panel is fixed-position so a card or rail can never clip it. */
@@ -81,7 +83,7 @@
       const wasOpen = openMenu && openMenu.btn === btn;
       closeMenu();
       if (wasOpen) return;
-      panel.hidden = false;
+      panel.hidden = false; menuHost().append(panel);
       const r = btn.getBoundingClientRect(), w = panel.offsetWidth, hgt = panel.offsetHeight;
       panel.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
       panel.style.top = (r.bottom + hgt + 8 > innerHeight ? Math.max(8, r.top - hgt - 4) : r.bottom + 4) + 'px';
@@ -89,7 +91,7 @@
       openMenu = { btn, panel };
       panel.querySelector('[role="menuitem"]').focus();
     });
-    return h('div', { class: 'sgo-menu ' + (cls || '') }, btn, panel);
+    return h('div', { class: 'sgo-menu ' + (cls || '') }, btn);
   };
 
   /* ===================== DASHBOARD ===================== */
@@ -109,151 +111,301 @@
     return tasksOnly().filter((i) => !S.isComplete(i)).map((i) => i.key + (S.isOverdue(i) ? 'o' : '') + (dueSoon(i, now) ? 's' : '') + (i.due ? daysUntil(i.due, now) : '')).join('|');
   };
 
-  function dashCard(c, tasks, now) {
-    const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), g = S.gradeFor(c.id);
-    const due = tasks.filter((i) => i.courseId === c.id && i.due && i.due >= now && !S.isComplete(i)).sort((a, b) => a.due - b.due);
-    const news = S.state.announcements.filter((a) => a.courseId === c.id).length;
-    const term = (/\((S\d|Q\d|T\d|Y\d?)\)/.exec(c.name + ' ' + (c.section || '')) || [])[1] || (g && g.periods[0] && g.periods[0].name) || '';
-    const cover = h('div', { class: 'dc-banner', style: { background: S.coverCss(c.id, c.name) } },
-      h('span', { class: 'dc-grade', 'aria-label': g && g.percent != null ? `Current grade ${pctText(g.percent)}` : 'No grade yet' }, pctText(g ? g.percent : null)),
-      S.menu('Options for ' + name, [['Change banner', () => S.openBannerPicker(c)], ['Rename and colour', () => S.openCourseEditor(c)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn dc-dots', type: 'button' }, icon('dots', 18)), 'dc-menu'));
-    S.guardCover(cover, c.id, c.name);
-    return h('article', { class: 'dc', style: { '--c': color }, 'aria-label': name }, cover,
-      h('div', { class: 'dc-body' },
-        h('h2', null, h('a', { href: `/course/${c.id}/materials` }, name)),
-        h('div', { class: 'dc-meta' }, S.courseCode(c.name) || c.section || ' '),
-        h('div', { class: 'dc-meta' }, term || ' '),
-        h('a', { class: 'sgo-icon-btn dc-news', href: `/course/${c.id}/updates`, title: 'Announcements', 'aria-label': news ? `${news} announcements for ${name}` : `Announcements for ${name}` },
-          icon('mega', 18), news ? h('span', { class: 'dc-count' }, news) : null)),
-      h('div', { class: 'dc-due' }, h('h3', null, 'Due'),
-        due.length ? h('ul', null, due.map((i) => h('li', null, h('a', { href: itemHref(i) }, i.title), h('span', { title: S.fmtDate(i.due) }, relative(i.due, now))))) : h('p', null, 'Nothing due')));
+  /* ---- shared dashboard helpers ---- */
+  const longDate = (ts) => new Date(ts).toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many || one + 's'}`;
+  /** Urgency from the real due date only. Each state has an icon and a word as well as a colour, so it never relies on colour alone. */
+  function urgency(it, now) {
+    if (S.isComplete(it)) return { id: 'done', label: 'Completed', icon: 'check' };
+    if (S.isOverdue(it)) return { id: 'overdue', label: 'Overdue', icon: 'alert' };
+    if (!it.due) return { id: 'later', label: 'No due date', icon: 'clock' };
+    const n = daysUntil(it.due, now);
+    if (n <= 0) return { id: 'today', label: 'Due today', icon: 'clock' };
+    if (n <= 2) return { id: 'soon', label: 'Due soon', icon: 'clock' };
+    return { id: 'later', label: 'Upcoming', icon: 'clock' };
   }
-
-  function taskCard(it, now) {
-    const done = S.isDone(it), viaSchoology = S.isSubmitted(it), complete = done || viaSchoology, e = S.gradeEntry(it);
-    const soon = dueSoon(it, now), when = it.due ? `Due ${shortDate(it.due)}` : 'No due date'; // no time of day here; the clock mark flags what is coming up
-    const name = S.cn(it.courseId, it.courseName) || (it.manual ? 'Personal task' : 'Course');
-    return h('li', { class: 'tc' + (complete ? ' is-done' : '') },
-      h('span', { class: 'tc-kind' + (it.type === 'assessment' ? ' quiz' : '') }, icon(it.type === 'assessment' ? 'rocket' : 'notepad', 18)),
-      h('div', { class: 'tc-main' },
-        h('div', { class: 'tc-course' }, h('i', { style: { background: S.colorOf(it) } }), name),
-        h('a', { class: 'tc-title', href: itemHref(it) }, it.title),
-        h('div', { class: 'tc-when' }, soon ? h('span', { class: 'tc-clock', title: 'Due within 48 hours', role: 'img', 'aria-label': 'Due within 48 hours' }, icon('clock', 14)) : null, when + (e && e.possible != null ? ` | ${e.possible} points` : '')),
-        h('div', { class: 'tc-acts' },
-          h('a', { class: 'sgo-act', href: detailHref(it), title: 'View details', 'aria-label': 'View details: ' + it.title }, icon('right', 15)),
-          it.manual && h('button', { class: 'sgo-act', type: 'button', title: 'Edit', 'aria-label': 'Edit ' + it.title, onclick: () => S.openNewAssignment(it) }, icon('edit', 15)),
-          it.manual
-            ? h('button', { class: 'sgo-act', type: 'button', title: 'Delete', 'aria-label': 'Delete ' + it.title, onclick: () => S.openConfirm({ title: 'Delete this task?', body: 'This removes it from your personal tracker only. Nothing changes in Schoology.', ok: 'Delete', danger: true, onOk: () => { delete S.prefs.manual[it.key]; S.savePrefs(); } }) }, icon('trash', 15))
-            : h('button', { class: 'sgo-act', type: 'button', title: 'Remove from my tracker (Schoology keeps it)', 'aria-label': 'Remove ' + it.title + ' from my tracker', onclick: () => askExclude(it) }, icon('eyeoff', 15)))),
-      h('button', { class: 'tc-check' + (complete ? ' on' : ''), type: 'button', dataset: { fk: 'check-' + it.key }, 'aria-pressed': String(complete), 'aria-disabled': viaSchoology ? 'true' : null,
-        title: viaSchoology ? 'Submitted in Schoology' : done ? 'Mark as not complete' : 'Mark complete',
-        'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : done ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: () => { if (!viaSchoology) toggleDone(it); } }, icon('check', 14)));
+  function dueLabel(it, now) {
+    if (!it.due) return 'No due date';
+    const n = daysUntil(it.due, now), time = it.timed ? ' · ' + S.fmtTime(it.due) : '';
+    if (S.isOverdue(it)) return `Was due ${shortDate(it.due)}`;
+    return n <= 0 ? 'Due today' + time : n === 1 ? 'Due tomorrow' + time : n < 7 ? `Due ${S.WEEKDAYS[new Date(it.due).getDay()]}, ${shortDate(it.due)}${time}` : `Due ${shortDate(it.due)}${time}`;
   }
-
-  function tasksPanel(t, now) {
-    const ui = dui(), day = (n) => { const d = new Date(now); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() + n); return d.getTime(); }; // calendar days, so clock changes can't shift the week
-    const start = day(ui.week * 7), end = day((ui.week + 1) * 7);
-    const shift = (d) => { ui.week += d; ui.expanded = false; S.render(); };
-    const byCourse = (i) => ui.course === 'all' || i.courseId === ui.course;
-    // The week shown, plus (on the current week) anything Schoology lists as missing, ticked or not, and tasks with no date.
-    const inView = t.filter(byCourse).filter((i) => (S.isComplete(i) || !S.isStale(i)) && ((i.due && i.due >= start && i.due < end) || (ui.week === 0 && (i.fromOverdue || S.isOverdue(i) || !i.due))))
-      .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
-    const open = inView.filter((i) => !S.isComplete(i)), complete = inView.filter(S.isComplete);
-    const pct = inView.length ? Math.round((complete.length / inView.length) * 100) : 0, C = 2 * Math.PI * 62;
-    // The ring starts where it was last drawn, so a check-off moves from the old value to the new one instead of jumping.
-    const from = ui.ringPct == null ? pct : ui.ringPct;
-    ui.ringPct = pct;
-    // the list fades in when its tab is picked, not on every redraw
-    const enter = ui.shownTab !== undefined && ui.shownTab !== ui.tab;
-    ui.shownTab = ui.tab;
-    const ring = document.createElement('template');
-    ring.innerHTML = `<svg viewBox="0 0 150 150" aria-hidden="true"><circle class="tp-track" cx="75" cy="75" r="62"/><circle class="tp-bar" cx="75" cy="75" r="62" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - from / 100)}"/></svg>`;
-    const barEl = ring.content.querySelector('.tp-bar'), pctEl = h('b', null, from + '%');
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    // Runs once this render is in the page. Timers (not animation frames) so it also works while the window is in the background.
-    if (from !== pct) setTimeout(() => {
-      barEl.getBoundingClientRect(); // read the layout first, so the old value is committed and the change is animated
-      barEl.setAttribute('stroke-dashoffset', String(C * (1 - pct / 100)));
-      if (reduced) { pctEl.textContent = pct + '%'; return; }
+  /** Counts a number up (or down) to its new value; the bar's own CSS transition handles the width. Timers, not frames, so it also runs in a background window. */
+  function countTo(el, from, to, suffix) {
+    el.textContent = from + suffix;
+    if (from === to) return;
+    setTimeout(() => {
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to + suffix; return; }
       const t0 = Date.now(), D = 700;
-      // a timer, not an animation frame: frames stop while the window is hidden or occluded, and the number would freeze
-      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 4); pctEl.textContent = Math.round(from + (pct - from) * e) + '%'; if (k < 1) setTimeout(step, 16); };
+      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 4); el.textContent = Math.round(from + (to - from) * e) + suffix; if (k < 1) setTimeout(step, 16); };
       step();
     });
+  }
+  /** A bar that starts at its previous width and eases to the new one. */
+  function meter(from, to, cls) {
+    const fill = h('i', { style: { width: from + '%' } });
+    if (from !== to) setTimeout(() => { fill.getBoundingClientRect(); fill.style.width = to + '%'; });
+    return h('div', { class: 'meter ' + (cls || ''), role: 'presentation' }, fill);
+  }
 
-    const tabs = [['announcements', 'Announcements', 'mega'], ['assignments', 'Assignments', 'notepad'], ['submitted', 'Submitted', 'check']];
-    const pick = (k) => { ui.tab = k; ui.expanded = false; S.render(); };
-    const tabBar = h('div', { class: 'tp-tabs', role: 'tablist', 'aria-label': 'Task lists',
-      onkeydown: (e) => {
-        const i = tabs.findIndex((x) => x[0] === ui.tab), n = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: tabs.length - 1 }[e.key];
-        if (n === undefined) return;
-        e.preventDefault();
-        const next = tabs[(n + tabs.length) % tabs.length][0];
-        pick(next); document.getElementById('sgo-tab-' + next).focus();
-      } },
-      tabs.map(([k, label, ic]) => h('button', { type: 'button', role: 'tab', id: 'sgo-tab-' + k, dataset: { fk: 'tab-' + k }, 'aria-selected': String(ui.tab === k), 'aria-controls': 'sgo-tabpanel', tabindex: ui.tab === k ? '0' : '-1', title: label, onclick: () => pick(k) }, icon(ic, 18), h('span', null, label))));
+  /* The week the dashboard talks about: today and the next six days, plus anything Schoology lists as missing and tasks with no date. */
+  function weekOf(t, now) {
+    const start = S.sod(now), end = start + 7 * S.DAY;
+    const inView = t.filter((i) => (S.isComplete(i) || !S.isStale(i)) && ((i.due && i.due >= start && i.due < end) || i.fromOverdue || S.isOverdue(i) || !i.due))
+      .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
+    const open = inView.filter((i) => !S.isComplete(i)), complete = inView.filter(S.isComplete);
+    const overdue = open.filter(S.isOverdue).length, today = open.filter((i) => !S.isOverdue(i) && i.due && daysUntil(i.due, now) <= 0).length;
+    return { inView, open, complete, overdue, today, pct: inView.length ? Math.round((complete.length / inView.length) * 100) : 0 };
+  }
 
-    let body;
-    if (ui.tab === 'announcements') {
-      const anns = S.state.announcements.filter((a) => ui.course === 'all' || a.courseId === ui.course);
-      body = anns.length ? anns.map((a, idx) => {
+  /** A live clock and date. It ticks on the minute and stops by itself once the dashboard has left the page. */
+  function clock() {
+    const time = h('b', { class: 'clk-t' }), ap = h('span', { class: 'clk-ap' }), date = h('span', { class: 'clk-d' });
+    const paint = () => {
+      const n = new Date(), p = n.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).match(/^(.*?)\s?([AP]M)?$/i) || [];
+      time.textContent = p[1] || n.toLocaleTimeString(); ap.textContent = p[2] || '';
+      date.textContent = longDate(n.getTime());
+    };
+    paint();
+    const tick = () => { if (!time.isConnected) return; paint(); setTimeout(tick, 60000 - (Date.now() % 60000) + 50); };
+    setTimeout(tick, 60000 - (Date.now() % 60000) + 50);
+    return h('div', { class: 'clk', role: 'timer', 'aria-label': 'Current time and date' }, h('div', { class: 'clk-row' }, time, ap), date);
+  }
+
+  /** Hero: greeting and one honest sentence about the day on the left with the count of open assignments; the clock on the right. */
+  function hero(wk, now, review) {
+    const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0]; // no name known yet: just the greeting
+    const msg = wk.overdue ? `${plural(wk.overdue, 'assignment')} overdue. Start there, then move on to what is due today.`
+      : wk.today ? `${plural(wk.today, 'assignment')} due today. Here is what deserves your attention.`
+        : wk.open.length ? 'Nothing is due today. Here is what is coming up this week.' : S.quip();
+    return h('section', { class: 'hero', 'aria-label': 'Welcome' },
+      h('div', { class: 'hero-l' },
+        h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}.`),
+        h('p', { class: 'hero-msg' }, msg),
+        h('div', { class: 'hero-count', role: 'status' }, h('b', { class: 'num' }, wk.open.length), h('span', null, wk.open.length === 1 ? 'assignment to do this week' : 'assignments to do this week'),
+          wk.overdue ? h('span', { class: 'badge b-overdue' }, icon('alert', 13), `${wk.overdue} overdue`) : null)),
+      h('div', { class: 'hero-r' }, clock()),
+      h('div', { class: 'hero-menu' }, S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
+        ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]])));
+  }
+
+  /* A small floating notice, kept outside the page markup: it never moves the layout, survives page redraws, pauses while the pointer or
+   * focus is on it, and always leaves the same way (fades and drops out, then is removed). One at a time. */
+  S.toast = (message, action) => {
+    let host = document.getElementById('sgo-toasts');
+    if (!host) { host = h('div', { id: 'sgo-toasts', class: 'sgo', role: 'status', 'aria-live': 'polite' }); document.documentElement.append(host); }
+    clearTimeout(S._toastT); host.replaceChildren();
+    let paused = false, left = 6000, started = 0;
+    const close = () => {
+      clearTimeout(S._toastT);
+      if (!el.isConnected || el.classList.contains('leaving')) return;
+      el.classList.add('leaving'); setTimeout(() => el.remove(), 220);
+    };
+    const run = () => { started = Date.now(); S._toastT = setTimeout(close, left); };
+    const hold = () => { if (paused) return; paused = true; clearTimeout(S._toastT); left = Math.max(1500, left - (Date.now() - started)); };
+    const release = () => { if (!paused || el.matches(':hover, :focus-within')) return; paused = false; run(); };
+    const el = h('div', { class: 'toast', onmouseenter: hold, onmouseleave: release, onfocusin: hold, onfocusout: () => setTimeout(release, 0) },
+      icon('check', 16), h('span', null, message),
+      action ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { close(); action.run(); } }, action.label) : null,
+      h('button', { class: 'sgo-icon-btn toast-x', type: 'button', 'aria-label': 'Dismiss', onclick: close }, icon('plus', 16)));
+    host.append(el); run();
+  };
+
+  /* ---- Today's Priorities ---- */
+  function priorityRow(it, now) {
+    const u = urgency(it, now), viaSchoology = S.isSubmitted(it), complete = S.isComplete(it), e = S.gradeEntry(it);
+    const name = S.cn(it.courseId, it.courseName) || (it.manual ? 'Personal task' : 'Course');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Commit the change, then say so with an Undo that reverses it.
+    const commit = () => {
+      dui().last = { id: it.key, at: Date.now() };
+      toggleDone(it);
+      S.toast(complete ? `“${it.title}” marked not complete.` : `“${it.title}” marked complete.`,
+        { label: 'Undo', run: () => { dui().last = null; toggleDone(S.allItems().find((i) => i.key === it.key) || it); } });
+    };
+    const toggle = (e) => {
+      if (viaSchoology) return;
+      const row = e.currentTarget.closest('.pr');
+      if (complete || reduced || !row || row.classList.contains('folding')) { if (!row || !row.classList.contains('folding')) commit(); return; }
+      // Completing: the tick draws at once, the row eases shut, and only then the list is redrawn, so nothing jumps.
+      e.currentTarget.classList.add('on', 'just'); e.currentTarget.setAttribute('aria-pressed', 'true');
+      row.classList.add('u-done', 'folding'); row.style.maxHeight = row.offsetHeight + 'px';
+      void row.offsetHeight; // commit the starting height so the collapse is animated
+      setTimeout(() => row.classList.add('fold'), 260);
+      setTimeout(commit, 260 + 340);
+    };
+    const tt = dui().last, just = !!tt && tt.id === it.key && Date.now() - tt.at < 1500; // only the item just ticked draws its check
+    return h('li', { class: `pr u-${u.id}`, style: { '--c': S.colorOf(it) } },
+      h('button', { class: 'pr-check' + (complete ? ' on' : '') + (just ? ' just' : ''), type: 'button', dataset: { fk: 'check-' + it.key }, 'aria-pressed': String(complete), 'aria-disabled': viaSchoology ? 'true' : null,
+        title: viaSchoology ? 'Submitted in Schoology' : complete ? 'Mark as not complete' : 'Mark complete',
+        'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : complete ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: toggle }, icon('check', 14)),
+      h('div', { class: 'pr-main' },
+        h('div', { class: 'pr-course' }, h('i'), name),
+        h('a', { class: 'pr-title', href: itemHref(it) }, it.title),
+        h('div', { class: 'pr-when' }, dueLabel(it, now) + (e && e.possible != null ? ` · ${e.possible} pts` : ''))),
+      h('span', { class: 'badge b-' + u.id }, icon(u.icon, 14), u.label),
+      h('a', { class: 'pr-open', href: itemHref(it), title: 'Open', 'aria-label': 'Open assignment: ' + it.title }, icon('right', 18)));
+  }
+
+  function priorities(t, wk, now) {
+    const ui = dui(), byCourse = (i) => ui.course === 'all' || i.courseId === ui.course;
+    const rank = (i) => { const u = urgency(i, now).id; return { overdue: 0, today: 1, soon: 2, later: 3 }[u] ?? 4; };
+    const open = wk.open.filter(byCourse).sort((a, b) => rank(a) - rank(b) || (a.due ?? 9e15) - (b.due ?? 9e15));
+    const done = wk.complete.filter(byCourse), limit = 5, shown = ui.expanded ? open : open.slice(0, limit);
+    const empty = h('div', { class: 'sgo-empty topo-empty' }, h('div', { class: 'sgo-empty-t' }, 'No assignments due.'),
+      h('div', { class: 'sgo-empty-s' }, done.length ? `You finished everything on your list this week. ${plural(done.length, 'item')} completed.` : 'Nothing needs your attention right now. New work appears here when your teachers post it.'));
+    return h('section', { class: 'pri', 'aria-labelledby': 'pri-h' },
+      h('div', { class: 'sec-h' },
+        h('div', null, h('h2', { id: 'pri-h' }, "Today's Priorities"), h('p', null, 'Your upcoming academic deadlines.')),
+        h('div', { class: 'sec-a' },
+          h('select', { class: 'sgo-input pri-filter', 'aria-label': 'Filter priorities by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; ui.expanded = false; S.render(); } },
+            h('option', { value: 'all' }, 'All courses'), S.orderedCourses().filter((c) => !hiddenCourse(c)).map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
+          h('button', { class: 'sgo-btn', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add task'))),
+      open.length ? h('ul', { class: 'pr-list' }, shown.map((i) => priorityRow(i, now))) : empty,
+      open.length > limit ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more' }, onclick: () => { ui.expanded = !ui.expanded; S.render(); } }, ui.expanded ? 'Show fewer' : `Show ${open.length - limit} more`) : null,
+      done.length && open.length ? h('details', { class: 'pr-done', open: ui.showDone ? 'open' : null, ontoggle: (e) => { ui.showDone = e.target.open; } },
+        h('summary', null, icon('check', 14), `${plural(done.length, 'completed item')} this week`), h('ul', { class: 'pr-list' }, done.map((i) => priorityRow(i, now)))) : null);
+  }
+
+  /* Course covers on the dashboard. A cover the student chose always wins. Otherwise: a real photograph when one of the bundled
+   * photographs fits the subject, and a typographic banner (course name set large on a soft gradient) for everything else. Schoology's own
+   * generic pictures are only used when the student picks "Original". */
+  /* Dashboard-only subject matching, most specific first. Each id is a bundled photograph in banners/. Anything unmatched gets a typographic banner. */
+  const AUTO_PHOTO = [
+    [/econom|financ|market/i, 'economics'],
+    [/\bsports?\b|medic|\btsa\b|engineer|anatom|physiolog/i, 'anatomy'],
+    [/\bap\s?us\b|\bapush\b|us history|u\.s\. history|american history/i, 'apush'],
+    [/biolog|\bbio\b|cell/i, 'cells'],
+    [/calc|algebra|geometr|trig|statist|\bmath/i, 'calculus'],
+  ];
+  const PHOTO_OK = new Set(['history', 'english', 'languages', 'cs']); // the general-purpose photographs
+  /** What a course shows when nothing was chosen: a bundled photograph that fits the subject, else a typographic banner. */
+  function autoCover(c, name) {
+    const text = `${name} ${S.cleanName(c.name)}`, hit = AUTO_PHOTO.find(([re]) => re.test(text)), rec = S.recommendBanner(c.name);
+    const id = hit ? hit[1] : PHOTO_OK.has(rec) && !/advis|summer/i.test(text) ? rec : '';
+    return id && S.bannerUrl(id) ? { css: S.coverCssFor(c.id, c.name, 'b:' + id) } : { typo: true };
+  }
+  /** The saved choice: '' automatic, 'orig' Schoology's picture, 't' typographic, 'b:id' a bundled photo, or an uploaded image. */
+  function coverFor(c, name) {
+    const chosen = S.cmeta(c.id, c.name).cover || '';
+    if (chosen === 't') return { typo: true };
+    if (chosen) return { css: S.coverCss(c.id, c.name) };
+    return autoCover(c, name);
+  }
+  const hueOf = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 215; const k = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return Math.round((k * 60 + 360) % 360); };
+  /** The course name set large on a soft gradient in the course's own colour. plain: no link (for use inside a button or an already-linked card). */
+  function typoBanner(c, name, meta, plain) {
+    const hue = hueOf(S.courseColor(c.id, c.name)), t = plain ? h('span', { class: 'dc-typo-t' }, name) : h('a', { class: 'dc-typo-t', href: `/course/${c.id}/materials`, tabindex: '-1', 'aria-hidden': 'true' }, name);
+    return h('div', { class: 'dc-typo', style: { '--h': hue } }, h('span', null, meta || 'Course'), t);
+  }
+  /** Fills a cover element from a resolved choice. */
+  function paintCover(el, c, name, cv, plain) {
+    el.style.background = cv.css || ''; el.classList.toggle('typo', !!cv.typo);
+    el.replaceChildren(...(cv.typo ? [typoBanner(c, name, S.courseCode(c.name) || 'Course', plain)] : []));
+  }
+  /** Courses that are not part of the school year picture (summer work, advisory) stay off the dashboard. */
+  const HIDDEN_COURSE = /summer|advisory/i;
+  /** Hidden from the dashboard only; the Courses tab always lists everything. An explicit choice wins; otherwise summer work and advisory start hidden. */
+  const hiddenCourse = (c) => { const v = (S.prefs.courseHidden || {})[c.id]; return v === undefined ? HIDDEN_COURSE.test(S.cn(c.id, c.name) || '') || HIDDEN_COURSE.test(c.name || '') : !!v; };
+  S.courseHidden = hiddenCourse;
+  S.setCourseHidden = (c, hide, quiet) => {
+    S.prefs.courseHidden = Object.assign({}, S.prefs.courseHidden, { [c.id]: !!hide }); S.savePrefs(); S.render(true);
+    if (!quiet) S.toast(hide ? `“${S.cn(c.id, c.name)}” is hidden from the dashboard. It is still in Courses.` : `“${S.cn(c.id, c.name)}” is back on the dashboard.`, { label: 'Undo', run: () => S.setCourseHidden(c, !hide, true) });
+  };
+  const resolveCover = (c, name, v) => (v === 't' ? { typo: true } : v === '' ? autoCover(c, name) : { css: S.coverCssFor(c.id, c.name, v) });
+
+  /** The title turned into a text box, in place. Enter or clicking away saves, Escape cancels, and an empty box goes back to Schoology's name. */
+  function renameField(c) {
+    let done = false;
+    const finish = (save, v) => {
+      if (done) return; done = true;
+      if (save) { const t = (v || '').trim(); S.setCourseMeta(c.id, { name: t && t !== S.autoName(c.name) ? t : '' }); }
+      S.ui.renaming = null; S.render(true);
+    };
+    const input = h('input', { class: 'sgo-input sgo-rename', value: S.cn(c.id, c.name), placeholder: S.autoName(c.name), maxlength: '80', 'aria-label': 'Course name', dataset: { fk: 'rename-' + c.id },
+      onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') finish(true, e.target.value); else if (e.key === 'Escape') finish(false); },
+      onblur: (e) => finish(true, e.target.value) });
+    setTimeout(() => { input.focus(); input.select(); }, 30);
+    return input;
+  }
+
+  /* ---- courses ---- */
+  function dashCard(c, tasks, now, featured) {
+    const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), g = S.gradeFor(c.id);
+    const open = tasks.filter((i) => i.courseId === c.id && !S.isComplete(i) && (S.isOverdue(i) || (i.due && i.due >= S.sod(now)))).sort((a, b) => (S.isOverdue(b) - S.isOverdue(a)) || (a.due ?? 9e15) - (b.due ?? 9e15));
+    const next = open[0], u = next && urgency(next, now);
+    const news = S.state.announcements.filter((a) => a.courseId === c.id).length;
+    const term = (/\((S\d|Q\d|T\d|Y\d?)\)/.exec(c.name + ' ' + (c.section || '')) || [])[1] || (g && g.periods[0] && g.periods[0].name) || '';
+    const hasGrade = g && g.percent != null;
+    const editing = S.ui.renaming === c.id, cv = coverFor(c, name), metaLine = [S.courseCode(c.name) || c.section, term].filter(Boolean).join(' · ');
+    const cover = h('div', { class: 'dc-banner' + (cv.typo ? ' typo' : ''), style: cv.css ? { background: cv.css } : null }, cv.typo ? typoBanner(c, name, S.courseCode(c.name) || 'Course') : null,
+      h('button', { class: 'sgo-icon-btn dc-rename', type: 'button', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: () => { S.ui.renaming = c.id; S.render(); } }, icon('edit', 16)),
+      S.menu('Options for ' + name, [['Rename', () => { S.ui.renaming = c.id; S.render(); }], ['Change banner', () => S.openBannerPicker(c)], ['Notification icon…', () => S.openIconPicker(c)], ['Colour and name…', () => S.openCourseEditor(c)], ['Hide from dashboard', () => S.setCourseHidden(c, true)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn dc-dots', type: 'button' }, icon('dots', 18)), 'dc-menu'));
+    if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cover, c.id, c.name);
+    return h('article', { class: 'dc' + (featured ? ' featured' : '') + (cv.typo && !editing ? ' has-typo' : ''), style: { '--c': color }, 'aria-label': name }, cover,
+      h('div', { class: 'dc-body' },
+        h('h2', null, editing ? renameField(c) : h('a', { href: `/course/${c.id}/materials` }, name)),
+        h('div', { class: 'dc-meta' }, metaLine || 'Course'),
+        h('a', { class: 'sgo-icon-btn dc-news', href: `/course/${c.id}/updates`, title: 'Announcements', 'aria-label': news ? `${news} announcements for ${name}` : `Announcements for ${name}` }, icon(S.notifIcon(c), 18), news ? h('span', { class: 'dc-count' }, news) : null)),
+      h('div', { class: 'dc-stat' },
+        h('span', { class: 'micro' }, hasGrade ? 'Current grade' : 'Grade not available'),
+        hasGrade ? h('b', { class: 'dc-gv', 'aria-label': `Current grade ${pctText(g.percent)}` }, pctText(g.percent)) : h('span', { class: 'dc-gna' }, 'Schoology has not reported one')),
+      h('div', { class: 'dc-next' },
+        h('span', { class: 'micro' }, 'Next assignment'),
+        next ? [h('a', { class: 'dc-nt', href: itemHref(next) }, next.title),
+          h('div', { class: 'dc-nw' }, h('span', { class: 'badge b-' + u.id }, icon(u.icon, 12), u.label), h('span', null, S.isOverdue(next) ? dueLabel(next, now) : next.due ? shortDate(next.due) : ''))]
+          : h('span', { class: 'dc-gna' }, 'Nothing due')));
+  }
+
+  /* ---- right column: weekly progress, announcements, recent feedback ---- */
+  function weeklyCard(wk) {
+    const ui = dui(), from = ui.weekPct == null ? wk.pct : ui.weekPct; ui.weekPct = wk.pct;
+    const pctEl = h('b', { class: 'num' }); countTo(pctEl, from, wk.pct, '%');
+    const note = !wk.inView.length ? 'No work this week. Enjoy the quiet.' : wk.pct === 100 ? 'Everything is done this week. Nicely done.' : wk.pct >= 50 ? 'More than halfway there. Keep going.' : wk.complete.length ? 'Good start. One at a time.' : 'A fresh week. Begin with the first one.';
+    return h('section', { class: 'side-card progress', 'aria-labelledby': 'wp-h' },
+      h('h3', { id: 'wp-h' }, 'This week'),
+      h('div', { class: 'wp-big' }, pctEl, h('span', null, wk.inView.length ? `${wk.complete.length} of ${wk.inView.length} done` : '')),
+      meter(from, wk.pct, 'lg'),
+      h('p', { class: 'wp-note' }, note),
+      h('dl', { class: 'wp-nums' },
+        h('div', null, h('dt', null, 'Done'), h('dd', null, wk.complete.length)), h('div', null, h('dt', null, 'To do'), h('dd', null, wk.open.length)), h('div', null, h('dt', null, 'Overdue'), h('dd', { class: wk.overdue ? 'bad' : '' }, wk.overdue))));
+  }
+  function announcementsCard() {
+    const ui = dui(), all = S.state.announcements, shown = ui.annAll ? all : all.slice(0, 3);
+    return h('section', { class: 'side-card', 'aria-labelledby': 'an-h' },
+      h('div', { class: 'side-h' }, h('h3', { id: 'an-h' }, 'Announcements'), all.length > 3 ? h('button', { class: 'link', type: 'button', dataset: { fk: 'ann-all' }, onclick: () => { ui.annAll = !ui.annAll; S.render(); } }, ui.annAll ? 'Show fewer' : 'View all') : null),
+      shown.length ? h('ul', { class: 'an-list' }, shown.map((a, idx) => {
         const id = a.id + ':' + idx, isOpen = !!ui.ann[id];
-        return h('div', { class: 'tp-ann' }, h('button', { type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpen), onclick: () => { ui.ann[id] = !isOpen; S.render(); } },
-          h('b', null, a.body.split(/(?<=[.!?])\s/)[0].slice(0, 80)), h('span', null, [a.author, S.cn(a.courseId, a.courseName), a.time].filter(Boolean).join(' · '))), isOpen ? h('p', null, a.body) : null);
-      }) : h('p', { class: 'tp-empty' }, 'No announcements right now.');
-    } else {
-      const list = ui.tab === 'submitted' ? complete : open, limit = 4, shown = ui.expanded ? list : list.slice(0, limit);
-      const groups = new Map();
-      shown.forEach((i) => {
-        const n = i.due ? 0 : null; // only whether there is a date matters; the 48-hour window is exact (dueSoon)
-        const key = ui.tab === 'submitted' ? 'submitted' : S.isOverdue(i) ? 'overdue' : n == null ? 'no due date' : dueSoon(i, now) ? 'upcoming' : 'later';
-        (groups.get(key) || groups.set(key, []).get(key)).push(i);
-      });
-      const ORDER = ['overdue', 'upcoming', 'later', 'no due date', 'submitted']; // late work first, then what is coming up, then everything further out
-      body = list.length ? [...groups.entries()].sort((x, y) => ORDER.indexOf(x[0]) - ORDER.indexOf(y[0])).map(([label, arr]) => h('section', { class: 'tp-group' + (label === 'overdue' ? ' od' : label === 'upcoming' ? ' up' : '') }, h('h3', null, label === 'upcoming' ? [icon('clock', 14), 'Upcoming'] : label[0].toUpperCase() + label.slice(1)), h('ul', null, arr.map((i) => taskCard(i, now)))))
-        : [h('p', { class: 'tp-empty' }, ui.tab === 'submitted' ? 'Nothing submitted this week.' : 'Nothing due this week.')];
-      if (list.length > limit) body.push(h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more' }, onclick: () => { ui.expanded = !ui.expanded; S.render(); } }, ui.expanded ? 'Show less' : `View ${list.length - limit} more`));
-    }
-
-    const fbOpen = S.prefs.feedbackOpen !== false; // open until you collapse it; remembered
+        return h('li', null, h('button', { type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpen), onclick: () => { ui.ann[id] = !isOpen; S.render(); } },
+          h('span', { class: 'an-c' }, S.cn(a.courseId, a.courseName) || 'Announcement'), h('b', null, a.body.split(/(?<=[.!?])\s/)[0].slice(0, 80)), h('span', { class: 'an-t' }, [a.author, a.time].filter(Boolean).join(' · '))),
+          isOpen ? h('p', null, a.body) : null);
+      })) : h('p', { class: 'side-empty' }, 'No announcements right now.'));
+  }
+  function feedbackCard() {
     const feedback = S.state.grades.flatMap((g) => (g.periods || []).flatMap((p) => p.categories.flatMap((c) => c.items.filter((x) => x.comment).map((x) => ({ x, g })))))
       .map((f) => Object.assign(f, { ts: (S.parseDue(f.x.dueText) || {}).ts || 0 })).sort((a, b) => b.ts - a.ts).slice(0, 3);
-    return h('aside', { class: 'tp-col', 'aria-label': 'Tasks' },
-      h('div', { class: 'dp-sh' }, h('h2', { class: 'dp-h' }, 'Tasks'), h('div', { class: 'dp-sh-a' },
-        h('a', { class: 'sgo-icon-btn', href: '/home#/settings', title: 'Settings', 'aria-label': 'Task settings' }, icon('settings', 18)),)),
-      h('div', { class: 'tp' },
-      h('div', { class: 'tp-week' },
-        h('button', { class: 'sgo-icon-btn', type: 'button', dataset: { fk: 'week-prev' }, 'aria-label': 'Previous week', onclick: () => shift(-1) }, icon('left', 18)),
-        h('span', { 'aria-live': 'polite' }, `${shortDate(start)} to ${shortDate(day((ui.week + 1) * 7 - 1))}`),
-        h('button', { class: 'sgo-icon-btn', type: 'button', dataset: { fk: 'week-next' }, 'aria-label': 'Next week', onclick: () => shift(1) }, icon('right', 18))),
-      h('select', { class: 'sgo-input tp-filter', 'aria-label': 'Filter tasks by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; ui.expanded = false; S.render(); } },
-        h('option', { value: 'all' }, 'All Courses'), S.orderedCourses().map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
-      h('div', { class: 'tp-ring', role: 'img', 'aria-label': `${pct}% complete, ${complete.length} of ${inView.length}` }, ring.content.firstChild,
-        h('div', null, pctEl, h('span', null, `${complete.length}/${inView.length}`), h('small', null, 'Complete'))),
-      tabBar,
-      h('button', { class: 'sgo-btn ghost tp-add', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add to tasks'),
-      h('div', { id: 'sgo-tabpanel', class: 'tp-panel' + (enter ? ' enter' : ''), role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
-      h('section', { class: 'tp-feedback' },
-        h('button', { class: 'tp-fbh', type: 'button', 'aria-expanded': String(fbOpen), dataset: { fk: 'feedback-toggle' }, onclick: () => { S.prefs.feedbackOpen = !fbOpen; S.savePrefs(); S.render(true); } },
-          h('h3', null, 'Recent Feedback'), feedback.length ? h('span', null, feedback.length) : null, icon(fbOpen ? 'up' : 'down', 16)),
-        fbOpen ? (feedback.length ? feedback.map(({ x, g }) => { const pct = gItemPct(x);
-          return h('div', { class: 'tp-fb' }, h('div', { class: 'tp-fbt' }, h('b', null, x.title), x.earned != null ? h('span', { class: 'tp-fbg' }, `${gNum(x.earned)}${x.possible != null ? ' / ' + gNum(x.possible) : ''}${pct != null ? ' · ' + pct + '%' : ''}`) : null),
-            h('span', null, S.cn(g.courseId, g.courseName)), h('p', null, x.comment.slice(0, 140))); }) : h('p', { class: 'tp-empty' }, 'Nothing for now')) : null),
-      h('a', { class: 'sgo-btn primary tp-grades', href: '/grades/grades' }, 'View Grades')));
+    return h('section', { class: 'side-card', 'aria-labelledby': 'fb-h' },
+      h('div', { class: 'side-h' }, h('h3', { id: 'fb-h' }, 'Recent feedback'), h('a', { class: 'link', href: '/grades/grades' }, 'All grades')),
+      feedback.length ? h('ul', { class: 'fb-list' }, feedback.map(({ x, g }) => { const p = gItemPct(x);
+        return h('li', null, h('div', { class: 'fb-t' }, h('b', null, x.title), x.earned != null ? h('span', { class: 'fb-g' }, `${gNum(x.earned)}${x.possible != null ? ' / ' + gNum(x.possible) : ''}${p != null ? ' · ' + p + '%' : ''}`) : null),
+          h('span', { class: 'fb-c' }, S.cn(g.courseId, g.courseName)), h('p', null, x.comment.slice(0, 140)), h('a', { class: 'link', href: '/grades/grades' }, 'View details', icon('right', 14))); }))
+        : h('p', { class: 'side-empty' }, 'No teacher feedback yet. Comments on graded work show up here.'));
   }
 
   V.dashboard = () => {
-    const now = Date.now(), t = tasksOnly(), courses = S.orderedCourses(), review = S.unreviewedItems().length;
+    const now = Date.now(), skip = new Set(S.state.courses.filter(hiddenCourse).map((c) => c.id)), t = tasksOnly().filter((i) => !skip.has(i.courseId)), courses = S.orderedCourses().filter((c) => !skip.has(c.id)), review = S.unreviewedItems().length, wk = weekOf(t, now);
     S._dashStamp = S.dashStamp();
-    const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0]; // no name known yet: just the greeting
-    const head = h('div', { class: 'dp-head' }, h('div', null, h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}`), h('p', { class: 'dp-quip' }, S.quip())),
-      h('div', { class: 'dp-side' },
-        S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
-          ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]])));
-    const cards = courses.length ? h('div', { class: 'dc-grid' }, courses.map((c) => dashCard(c, t, now)))
+    // the course with the soonest open deadline gets the one contour treatment
+    const soonest = courses.map((c) => ({ c, d: Math.min(...t.filter((i) => i.courseId === c.id && !S.isComplete(i) && i.due && i.due >= S.sod(now)).map((i) => i.due), Infinity) })).filter((x) => x.d < Infinity).sort((a, b) => a.d - b.d)[0];
+    const cards = courses.length ? h('div', { class: 'dc-grid' }, courses.map((c) => dashCard(c, t, now, soonest && soonest.c.id === c.id)))
       : !S.state.loaded ? h('div', { class: 'dc-grid', 'aria-busy': 'true', 'aria-label': 'Loading courses' }, [0, 1, 2].map(() => h('div', { class: 'sk-row dc-sk' })))
         : empty('No courses found', 'Open Settings → Diagnostics to see what was read from Schoology.');
-    return h('div', { class: 'sgo-page dash6' }, head, h('div', { class: 'dp-main' }, h('section', { class: 'dp-courses', 'aria-labelledby': 'dp-courses-h' }, h('div', { class: 'dp-sh' }, h('h2', { class: 'dp-h', id: 'dp-courses-h' }, 'Your classes')), cards)), tasksPanel(t, now));
+    return h('div', { class: 'sgo-page dash6' }, hero(wk, now, review),
+      h('div', { class: 'dp-main' }, priorities(t, wk, now),
+        h('section', { class: 'dp-courses', 'aria-labelledby': 'dp-courses-h' }, h('div', { class: 'sec-h' }, h('div', null, h('h2', { id: 'dp-courses-h' }, 'Your courses'), h('p', null, courses.length ? plural(courses.length, 'course') + ' this term' : 'Detected from your Schoology account'))), cards,
+          skip.size ? h('p', { class: 'dc-hidden-note' }, `${plural(skip.size, 'course')} hidden from the dashboard. `, h('a', { class: 'link', href: '/courses' }, 'See everything in Courses', icon('right', 14))) : null),
+        h('div', { class: 'topo-div', 'aria-hidden': 'true' })),
+      h('aside', { class: 'dp-side-col', 'aria-label': 'Progress and recent activity' }, weeklyCard(wk), announcementsCard(), feedbackCard()));
   };
 
   function pageHead(title, sub, actions) {
@@ -278,16 +430,17 @@
     } else title = h('div', { class: 'sgo-course-t', title: name }, name);
     const card = h('article', { class: 'sgo-course' + (opts.dash ? ' dash' : ''), style: { '--c': color }, draggable: canDrag ? 'true' : null, dataset: { id: c.id } },
       !editing && h('a', { class: 'sgo-course-link', href: `/course/${c.id}/materials`, draggable: 'false', 'aria-label': 'Open ' + name }),
-      h('div', { class: 'sgo-course-cover', style: { background: S.coverCss(c.id, c.name) } }),
+      h('div', { class: 'sgo-course-cover' }),
       h('div', { class: 'sgo-course-actions' },
         h('button', { class: 'sgo-chip-btn', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: (e) => { stop(e); S.ui.renaming = c.id; S.render(); } }, icon('edit', 15)),
+        h('button', { class: 'sgo-chip-btn', title: S.courseHidden(c) ? 'Show on dashboard' : 'Hide from dashboard', 'aria-label': (S.courseHidden(c) ? 'Show on dashboard: ' : 'Hide from dashboard: ') + name, onclick: (e) => { stop(e); S.setCourseHidden(c, !S.courseHidden(c)); } }, icon('eyeoff', 15)),
         h('button', { class: 'sgo-chip-btn', title: 'Customize name & colour', 'aria-label': 'Customize ' + name, onclick: (e) => { stop(e); S.openCourseEditor(c); } }, icon('palette', 15)),
         h('button', { class: 'sgo-chip-btn', title: 'Change banner', 'aria-label': 'Change banner for ' + name, onclick: (e) => { stop(e); S.openBannerPicker(c); } }, icon('image', 15))),
       h('div', { class: 'sgo-course-body' }, title,
         h('div', { class: 'sgo-course-raw' }, c.name),
         h('div', { class: 'sgo-course-pills' }, od > 0 && pill(od + ' overdue', 'pr-critical'), soon > 0 && pill(soon + ' this week', 'pr-medium'), !od && !soon && pill('All clear', 'st-done'))),
       !opts.dash && h('div', { class: 'sgo-course-foot' }, h('a', { href: assignmentsHref('course=' + c.id) }, 'Assignments'), h('a', { href: `/course/${c.id}/materials` }, 'Materials')));
-    S.guardCover(card.querySelector('.sgo-course-cover'), c.id, c.name);
+    { const cov = card.querySelector('.sgo-course-cover'); paintCover(cov, c, name, coverFor(c, name), true); if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cov, c.id, c.name); }
     if (canDrag) {
       card.addEventListener('dragstart', (e) => { S.ui.dragCourse = c.id; card.classList.add('dragging'); e.dataTransfer.effectAllowed = 'move'; try { e.dataTransfer.setData('text/plain', c.id); } catch (x) { /* ignore */ } });
       card.addEventListener('dragend', () => { card.classList.remove('dragging'); document.querySelectorAll('.sgo-course.over').forEach((n) => n.classList.remove('over')); });
@@ -305,15 +458,18 @@
 
   /* Customize modal: name, colour, cover. Edits apply live and persist immediately. */
   /* Removes the open modal and its Escape listener. Called on close and on every navigation. */
-  S.closeModal = () => {
-    if (S.modalHost) S.modalHost.replaceChildren();
+  S.closeModal = (soft) => {
+    const host = S.modalHost, bg = host && host.firstElementChild;
+    if (soft && bg && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // fade out, then remove; a modal opened meanwhile is left alone
+      bg.classList.add('leaving'); setTimeout(() => { if (bg.parentNode === host && bg.classList.contains('leaving')) bg.remove(); }, 150);
+    } else if (host) host.replaceChildren();
     if (S._modalKey) { document.removeEventListener('keydown', S._modalKey, true); S._modalKey = null; }
   };
   S.openCourseEditor = (c) => {
     const host = S.modalHost; if (!host) return;
     S.closeModal();
     const onKey = (e) => { if (e.key === 'Escape') close(); };
-    const close = () => { S.closeModal(); S.render(); };
+    const close = () => { S.closeModal(true); S.render(); };
     S._modalKey = onKey;
     document.addEventListener('keydown', onKey, true);
     const prev = h('div', { class: 'sgo-cgrid sgo-prev' });
@@ -322,8 +478,8 @@
       oninput: (e) => { S.setCourseMeta(c.id, { name: e.target.value.trim() }); fresh(); } });
     const sw = h('div', { class: 'sgo-swatches' });
     const pick = (col) => { S.prefs.courseColors[c.id] = col; S.savePrefs(); fresh(); drawSw(); };
-    const drawSw = () => sw.replaceChildren(...S.PALETTE.map((col) => h('button', { class: 'sgo-sw' + (S.courseColor(c.id, c.name) === col ? ' on' : ''), style: { background: col }, 'aria-label': col, onclick: () => pick(col) })),
-      h('label', { class: 'sgo-color' }, h('input', { type: 'color', value: S.courseColor(c.id, c.name), onchange: (e) => pick(e.target.value) })));
+    const drawSw = () => { const cur = S.courseColor(c.id, c.name); sw.replaceChildren(groupedSwatches(S.COURSE_GROUPS, cur, pick),
+      h('label', { class: 'sw-custom' }, h('span', null, 'Custom colour'), h('input', { type: 'color', value: cur, 'aria-label': 'Custom colour', onchange: (e) => pick(e.target.value) }))); };
     fresh(); drawSw();
     const row = (t, el) => h('div', { class: 'sgo-mrow' }, h('label', null, t), el);
     host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
@@ -336,10 +492,40 @@
   };
 
   /* Banner picker: stage a choice, preview it, then Apply. The choice is stored per course id and never touches Schoology. */
+  /** Colours in small labelled families rather than one long row. items are [name, hex]. */
+  function groupedSwatches(groups, cur, onPick, shape) {
+    return h('div', { class: 'sw-groups' + (shape ? ' ' + shape : ''), role: 'group' }, groups.map(([label, items]) => h('div', { class: 'sw-group' }, h('span', { class: 'sw-gl' }, label),
+      h('div', { class: 'sw-row' }, items.map(([name, hex]) => h('button', { type: 'button', class: 'sw' + (cur === hex ? ' on' : ''), title: name, 'aria-label': name, 'aria-pressed': String(cur === hex), style: { background: hex }, onclick: () => onPick(hex) }, cur === hex ? icon('check', 14) : null))))));
+  }
+  S.groupedSwatches = groupedSwatches;
+
+  /* The little symbol beside each course's announcements. Pick any of these; it is saved for that course only. */
+  S.NOTIF_ICONS = [['mega', 'Megaphone'], ['bell', 'Bell'], ['flag', 'Flag'], ['alert', 'Alert'], ['inbox', 'Inbox'], ['rocket', 'Rocket'], ['notepad', 'Notepad'], ['clock', 'Clock']];
+  S.notifIcon = (c) => { const v = S.cmeta(c.id, c.name).icon; return S.NOTIF_ICONS.some((x) => x[0] === v) ? v : 'mega'; };
+  S.openIconPicker = (c) => {
+    const host = S.modalHost; if (!host) return;
+    S.closeModal();
+    const close = () => { S.closeModal(true); S.render(true); };
+    S._modalKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', S._modalKey, true);
+    const name = S.cn(c.id, c.name), news = S.state.announcements.filter((a) => a.courseId === c.id).length, grid = h('div', { class: 'ni-grid', role: 'group', 'aria-label': 'Notification icons' }), prev = h('div', { class: 'ni-prev' });
+    const draw = () => {
+      const cur = S.notifIcon(c);
+      prev.replaceChildren(h('span', { class: 'sgo-icon-btn ni-demo' }, icon(cur, 22), h('span', { class: 'dc-count' }, news || 1)), h('span', { class: 'sgo-muted' }, 'How it looks on the card'));
+      grid.replaceChildren(...S.NOTIF_ICONS.map(([id, label]) => h('button', { type: 'button', class: 'ni-btn' + (cur === id ? ' on' : ''), 'aria-pressed': String(cur === id), title: label, 'aria-label': label,
+        onclick: () => { S.setCourseMeta(c.id, { icon: id === 'mega' ? '' : id }); draw(); } }, icon(id, 22), h('span', null, label))));
+    };
+    draw();
+    host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
+      h('div', { class: 'sgo-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Notification icon' },
+        h('h2', null, 'Notification icon'), h('p', { class: 'sgo-muted' }, `${name} · the symbol beside this course's announcements. It only changes how this card looks.`),
+        prev, grid, h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Done', close, 'primary', 'check')))));
+  };
+
   S.openBannerPicker = (c) => {
     const host = S.modalHost; if (!host) return;
     S.closeModal();
-    const close = () => { S.closeModal(); S.render(true); };
+    const close = () => { S.closeModal(true); S.render(true); };
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     S._modalKey = onKey; document.addEventListener('keydown', onKey, true);
     const saved = S.cmeta(c.id, c.name).cover || '', original = S.originalBanner(c.id, c.name), suggested = S.recommendBanner(c.name);
@@ -347,23 +533,23 @@
     const preview = h('div', { class: 'bp-preview', role: 'img', 'aria-label': 'Banner preview' }), caption = h('div', { class: 'bp-cap', 'aria-live': 'polite' });
     const grid = h('div', { class: 'bp-grid', role: 'group', 'aria-label': 'Banner choices' });
     const file = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' }, onchange: async (e) => { const f = e.target.files[0]; if (!f) return; try { staged = await S.imageToDataUrl(f); draw(); } catch (x) { alert('That image could not be read.'); } } });
-    const norm = (v) => (!v || v === 'orig' ? 'orig' : v);
-    const labelOf = (v) => { v = norm(v); if (v === 'orig') return original ? 'Original Schoology banner' : 'Colour (the original banner was not found)';
-      if (v.startsWith('b:')) return (S.SUBJECT_BANNERS.find((x) => 'b:' + x[0] === v) || [, 'Banner'])[1]; return v.startsWith('data:') ? 'Your image' : 'Colour'; };
+    const cname = S.cn(c.id, c.name);
+    const labelOf = (v) => v === '' ? 'Automatic (a photo that fits the subject, otherwise typographic)' : v === 'orig' ? (original ? 'Original Schoology banner' : 'Original (not found, so a colour is shown)') : v === 't' ? 'Typographic, in this course\'s colour'
+      : v.startsWith('b:') ? (S.SUBJECT_BANNERS.find((x) => 'b:' + x[0] === v) || [, 'Banner'])[1] : 'Your image';
+    const thumbOf = (v) => { const cv = resolveCover(c, cname, v), t = h('span', { class: 'bp-thumb' + (cv.typo ? ' typo' : ''), style: cv.css ? { background: cv.css } : null }); if (cv.typo) t.append(typoBanner(c, cname, S.courseCode(c.name) || 'Course', true)); return t; };
     function draw() {
-      const cur = norm(staged), grad = S.autoGradient(c.id, c.name);
-      preview.style.background = S.coverCssFor(c.id, c.name, staged);
-      if (cur === 'orig') S.guardImage(preview, original, grad);
+      const isUp = staged.startsWith('data:');
+      paintCover(preview, c, cname, resolveCover(c, cname, staged), true);
+      if (staged === 'orig') S.guardImage(preview, original, S.autoGradient(c.id, c.name));
       caption.textContent = labelOf(staged) + (staged === saved ? '' : '  ·  not applied yet');
-      const tile = (value, label, css, extra) => h('button', { class: 'bp-tile' + (cur === value ? ' on' : ''), 'aria-pressed': String(cur === value), title: label,
+      const tile = (value, label, extra) => h('button', { type: 'button', class: 'bp-tile' + (staged === value ? ' on' : ''), 'aria-pressed': String(staged === value), title: label,
         disabled: extra && extra.disabled ? true : null, onclick: () => { staged = value; draw(); } },
-        h('span', { class: 'bp-thumb', style: { background: css } }), h('span', { class: 'bp-l' }, label), extra && extra.suggested ? h('span', { class: 'bp-sug' }, 'Suggested') : null);
-      const thumb = h('span');
+        thumbOf(value), h('span', { class: 'bp-l' }, label), extra && extra.suggested ? h('span', { class: 'bp-sug' }, 'Suggested') : null);
       grid.replaceChildren(
-        tile('orig', 'Original', S.coverCssFor(c.id, c.name, 'orig'), { disabled: !original }),
-        ...S.SUBJECT_BANNERS.map(([id, n]) => tile('b:' + id, n, S.coverCssFor(c.id, c.name, 'b:' + id), { suggested: suggested === id })),
-        h('button', { class: 'bp-tile' + (norm(staged).startsWith('data:') ? ' on' : ''), title: 'Upload an image (stays on this device)', onclick: () => file.click() },
-          h('span', { class: 'bp-thumb bp-up', style: norm(staged).startsWith('data:') ? { background: S.coverCssFor(c.id, c.name, staged) } : null }, norm(staged).startsWith('data:') ? null : icon('plus', 18)), h('span', { class: 'bp-l' }, 'Upload image')),
+        tile('', 'Automatic'), tile('t', 'Typographic'), tile('orig', 'Original', { disabled: !original }),
+        ...S.SUBJECT_BANNERS.map(([id, n]) => tile('b:' + id, n, { suggested: suggested === id })),
+        h('button', { type: 'button', class: 'bp-tile' + (isUp ? ' on' : ''), title: 'Upload an image (stays on this device)', onclick: () => file.click() },
+          h('span', { class: 'bp-thumb bp-up', style: isUp ? { background: S.coverCssFor(c.id, c.name, staged) } : null }, isUp ? null : icon('plus', 18)), h('span', { class: 'bp-l' }, 'Upload image')),
         file);
     }
     draw();
@@ -372,7 +558,7 @@
         h('h2', null, 'Course banner'), h('p', { class: 'sgo-muted' }, `${S.cn(c.id, c.name)} · only changes how this class looks here.`),
         preview, caption, grid,
         h('div', { class: 'sgo-head-a sgo-mfoot' },
-          btn('Reset to default', () => { S.setCourseMeta(c.id, { cover: '' }); close(); }, 'ghost', 'reload'),
+          btn('Reset to automatic', () => { S.setCourseMeta(c.id, { cover: '' }); close(); }, 'ghost', 'reload'),
           h('div', { class: 'sgo-head-a' }, btn('Cancel', close, 'ghost'), btn('Apply', () => { S.setCourseMeta(c.id, { cover: staged }); close(); }, 'primary', 'check'))))));
   };
   /** Settings actions: 'orig' points every class at its original Schoology banner; '' clears every choice (the default is the original too). */
@@ -388,6 +574,65 @@
       [seg, !alpha && S.prefs.courseOrder.length ? btn('Reset order', () => { S.prefs.courseOrder = []; S.savePrefs(); S.render(); }, 'ghost', 'reload') : null]),
       list.length ? h('div', { class: 'sgo-cgrid' }, list.map((c) => courseCard(c))) : empty('No courses found', 'Courses are read from your Schoology account. Open Settings → Diagnostics to see what was detected, or use Classic view.'));
   };
+
+  /* ---------- Search: one overlay for assignments and courses, opened from the sidebar (or / and Ctrl+K) ---------- */
+  S.openSearch = () => {
+    const host = S.modalHost; if (!host) return;
+    S.closeModal();
+    const close = () => { S.closeModal(true); };
+    S._modalKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', S._modalKey, true);
+    let sel = 0, rows = [];
+    const input = h('input', { class: 'sp-input', type: 'search', placeholder: 'Search assignments and courses', 'aria-label': 'Search assignments and courses', autocomplete: 'off', spellcheck: 'false', role: 'combobox', 'aria-expanded': 'true', 'aria-controls': 'sp-list' });
+    const list = h('ul', { class: 'sp-list', id: 'sp-list', role: 'listbox', 'aria-label': 'Results' });
+    const go = (r) => { close(); S.go(r.href); };
+    const compute = () => {
+      const q = input.value.trim().toLowerCase(), now = Date.now(), toks = q.split(/\s+/).filter(Boolean);
+      const hit = (s) => toks.every((t) => s.toLowerCase().includes(t));
+      const asg = tasksOnly().filter((i) => !S.isStale(i) || S.isComplete(i)).filter((i) => !q ? !S.isComplete(i) && (S.isOverdue(i) || (i.due && i.due >= S.sod(now))) : hit(`${i.title} ${S.cn(i.courseId, i.courseName)}`))
+        .sort((a, b) => (S.isOverdue(b) - S.isOverdue(a)) || (a.due ?? 9e15) - (b.due ?? 9e15)).slice(0, q ? 8 : 6);
+      const crs = q ? S.orderedCourses().filter((c) => hit(`${S.cn(c.id, c.name)} ${c.name}`)).slice(0, 4) : [];
+      rows = [...asg.map((i) => ({ kind: 'a', it: i, href: itemHref(i) })), ...crs.map((c) => ({ kind: 'c', c, href: `/course/${c.id}/materials` }))];
+      sel = Math.min(sel, Math.max(0, rows.length - 1));
+      const head = (t) => h('li', { class: 'sp-h', role: 'presentation' }, t);
+      const row = (r, i) => {
+        const on = i === sel;
+        if (r.kind === 'c') return h('li', { class: 'sp-r' + (on ? ' on' : ''), role: 'option', 'aria-selected': String(on), onclick: () => go(r), onmousemove: () => { if (sel !== i) { sel = i; paint(); } } },
+          h('span', { class: 'sp-ic' }, icon('book', 18)), h('span', { class: 'sp-m' }, h('b', null, S.cn(r.c.id, r.c.name)), h('small', null, 'Course')), icon('right', 16));
+        const u = urgency(r.it, now);
+        return h('li', { class: 'sp-r' + (on ? ' on' : ''), role: 'option', 'aria-selected': String(on), onclick: () => go(r), onmousemove: () => { if (sel !== i) { sel = i; paint(); } } },
+          h('span', { class: 'sp-ic' }, icon(r.it.type === 'assessment' ? 'rocket' : 'notepad', 18)),
+          h('span', { class: 'sp-m' }, h('b', null, r.it.title), h('small', null, [S.cn(r.it.courseId, r.it.courseName) || 'Course', dueLabel(r.it, now)].join(' \u00b7 '))),
+          h('span', { class: 'badge b-' + u.id }, icon(u.icon, 13), u.label), icon('right', 16));
+      };
+      const items = []; let n = 0;
+      if (asg.length) { items.push(head(q ? 'Assignments' : 'Coming up')); asg.forEach((i) => items.push(row(rows[n], n++))); }
+      if (crs.length) { items.push(head('Courses')); crs.forEach(() => items.push(row(rows[n], n++))); }
+      if (!rows.length) items.push(h('li', { class: 'sp-none', role: 'presentation' }, q ? `Nothing matches \u201c${input.value.trim()}\u201d.` : 'Nothing coming up.'));
+      list.replaceChildren(...items);
+      const cur = list.querySelector('.sp-r.on'); if (cur) cur.scrollIntoView({ block: 'nearest' });
+    };
+    const paint = () => { const all = list.querySelectorAll('.sp-r'); all.forEach((el, i) => { el.classList.toggle('on', i === sel); el.setAttribute('aria-selected', String(i === sel)); }); const cur = all[sel]; if (cur) cur.scrollIntoView({ block: 'nearest' }); };
+    input.addEventListener('input', () => { sel = 0; compute(); });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown') { e.preventDefault(); sel = Math.min(rows.length - 1, sel + 1); paint(); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); sel = Math.max(0, sel - 1); paint(); }
+      else if (e.key === 'Enter') { e.preventDefault(); if (rows[sel]) go(rows[sel]); else if (input.value.trim()) allMatches(); }
+    });
+    const allMatches = () => { const u = S.ui.assign; u.q = input.value.trim(); u.f = 'all'; u.course = ''; close(); S.go(assignmentsHref()); S.render(); };
+    compute();
+    host.replaceChildren(h('div', { class: 'sgo-modal-bg sp-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
+      h('div', { class: 'sp', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Search' },
+        h('div', { class: 'sp-field' }, icon('search', 20), input, h('kbd', null, 'Esc')),
+        list,
+        h('div', { class: 'sp-foot' }, h('span', null, '\u2191\u2193 to move \u00b7 Enter to open'), h('button', { type: 'button', class: 'rv-all', onclick: () => { const u = S.ui.assign; u.q = input.value.trim(); u.f = 'all'; u.course = ''; close(); S.go(assignmentsHref()); S.render(); } }, 'Open the Assignments page', icon('right', 14))))));
+    setTimeout(() => input.focus(), 30);
+  };
+  document.addEventListener('keydown', (e) => {
+    if (!document.documentElement.classList.contains('sgo-app')) return;
+    const t = document.activeElement, typing = t && (/^(input|textarea|select)$/i.test(t.tagName) || t.isContentEditable);
+    if (((e.key === 'k' || e.key === 'K') && (e.ctrlKey || e.metaKey)) || (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey && !e.altKey)) { e.preventDefault(); if (S.modalHost && !S.modalHost.firstElementChild) S.openSearch(); }
+  });
 
   /* ===================== ASSIGNMENTS ===================== */
   V.assignments = (ctx) => {
@@ -418,7 +663,7 @@
     const review = S.unreviewedItems(), excluded = S.excludedItems().filter(byCourse).filter(byText);
     const chips = [['all', 'All'], ['upcoming', 'Upcoming'], ['missing', 'Missing'], ['overdue', 'Overdue'], ['done', 'Completed']].map(([k, l]) =>
       h('button', { class: 'sgo-chip' + (u.f === k ? ' on' : ''), onclick: () => { u.f = k; S.render(); } }, l, h('span', null, tasksOnly().filter(filters[k]).filter(byCourse).length)));
-    const search = h('input', { class: 'sgo-input', type: 'search', placeholder: 'Search assignments', value: u.q, oninput: S.debounce((e) => { u.q = e.target.value; S.render(true); }, 150) });
+    const qChip = u.q ? h('button', { class: 'sgo-chip on q-chip', type: 'button', title: 'Clear this search', 'aria-label': `Clear search ${u.q}`, onclick: () => { u.q = ''; S.render(); } }, `“${u.q}”`, icon('plus', 14)) : null;
     const courseSel = h('select', { class: 'sgo-input', onchange: (e) => { u.course = e.target.value; S.render(); } }, h('option', { value: '' }, 'All classes'),
       S.orderedCourses().map((c) => h('option', { value: c.id, selected: u.course === c.id ? 'selected' : null }, S.cn(c.id, c.name))));
     const sortSel = h('select', { class: 'sgo-input', onchange: (e) => { u.sort = e.target.value; S.render(); } },
@@ -426,7 +671,7 @@
     return h('div', { class: 'sgo-page' },
       pageHead('Assignments', 'Everything you need to do, and when', [btn('New assignment', () => S.openNewAssignment(null), 'primary', 'plus'), btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
       pristine && review.length ? reviewCard(review) : null,
-      h('div', { class: 'sgo-toolbar' }, h('div', { class: 'sgo-chips' }, chips), h('div', { class: 'sgo-filters' }, search, courseSel, sortSel)),
+      h('div', { class: 'sgo-toolbar' }, h('div', { class: 'sgo-chips' }, chips), h('div', { class: 'sgo-filters' }, qChip, courseSel, sortSel)),
       groups.length ? groups.map(([name, arr]) => h('section', { class: 'sgo-sec' }, h('h3', null, name, h('span', null, arr.length)), list(arr)))
         : empty('Nothing here', S.allItems().length ? 'Try a different filter.' : 'No assignments have been read from Schoology yet. Open Settings → Diagnostics to see what was found.'),
       pristine && excluded.length ? excludedSection(excluded) : null);
@@ -538,7 +783,7 @@
     const g = S.state.grades;
     const courseBlock = (c, idx) => {
       const key = c.gradebookId || c.courseName, color = S.courseColor(c.courseId, c.courseName);
-      const open = key in S.ui.openGrade ? S.ui.openGrade[key] : idx === 0;
+      const open = key in S.ui.openGrade ? S.ui.openGrade[key] : false; // every course starts collapsed
       // Schoology also lists an empty "(no grading period)" group; only show periods that actually contain graded entries.
       const shown = gradePeriods(c);
       const periodNames = shown.map((p) => p.name).filter(Boolean);
@@ -615,12 +860,30 @@
   const FMT_ICON = { pdf: 'file', doc: 'file', slides: 'slides', sheet: 'sheet', image: 'image', video: 'file', audio: 'file', file: 'file' };
   const KIND_LABEL = { assignment: 'Assignment', assessment: 'Test or quiz', link: 'Link', page: 'Page', discussion: 'Discussion', document: 'Document' };
 
-  function resourceRow(c, it) {
+  /** A folder's icon from its name (Unit 1 -> book, Tests -> rocket, Slides -> slides...). Falls back to a plain folder. */
+  const FOLDER_ICONS = [[/syllabus|course info|welcome|about|policy|policies/i, 'file'], [/test|quiz|exam|assessment|review|final|midterm/i, 'rocket'], [/homework|\bhw\b|assignment|practice|worksheet|\blab\b|problem/i, 'notepad'],
+    [/slides|notes|lecture|presentation|powerpoint/i, 'slides'], [/data|spreadsheet|grades?\b|tables?/i, 'sheet'], [/video|image|photo|gallery|media/i, 'image'], [/link|website|online|web\b/i, 'link'], [/unit|chapter|module|lesson|week|topic|textbook|reading/i, 'book']];
+  const folderIcon = (title) => (FOLDER_ICONS.find(([re]) => re.test(title || '')) || [, 'folder'])[1];
+  /** What sits inside an opened folder, kept short: the rest is one click away. */
+  function folderPeek(c, it) {
+    const st = S.folderState(c.id, it.id), items = st.data ? st.data.items : null;
+    if (!items) return h('p', { class: 'rs-sub-empty' }, st.error ? 'Could not load this folder.' : 'Loading…');
+    if (!items.length) return h('p', { class: 'rs-sub-empty' }, 'This folder is empty.');
+    return h('ul', { class: 'rs-sub' }, items.slice(0, 6).map((x) => h('li', null, h('a', { href: x.kind === 'folder' ? folderHref(c.id, x.id) : x.kind === 'assignment' && x.id ? asgHref(c.id, x.id) : absHref(x.href), target: x.kind === 'folder' || (x.kind === 'assignment' && x.id) ? null : '_blank', rel: 'noopener' },
+      icon(x.kind === 'folder' ? folderIcon(x.title) : x.kind === 'file' ? FMT_ICON[x.fmt] || 'file' : x.kind === 'assignment' ? 'notepad' : x.kind === 'assessment' ? 'rocket' : x.kind === 'link' ? 'link' : 'file', 15), h('span', null, x.title)))),
+      items.length > 6 ? h('li', { class: 'rs-sub-more' }, h('a', { href: folderHref(c.id, it.id) }, `Open folder for ${items.length - 6} more`, icon('right', 14))) : null);
+  }
+  function resourceRow(c, it, opts = {}) {
     if (it.kind === 'folder') {
-      const n = S.folderCount(c.id, it.id);
-      return h('li', null, h('a', { class: 'rs rs-folder', href: folderHref(c.id, it.id) }, h('span', { class: 'rs-ic' }, icon('folder', 20)),
-        h('span', { class: 'rs-main' }, h('b', null, it.title), it.desc ? h('small', null, it.desc) : null),
-        h('span', { class: 'rs-meta' }, n == null ? '' : `${n} ${n === 1 ? 'item' : 'items'}`), h('span', { class: 'rs-go', 'aria-hidden': 'true' }, icon('right', 16))));
+      const n = S.folderCount(c.id, it.id), meta = n == null ? '' : `${n} ${n === 1 ? 'item' : 'items'}`, ic = h('span', { class: 'rs-ic' }, icon(folderIcon(it.title), 20));
+      if (!opts.expand) return h('li', null, h('a', { class: 'rs rs-folder', href: folderHref(c.id, it.id) }, ic,
+        h('span', { class: 'rs-main' }, h('b', null, it.title), it.desc ? h('small', null, it.desc) : null), h('span', { class: 'rs-meta' }, meta), h('span', { class: 'rs-go', 'aria-hidden': 'true' }, icon('right', 16))));
+      const open = !!(S.ui.openFolders || {})[it.id];
+      return h('li', { class: 'rs-li' + (open ? ' open' : '') },
+        h('div', { class: 'rs rs-folder' }, ic, h('span', { class: 'rs-main' }, h('b', null, h('a', { href: folderHref(c.id, it.id) }, it.title)), it.desc ? h('small', null, it.desc) : null), h('span', { class: 'rs-meta' }, meta),
+          h('button', { class: 'rs-exp', type: 'button', 'aria-expanded': String(open), 'aria-label': (open ? 'Collapse ' : 'Expand ') + it.title, title: open ? 'Collapse' : 'Peek inside', dataset: { fk: 'exp-' + it.id },
+            onclick: () => { S.ui.openFolders = Object.assign({}, S.ui.openFolders, { [it.id]: !open }); S.render(true); } }, icon('down', 16))),
+        open ? folderPeek(c, it) : null);
     }
     const isA = it.kind === 'assignment' || it.kind === 'assessment', ge = isA ? S.gradeEntryFor(c.id, it.id, it.title) : null;
     const type = it.kind === 'file' ? it.fmtLabel : KIND_LABEL[it.kind] || it.label || 'Item';
@@ -652,7 +915,7 @@
     if (!data && st.error) body = failure('these materials', st.error, () => S.retryFolder(c.id, fid), original);
     else if (!data) body = SKELETON(5);
     else if (!data.items.length) body = h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, fid ? 'This folder is empty' : 'No materials yet'), h('div', { class: 'sgo-empty-s' }, 'Your teacher has not added anything here.'));
-    else body = h('ul', { class: 'rs-list' }, data.items.map((it) => resourceRow(c, it)));
+    else body = h('div', { class: 'crs-card primary' }, materialsView(c, data.items));
     return h('section', { class: 'crs-pane', 'aria-label': 'Materials' }, crumbs(list),
       fid && data && data.title ? h('h2', { class: 'crs-h2' }, data.title) : null,
       data && st.error ? h('p', { class: 'crs-note' }, 'Showing the last saved copy; Schoology could not be reached.') : null, body);
@@ -721,28 +984,66 @@
     const g = S.gradeFor(c.id);
     if (!g) return h('section', { class: 'crs-pane' }, S.state.loaded && !S.state.loading ? h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'No grades yet'), h('div', { class: 'sgo-empty-s' }, 'Schoology has not published a gradebook for this course.')) : SKELETON(3));
     const shown = gradePeriods(g);
-    return h('section', { class: 'crs-pane', 'aria-label': 'Grades' },
-      h('div', { class: 'crs-gsum' }, h('span', { class: 'gr2-letter' }, g.letter || '—'), h('b', null, gPct(g.percent)), h('small', null, [shown.map((p) => p.name).filter(Boolean).join(', '), 'as Schoology reports it'].filter(Boolean).join(' · '))),
-      gradeBody(g, shown));
+    return h('section', { class: 'crs-pane crs-grades', 'aria-label': 'Grades' },
+      h('div', { class: 'crs-card crs-gsum' }, h('span', { class: 'gr2-letter' }, g.letter || '\u2014'), h('b', null, gPct(g.percent)), h('small', null, [shown.map((p) => p.name).filter(Boolean).join(', '), 'as Schoology reports it'].filter(Boolean).join(' \u00b7 '))),
+      h('div', { class: 'crs-card crs-gtable' }, gradeBody(g, shown)));
   }
 
+  /* ---- materials: search, quick filters, sort and grouped lists with divider pills ---- */
+  const MAT_GROUPS = [['folder', 'Folders'], ['file', 'Files'], ['assignment', 'Assignments'], ['link', 'Links and pages']];
+  const matKind = (it) => (it.kind === 'folder' ? 'folder' : it.kind === 'file' ? 'file' : it.kind === 'assignment' || it.kind === 'assessment' ? 'assignment' : 'link');
+  function materialsView(c, items) {
+    const ui = (S.ui.mat = S.ui.mat || { q: '', f: 'all', sort: 'order' }), q = ui.q.trim().toLowerCase();
+    const counts = { all: items.length }; MAT_GROUPS.forEach(([k]) => { counts[k] = items.filter((i) => matKind(i) === k).length; });
+    if (ui.f !== 'all' && !counts[ui.f]) ui.f = 'all';
+    let list = items.filter((i) => (ui.f === 'all' || matKind(i) === ui.f) && (!q || `${i.title} ${i.desc || ''} ${i.body || ''}`.toLowerCase().includes(q)));
+    if (ui.sort === 'az') list = list.slice().sort((a, b) => a.title.localeCompare(b.title, undefined, { numeric: true, sensitivity: 'base' }));
+    const row = (it) => resourceRow(c, it, { expand: true });
+    const chips = [['all', 'All'], ...MAT_GROUPS.filter(([k]) => counts[k])].map(([k, label]) => h('button', { type: 'button', class: 'mat-chip' + (ui.f === k ? ' on' : ''), 'aria-pressed': String(ui.f === k), dataset: { fk: 'mat-f-' + k },
+      onclick: () => { ui.f = k; S.render(true); } }, label, h('span', null, counts[k])));
+    const tools = h('div', { class: 'mat-tools' },
+      h('div', { class: 'mat-search' }, icon('search', 16), h('input', { class: 'sgo-input', type: 'search', value: ui.q, placeholder: 'Search materials', 'aria-label': 'Search materials', dataset: { fk: 'mat-q' }, oninput: (e) => { ui.q = e.target.value; S.render(true); } })),
+      h('select', { class: 'sgo-input mat-sort', 'aria-label': 'Sort materials', dataset: { fk: 'mat-sort' }, onchange: (e) => { ui.sort = e.target.value; S.render(true); } },
+        [['order', 'Teacher\u2019s order'], ['az', 'A to Z']].map(([v, l]) => h('option', { value: v, selected: ui.sort === v ? 'selected' : null }, l))));
+    let body;
+    if (!list.length) body = h('p', { class: 'crs-none' }, icon('help', 16), q ? `Nothing matches \u201c${ui.q.trim()}\u201d.` : 'Nothing in this view.');
+    else if (ui.sort === 'az' || ui.f !== 'all') body = h('ul', { class: 'rs-list' }, list.map(row));
+    else body = h('div', { class: 'mat-groups' }, MAT_GROUPS.map(([k, label]) => { const g = list.filter((i) => matKind(i) === k); return g.length ? h('section', { class: 'mat-g' }, h('div', { class: 'mat-gh' }, h('span', { class: 'mat-pill' }, label, h('b', null, g.length))), h('ul', { class: 'rs-list' }, g.map(row))) : null; }));
+    return h('div', { class: 'mat-view' }, h('div', { class: 'mat-chips', role: 'group', 'aria-label': 'Filter materials' }, chips), tools, body);
+  }
+
+  /** "Up next" as a timeline: a node per assignment on a thin line, a status chip, and an arrow to open it. */
+  function timelineRow(c, r) {
+    const href = r.aid ? asgHref(c.id, r.aid) : r.item ? r.item.url : '#', missing = r.st === 'missing';
+    const due = r.dueText ? 'Due ' + dueShort(r.dueText) : r.due ? `Due ${mon3(r.due)} ${new Date(r.due).getDate()}${r.timed ? ' · ' + S.fmtTime(r.due) : ''}` : 'No due date';
+    return h('li', { class: 'tl-i' + (missing ? ' missing' : '') },
+      h('span', { class: 'tl-node', 'aria-hidden': 'true' }),
+      h('div', { class: 'tl-main' }, h('b', null, h('a', { href }, r.title)), h('small', null, due)),
+      h('span', { class: 'badge ' + (missing ? 'b-overdue' : 'b-open') }, icon(missing ? 'alert' : 'clock', 13), missing ? 'Missing' : 'Open'),
+      h('a', { class: 'pr-open', href, title: 'Open', 'aria-label': 'Open assignment: ' + r.title }, icon('right', 18)));
+  }
   function overviewPane(c) {
-    const name = S.cn(c.id, c.name), teacher = S.courseTeacher(c), g = S.gradeFor(c.id), now = Date.now();
+    const teacher = S.courseTeacher(c), g = S.gradeFor(c.id);
     const asg = courseAssignments(c), next = asg.filter((x) => x.st === 'open' || x.st === 'missing').sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15)).slice(0, 5);
     const feed = S.feedState(c.id), root = S.folderState(c.id, ''), tops = root.data ? root.data.items.filter((i) => i.kind === 'folder').slice(0, 6) : null;
-    const card = (title, link, body) => h('section', { class: 'crs-card' }, h('div', { class: 'crs-card-h' }, h('h2', null, title), link && h('a', { href: link[1] }, link[0])), body);
+    const card = (title, link, body, cls) => h('section', { class: 'crs-card' + (cls ? ' ' + cls : '') }, h('div', { class: 'crs-card-h' }, h('h2', null, title), link && h('a', { class: 'link', href: link[1] }, link[0], icon('right', 14))), body);
+    const none = (ic, text) => h('p', { class: 'crs-none' }, icon(ic, 16), text);
+    const initials = (n) => (n || 'T').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
+    const feedBody = feed.items ? (feed.items.length ? h('ul', { class: 'an-feed' }, feed.items.slice(0, 3).map((a) => h('li', null, h('span', { class: 'an-av', 'aria-hidden': 'true' }, initials(a.author)),
+      h('div', { class: 'an-body' }, h('div', { class: 'an-top' }, h('b', null, a.author || 'Teacher'), a.time ? h('span', null, a.time) : null), h('p', { class: 'clamp' }, a.body))))) : null) : null;
+    const grade = g && g.percent != null ? `${g.letter || ''} ${gPct(g.percent)}`.trim() : 'Not available';
+    const matBody = root.data ? (root.data.items.length ? materialsView(c, root.data.items) : none('folder', 'No materials yet.')) : root.error ? none('alert', 'Materials could not be loaded.') : SKELETON(4);
     return h('div', { class: 'crs-grid' },
+      h('div', { class: 'crs-col' }, card('Materials', ['Browse all', cHref(c.id, 'materials')], matBody, 'primary')),
       h('div', { class: 'crs-col' },
-        card('Up next', ['All assignments', cHref(c.id, 'assignments')], next.length ? h('ul', { class: 'rs-list' }, next.map((x) => asgRow(c, x))) : S.state.loaded ? h('p', { class: 'tp-empty' }, 'Nothing due soon.') : SKELETON(2)),
-        card('Announcements', ['All announcements', cHref(c.id, 'announcements')], feed.items ? (feed.items.length ? h('ul', { class: 'an-list' }, feed.items.slice(0, 3).map((a) => h('li', { class: 'an' }, h('div', { class: 'an-h' }, h('b', null, a.author || 'Teacher'), a.time ? h('span', null, a.time) : null), h('p', { class: 'clamp' }, a.body)))) : h('p', { class: 'tp-empty' }, 'No announcements yet.')) : feed.error ? h('p', { class: 'tp-empty' }, 'Announcements could not be loaded.') : SKELETON(2))),
-      h('div', { class: 'crs-col' },
+        card('Up next', ['All assignments', cHref(c.id, 'assignments')], next.length ? h('ol', { class: 'tl' }, next.map((x) => timelineRow(c, x))) : S.state.loaded ? none('check', 'Nothing due soon.') : SKELETON(2)),
+        card('Announcements', ['All announcements', cHref(c.id, 'announcements')], feed.items ? (feedBody || none('mega', 'No announcements yet.')) : feed.error ? none('alert', 'Announcements could not be loaded.') : SKELETON(2), feed.items && !feed.items.length ? 'compact' : ''),
         card('Course', null, h('dl', { class: 'crs-dl' },
-          h('dt', null, 'Teacher'), h('dd', null, teacher || 'Not listed'),
-          h('dt', null, 'Code'), h('dd', null, S.courseCode(c.name) || '—'),
-          h('dt', null, 'Term'), h('dd', null, S.courseTerm(c) || '—'),
-          h('dt', null, 'Current grade'), h('dd', null, g && g.percent != null ? `${g.letter || ''} ${gPct(g.percent)}`.trim() : 'Not available'))),
-        card('Materials', ['Browse all', cHref(c.id, 'materials')], tops ? (tops.length ? h('ul', { class: 'rs-list' }, tops.map((it) => resourceRow(c, it))) : h('p', { class: 'tp-empty' }, 'No folders yet.')) : root.error ? h('p', { class: 'tp-empty' }, 'Materials could not be loaded.') : SKELETON(2)),
-        h('p', { class: 'sgo-note' }, 'Schoology does not share when materials were added, so recent additions cannot be listed.')));
+          h('div', null, h('dt', null, 'Teacher'), h('dd', null, teacher || 'Not listed')),
+          h('div', null, h('dt', null, 'Code'), h('dd', null, S.courseCode(c.name) || '\u2014')),
+          h('div', null, h('dt', null, 'Term'), h('dd', null, S.courseTerm(c) || '\u2014')),
+          h('div', { class: 'crs-dl-g' }, h('dt', null, 'Current grade'), h('dd', null, grade)))),
+        h('p', { class: 'crs-micro' }, icon('help', 14), h('span', null, 'Schoology doesn\u2019t share when materials were added, so recent additions can\u2019t be listed.'))));
   }
 
   V.course = () => {
@@ -754,57 +1055,48 @@
       : SKELETON(5));
     const name = S.cn(c.id, c.name); S._title = name;
     const teacher = S.courseTeacher(c), code = S.courseCode(c.name), term = S.courseTerm(c), feed = (state => (state.cd[c.id] || {}).feed)(S.state);
-    const cover = h('div', { class: 'crs-banner', style: { background: S.coverCss(c.id, c.name) } });
-    S.guardCover(cover, c.id, c.name);
+    const cover = h('div', { class: 'crs-banner' });
+    paintCover(cover, c, name, coverFor(c, name), true);
+    if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cover, c.id, c.name);
+    const meta = [code && h('span', { class: 'crs-code' }, code), teacher && h('span', null, teacher), term && h('span', null, term)].filter(Boolean);
     const header = h('div', { class: 'crs-head', style: { '--c': S.courseColor(c.id, c.name) } }, cover,
-      h('div', { class: 'crs-title' }, h('div', null, h('h1', null, name), h('p', null, [teacher && `Teacher: ${teacher}`, code, term].filter(Boolean).join(' · ') || ' ')),
-        h('div', { class: 'crs-actions' }, btn('Change banner', () => S.openBannerPicker(c), 'ghost', 'image'),
-          S.menu('Course options', [['Rename and colour', () => S.openCourseEditor(c)], ['View as Schoology page', () => window.open(originalHref(`/course/${c.id}/materials`), '_blank', 'noopener')]]))));
+      h('div', { class: 'crs-actions' }, btn('Change banner', () => S.openBannerPicker(c), 'ghost', 'image'),
+        S.menu('Course options', [['Rename and colour', () => S.openCourseEditor(c)], ['Notification icon…', () => S.openIconPicker(c)], [S.courseHidden(c) ? 'Show on dashboard' : 'Hide from dashboard', () => S.setCourseHidden(c, !S.courseHidden(c))], ['View as Schoology page', () => window.open(originalHref(`/course/${c.id}/materials`), '_blank', 'noopener')]])),
+      h('div', { class: 'crs-title' },
+        h('h1', null, S.ui.renaming === c.id ? renameField(c) : [name, h('button', { class: 'crs-rename', type: 'button', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: () => { S.ui.renaming = c.id; S.render(); } }, icon('edit', 18))]),
+        h('div', { class: 'crs-meta' }, meta.length ? meta.map((m, i) => [i ? h('i', { 'aria-hidden': 'true' }) : null, m]) : ' ')));
     const tabs = [['overview', 'Overview'], ['materials', 'Materials'], ['assignments', 'Assignments'], ['grades', 'Grades'], ['announcements', 'Announcements']];
-    const nav = h('nav', { class: 'crs-tabs', 'aria-label': 'Course sections' }, tabs.map(([k, label]) => h('a', { href: cHref(c.id, k), 'aria-current': r.tab === k ? 'page' : null }, label)));
+    // A pill under the active tab. It starts where it was on the last course page, then slides to the new tab.
+    const pill = h('span', { class: 'crs-tab-pill', 'aria-hidden': 'true' }), prevPos = S._tabPos && S._tabPos.id === c.id ? S._tabPos : null;
+    if (prevPos) { pill.style.width = prevPos.W + 'px'; pill.style.transform = `translateX(${prevPos.L}px)`; } else pill.style.opacity = '0';
+    const nav = h('nav', { class: 'crs-tabs', 'aria-label': 'Course sections' }, pill, tabs.map(([k, label]) => h('a', { href: cHref(c.id, k), 'aria-current': r.tab === k ? 'page' : null }, label)));
+    setTimeout(() => {
+      const act = nav.querySelector('[aria-current="page"]'); if (!act || !nav.isConnected) return;
+      const L = act.offsetLeft, W = act.offsetWidth;
+      if (!prevPos) { pill.style.transition = 'none'; pill.style.width = W + 'px'; pill.style.transform = `translateX(${L}px)`; void pill.offsetWidth; pill.style.transition = ''; pill.style.opacity = '1'; }
+      else { pill.style.width = W + 'px'; pill.style.transform = `translateX(${L}px)`; }
+      S._tabPos = { id: c.id, L, W };
+    }, 0);
     const pane = { overview: overviewPane, materials: materialsPane, assignments: assignmentsPane, grades: gradesPane, announcements: announcementsPane }[r.tab](c, r);
     return h('div', { class: 'sgo-page crs' }, header, nav, pane);
   };
 
   /* ===================== SETTINGS ===================== */
-  /* Teach the app a word once; it is fixed on every course. Stored in prefs.nameRules. */
-  function nameFixesCard() {
-    const r = S.prefs.nameRules || { expand: {}, keep: [] };
-    const from = h('input', { class: 'sgo-input', placeholder: 'Word as Schoology writes it, e.g. TRNG', 'aria-label': 'Word as Schoology writes it' });
-    const to = h('input', { class: 'sgo-input', placeholder: 'Show it as, e.g. Training (blank = keep as capitals)', 'aria-label': 'Show it as' });
-    const copy = () => ({ expand: Object.assign({}, r.expand || {}), keep: (r.keep || []).slice() });
-    const add = () => {
-      const k = from.value.trim().toUpperCase().replace(/[^A-Z0-9&]/g, ''), val = to.value.trim();
-      if (!k) return;
-      const nr = copy();
-      if (!val || val.toUpperCase() === k) { if (!nr.keep.includes(k)) nr.keep.push(k); delete nr.expand[k]; }
-      else nr.expand[k] = val;
-      S.setNameRules(nr);
-    };
-    const onEnter = (e) => { if (e.key === 'Enter') add(); };
-    from.addEventListener('keydown', onEnter); to.addEventListener('keydown', onEnter);
-    const rules = [...Object.entries(r.expand || {}).map(([k, v]) => [k, v, 'expand']), ...(r.keep || []).map((k) => [k, k, 'keep'])];
-    const removeRule = (k, kind) => { const nr = copy(); if (kind === 'expand') delete nr.expand[k]; else nr.keep = nr.keep.filter((x) => x !== k); S.setNameRules(nr); };
-    const preview = S.state.courses.map((c) => h('div', { class: 'sgo-prev-row' }, h('span', { class: 'sgo-muted' }, c.name), h('b', null, S.cleanName(c.name))));
-    return h('section', { class: 'sgo-card' }, h('h2', null, 'Name fixes'),
-      h('p', { class: 'sgo-muted' }, 'If a word shows up wrong, teach it once and it is fixed on every course. Matching ignores capitals. Your fixes are saved in this browser.'),
-      h('div', { class: 'sgo-teach' }, from, h('span', { class: 'sgo-muted' }, '→'), to, btn('Add', add, 'primary', 'plus')),
-      rules.length ? h('div', { class: 'sgo-rules' }, rules.map(([k, val, kind]) => h('span', { class: 'sgo-rule' }, h('b', null, k), ' → ', val,
-        h('button', { class: 'sgo-x', title: 'Remove this fix', 'aria-label': 'Remove ' + k, onclick: () => removeRule(k, kind) }, '×')))) : null,
-      h('h3', { class: 'sgo-sub' }, 'Preview'),
-      h('div', { class: 'sgo-preview' }, preview.length ? preview : h('span', { class: 'sgo-muted' }, 'No courses found yet.')));
-  }
-
-  /* ---------- student-controlled tracking ---------- */
   function reviewCard(list) {
-    return h('section', { class: 'sgo-review' },
-      h('div', { class: 'sgo-review-h' }, h('b', null, 'Should these be included in your personal workload?'),
-        h('small', { class: 'sgo-muted' }, `${list.length} new from Schoology. Your choice is remembered.`)),
-      list.slice(0, 6).map((it) => h('div', { class: 'sgo-review-i' },
-        h('div', { class: 'sgo-item-main' }, h('div', { class: 'sgo-item-title' }, it.title),
-          h('div', { class: 'sgo-item-meta' }, dot(S.colorOf(it)), S.cn(it.courseId, it.courseName) || 'Course', ' · ', S.relDue(it.due))),
-        h('div', { class: 'sgo-head-a' }, btn('Include', () => S.decide(it.key, 'include'), 'ghost', 'check'), btn('Exclude from tracking', () => S.decide(it.key, 'exclude'), 'ghost')))),
-      list.length > 6 ? h('p', { class: 'sgo-muted sgo-small' }, `${list.length - 6} more after these.`) : null);
+    const open = !!S.ui.reviewOpen, n = list.length;
+    const all = (d) => { list.forEach((it) => { S.prefs.reviewed[it.key] = d; }); S.savePrefs(); S.render(true); };
+    return h('section', { class: 'sgo-review compact' + (open ? ' open' : ''), 'aria-label': 'New assignments to review' },
+      h('div', { class: 'rv-bar' },
+        h('span', { class: 'rv-t' }, h('b', null, `${n} new from Schoology`), h('span', null, ' \u00b7 add to your workload?')),
+        h('div', { class: 'rv-a' }, h('button', { class: 'rv-all', type: 'button', onclick: () => all('include') }, 'Include all'),
+          h('button', { class: 'rv-toggle', type: 'button', 'aria-expanded': String(open), dataset: { fk: 'rv-toggle' }, onclick: () => { S.ui.reviewOpen = !open; S.render(true); } }, open ? 'Hide' : 'Review', icon(open ? 'up' : 'down', 14)))),
+      open ? h('ul', { class: 'rv-list' }, list.slice(0, 8).map((it) => h('li', null,
+        h('span', { class: 'rv-n' }, h('b', null, it.title), h('small', null, [S.cn(it.courseId, it.courseName) || 'Course', S.relDue(it.due)].filter(Boolean).join(' \u00b7 '))),
+        h('span', { class: 'rv-i' },
+          h('button', { class: 'rv-btn', type: 'button', title: 'Include', 'aria-label': 'Include ' + it.title, onclick: () => S.decide(it.key, 'include') }, icon('check', 14)),
+          h('button', { class: 'rv-btn', type: 'button', title: 'Exclude from tracking', 'aria-label': 'Exclude ' + it.title, onclick: () => S.decide(it.key, 'exclude') }, icon('eyeoff', 14))))),
+        n > 8 ? h('li', { class: 'rv-more' }, `${n - 8} more after these`) : null,
+        h('li', { class: 'rv-foot' }, h('button', { class: 'rv-all', type: 'button', onclick: () => all('exclude') }, 'Exclude all'))) : null);
   }
   function excludedSection(list) {
     return h('section', { class: 'sgo-sec' }, h('h3', null, 'Excluded from my tracker', h('span', null, list.length)),
@@ -877,62 +1169,150 @@
     setTimeout(() => title.focus(), 30);
   };
 
-  /* Appearance: four independent colours drive the whole look. Every change is applied at once through CSS variables and saved. */
-  function appearanceCard() {
-    const P = S.prefs, ui = (S.ui.appearance = S.ui.appearance || {});
-    const control = (label, key, hint) => {
-      const text = h('input', { class: 'sgo-input hex', value: P[key], maxlength: '7', spellcheck: 'false', autocomplete: 'off', 'aria-label': label + ' as a hex code', 'aria-invalid': 'false' });
-      const pick = h('input', { class: 'sgo-swatch-in', type: 'color', value: P[key], 'aria-label': label });
-      const write = (hex) => { text.value = hex; pick.value = hex; text.setAttribute('aria-invalid', 'false'); };
-      pick.addEventListener('input', () => { if (S.setAppearance({ [key]: pick.value })) write(P[key]); });
-      text.addEventListener('input', () => { const hex = S.normHex(text.value); text.setAttribute('aria-invalid', hex || text.value === '' ? 'false' : 'true'); if (hex && S.setAppearance({ [key]: hex })) pick.value = P[key]; });
-      text.addEventListener('change', () => write(P[key])); // an unfinished or invalid code snaps back to the colour in use
-      return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
-    };
-    const current = (S.ACCENTS.find((x) => x[1] === P.accent) || ['Custom'])[0], open = !!S.ui.accentOpen;
-    const choose = (hex) => { S.setAppearance({ accent: hex }); S.ui.accentOpen = false; S.render(true); };
-    const accents = h('div', { class: 'acc-wrap' },
-      h('button', { class: 'acc-btn', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': String(open), 'aria-label': 'Accent colour: ' + current + '. Choose another.', onclick: (e) => { e.stopPropagation(); S.ui.accentOpen = !open; S.render(true); } },
-        h('span', { class: 'acc-chip', style: { background: P.accent } }), h('span', null, current)),
-      open ? h('div', { class: 'acc-pop', role: 'group', 'aria-label': 'Accent colours' },
-        S.ACCENTS.map(([name, hex]) => h('button', { class: 'acc-sq' + (P.accent === hex ? ' on' : ''), type: 'button', style: { background: hex }, title: name, 'aria-label': name, 'aria-pressed': String(P.accent === hex), onclick: () => choose(hex) },
-          P.accent === hex ? icon('check', 16) : null)),
-        h('label', { class: 'acc-sq acc-custom', title: 'Any other colour' }, icon('palette', 16), h('input', { type: 'color', value: P.accent, 'aria-label': 'Custom accent colour', onchange: (e) => choose(e.target.value) }))) : null);
-    const presets = S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (['accent', 'contour', 'contourGlow', 'background'].every((k) => P[k] === t[k]) ? ' on' : ''), onclick: () => { S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); } },
-      h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.accent } }), h('i', { style: { background: t.contourGlow } })), t.name));
-    return h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'),
-      h('p', { class: 'sgo-muted' }, 'Four colours define the look. Changes apply instantly and are saved in this browser. The interface switches between light and dark text to match the background colour.'),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Accent colour'), h('small', null, 'Click the square, then pick a colour. Used for buttons, links, active items and selection.')), accents),
-      h('div', { class: 'ap-presets' }, presets),
-      control('Contour lines', 'contour', 'The topographic map drawn behind every page'),
-      control('Contour glow', 'contourGlow', 'The soft light under the main contour lines'),
-      control('Background', 'background', 'The surface behind the map'),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Topographic map'), h('small', null, 'Show the contour lines, or just the plain background colour')),
-        h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Topographic map' }, [[true, 'On'], [false, 'Off']].map(([v, l]) => h('button', { type: 'button', class: (P.topoOn !== false) === v ? 'on' : '', 'aria-pressed': String((P.topoOn !== false) === v), onclick: () => { S.setMap({ topoOn: v }); S.render(true); } }, l)))),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Line density'), h('small', null, 'How many contour lines the map draws')),
-        h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Line density' }, [['light', 'Light'], ['standard', 'Standard'], ['dense', 'Dense']].map(([v, l]) => h('button', { type: 'button', class: (P.topoDensity || 'standard') === v ? 'on' : '', 'aria-pressed': String((P.topoDensity || 'standard') === v), onclick: () => { S.setMap({ topoDensity: v }); S.render(true); } }, l)))),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Map shape'), h('small', null, 'Draws a different landscape')),
-        btn('New map', () => { S.setMap({ topoSeed: 1000 + Math.floor(Math.random() * 90000) }); S.render(true); }, 'ghost', 'reload')),
-      h('div', { class: 'sgo-head-a' }, btn('Reset appearance', () => { S.resetAppearance(); S.render(true); }, 'ghost', 'reload')));
+  /* ---------- Appearance: themes (previewed in miniature), the accent colour (separate), fine-tuning and the background map ---------- */
+  const hexRgb = (c) => [1, 3, 5].map((i) => parseInt(c.slice(i, i + 2), 16));
+  const mixHex = (a, b, p) => { const A = hexRgb(a), B = hexRgb(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * p).toString(16).padStart(2, '0')).join(''); };
+  const LOOK_KEYS = ['contour', 'contourGlow', 'background'];
+  const sameLook = (t) => LOOK_KEYS.every((k) => (S.prefs[k] || '').toLowerCase() === t[k]);
+  S.sameLook = sameLook;
+  /** A themed look never touches the accent colour; that is chosen on its own. */
+  S.applyLook = (t) => {
+    const html = document.documentElement;
+    html.classList.add('sgo-themeing'); // colours ease between looks instead of snapping
+    S.setAppearance({ contour: t.contour, contourGlow: t.contourGlow, background: t.background });
+    clearTimeout(S.applyLook.t); S.applyLook.t = setTimeout(() => html.classList.remove('sgo-themeing'), 450);
+  };
+  /* The preview draws the real map: the same generator, seed, density and weight as the page, in the colours being edited, with the page's ambient
+   * glow and the hero's own glow. It is a little brighter than the page (which shows it very softly) so the lines read at thumbnail size. */
+  const mapMarkup = new Map();
+  function mapPaths() {
+    const P = S.prefs, d = P.topoDensity || 'standard', seed = Number(P.topoSeed) || 20260, key = d + ':' + seed;
+    if (!mapMarkup.has(key)) { if (mapMarkup.size > 6) mapMarkup.clear(); const T = window.SGO_TOPO.build(1600, 900, seed, d); mapMarkup.set(key, T.paths.map((x) => `<path d="${x.d}"${x.major ? ' class="mj"' : ` stroke-opacity="${x.o}"`}/>`).join('')); }
+    return mapMarkup.get(key);
   }
+  /** A miniature dashboard in the given colours, over the actual background map. */
+  function themeThumb(t, accent) {
+    const P = S.prefs, bg = t.background, dark = window.SGO_COLOR.isDark(bg), uid = 'tg' + (t.id || 'x');
+    const L2 = mixHex(bg, t.contour, .1), L3 = mixHex(bg, t.contour, .15), L1 = mixHex(bg, t.contour, .05), line = mixHex(bg, t.contour, .26), ink = dark ? mixHex(bg, '#ffffff', .86) : '#1e293b', soft = dark ? mixHex(bg, '#ffffff', .45) : '#64748b';
+    const w = { thin: .55, standard: 1, bold: 1.9 }[P.topoWeight || 'standard'] || 1, mapOn = P.topoOn !== false;
+    const tpl = document.createElement('template');
+    tpl.innerHTML = `<svg viewBox="0 0 160 100" aria-hidden="true" focusable="false"><defs>
+        <radialGradient id="${uid}p" cx="50%" cy="0%" r="75%"><stop offset="0" stop-color="${t.contourGlow}" stop-opacity=".38"/><stop offset="1" stop-color="${t.contourGlow}" stop-opacity="0"/></radialGradient>
+        <radialGradient id="${uid}h" cx="82%" cy="8%" r="70%"><stop offset="0" stop-color="${t.contourGlow}" stop-opacity=".5"/><stop offset="1" stop-color="${t.contourGlow}" stop-opacity="0"/></radialGradient></defs>
+      <rect width="160" height="100" fill="${bg}"/><rect width="160" height="100" fill="url(#${uid}p)"/>
+      ${mapOn ? `<svg x="0" y="0" width="160" height="100" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><g class="pv-lines" style="--pw:${w}" fill="none" stroke="${t.contour}" stroke-linecap="round" stroke-linejoin="round" opacity=".45">${mapPaths()}</g></svg>` : ''}
+      <rect width="17" height="100" fill="${L1}" fill-opacity=".92"/><rect x="17" width=".6" height="100" fill="${line}"/>
+      <circle cx="8.5" cy="9" r="3.4" fill="${accent}"/><rect x="3.5" y="19" width="10" height="9" rx="2.5" fill="${accent}" fill-opacity=".28"/><rect x="5.5" y="21.5" width="6" height="4" rx="1.5" fill="${accent}"/>
+      <rect x="4.5" y="33" width="8" height="5" rx="2" fill="${soft}" fill-opacity=".5"/><rect x="4.5" y="43" width="8" height="5" rx="2" fill="${soft}" fill-opacity=".5"/><rect x="4.5" y="53" width="8" height="5" rx="2" fill="${soft}" fill-opacity=".5"/>
+      <rect x="23" y="7" width="132" height="27" rx="6" fill="${L3}" stroke="${line}" stroke-width=".6"/><rect x="23" y="7" width="132" height="27" rx="6" fill="url(#${uid}h)"/>
+      <rect x="30" y="14" width="46" height="4.5" rx="2" fill="${ink}"/><rect x="30" y="22" width="32" height="3" rx="1.5" fill="${soft}"/><rect x="124" y="14" width="24" height="6" rx="2" fill="${ink}"/><rect x="128" y="23" width="20" height="2.5" rx="1.2" fill="${soft}"/>
+      ${[0, 1, 2].map((i) => `<rect x="23" y="${40 + i * 13}" width="88" height="11" rx="3.5" fill="${L2}" stroke="${line}" stroke-width=".5"/><rect x="23" y="${42 + i * 13}" width="1.6" height="7" rx=".8" fill="${i ? accent : '#ef8a80'}"/><rect x="29" y="${43 + i * 13}" width="${34 - i * 4}" height="3" rx="1.5" fill="${ink}"/><rect x="29" y="${48 + i * 13}" width="20" height="2" rx="1" fill="${soft}"/><rect x="92" y="${43.5 + i * 13}" width="14" height="4.5" rx="2" fill="${accent}" fill-opacity=".25"/>`).join('')}
+      <rect x="116" y="40" width="39" height="37" rx="5" fill="${L2}" stroke="${line}" stroke-width=".5"/><rect x="121" y="46" width="14" height="4" rx="2" fill="${ink}"/><rect x="121" y="55" width="29" height="3" rx="1.5" fill="${line}"/><rect x="121" y="55" width="13" height="3" rx="1.5" fill="${accent}"/><rect x="121" y="64" width="22" height="2.5" rx="1.2" fill="${soft}"/>
+    </svg>`;
+    return tpl.content.firstChild;
+  }
+  const currentLook = () => ({ id: 'cur', name: 'Custom', contour: S.prefs.contour, contourGlow: S.prefs.contourGlow, background: S.prefs.background });
+
+  /** One colour: a picker and a hex box that stay in step; invalid codes are flagged and snap back. */
+  function colourControl(label, key, hint, after) {
+    const P = S.prefs;
+    const text = h('input', { class: 'sgo-input hex', value: P[key], maxlength: '7', spellcheck: 'false', autocomplete: 'off', 'aria-label': label + ' as a hex code', 'aria-invalid': 'false' });
+    const pick = h('input', { class: 'sgo-swatch-in', type: 'color', value: P[key], 'aria-label': label });
+    const write = (hex) => { text.value = hex; pick.value = hex; text.setAttribute('aria-invalid', 'false'); };
+    pick.addEventListener('input', () => { if (S.setAppearance({ [key]: pick.value })) { write(P[key]); if (after) after(); } });
+    text.addEventListener('input', () => { const hex = S.normHex(text.value); text.setAttribute('aria-invalid', hex || text.value === '' ? 'false' : 'true'); if (hex && S.setAppearance({ [key]: hex })) { pick.value = P[key]; if (after) after(); } });
+    text.addEventListener('change', () => write(P[key])); // an unfinished or invalid code snaps back to the colour in use
+    return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
+  }
+  function mapControls(redraw) {
+    const P = S.prefs, segBtn = (opts, cur, on) => opts.map(([v, l]) => h('button', { type: 'button', class: cur === v ? 'on' : '', 'aria-pressed': String(cur === v), onclick: () => on(v) }, l));
+    const seg = (label, hint, opts, cur, on) => h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'sgo-seg', role: 'group', 'aria-label': label }, segBtn(opts, cur, on)));
+    return [
+      seg('Topographic map', 'Contour lines, or just the plain background', [[true, 'On'], [false, 'Off']], P.topoOn !== false, (v) => { S.setMap({ topoOn: v }); redraw(); }),
+      seg('Line density', 'How many contour lines are drawn', [['light', 'Light'], ['standard', 'Standard'], ['dense', 'Dense']], P.topoDensity || 'standard', (v) => { S.setMap({ topoDensity: v }); redraw(); }),
+      seg('Line weight', 'How thick the lines are', [['thin', 'Thin'], ['standard', 'Standard'], ['bold', 'Bold']], P.topoWeight || 'standard', (v) => { S.setMap({ topoWeight: v }); redraw(); }),
+      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Map shape'), h('small', null, 'Draws a different landscape')), btn('New map', () => { S.setMap({ topoSeed: 1000 + Math.floor(Math.random() * 90000) }); redraw(); }, 'ghost', 'reload')),
+    ];
+  }
+
+  /** The appearance panel, as a split view: the live preview and the accent colour on the left, every control on the right, so each edit is visible as you make it. */
+  S.openAppearance = () => {
+    const host = S.modalHost; if (!host) return;
+    S.closeModal();
+    const close = () => { S.closeModal(true); S.render(true); };
+    S._modalKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', S._modalKey, true);
+    const P = S.prefs, prev = h('div', { class: 'ap-live', role: 'img', 'aria-label': 'Live preview of your colours and background map' });
+    const paint = () => prev.replaceChildren(themeThumb(currentLook(), P.accent));
+    const accentBox = h('div', { class: 'ap-accent' }), controls = h('div', { class: 'ap-controls' }), mapBody = h('div', { class: 'ap-map' });
+    const drawAccent = () => {
+      const name = (S.ACCENTS.find((x) => x[1] === P.accent) || ['Custom'])[0];
+      accentBox.replaceChildren(
+        h('h3', { id: 'ap-acc-h' }, 'Accent colour', h('small', null, name)),
+        groupedSwatches(S.ACCENT_GROUPS.map(([g, names]) => [g, names.map((n) => S.ACCENTS.find((x) => x[0] === n)).filter(Boolean)]), P.accent, (hex) => { S.setAppearance({ accent: hex }); drawAccent(); paint(); }, 'square'),
+        h('label', { class: 'sw-custom' }, h('span', null, 'Custom colour'), h('input', { type: 'color', value: P.accent, 'aria-label': 'Custom accent colour', onchange: (e) => { S.setAppearance({ accent: e.target.value }); drawAccent(); paint(); } })));
+    };
+    const drawControls = () => controls.replaceChildren(
+      h('h3', { id: 'ap-col-h' }, 'Colours'),
+      h('div', { class: 'ap-presets', role: 'group', 'aria-label': 'Quick colours' }, S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (sameLook(t) ? ' on' : ''), 'aria-pressed': String(sameLook(t)),
+        onclick: () => { S.applyLook(t); drawControls(); paint(); S.render(true); } },
+        h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.contour } }), h('i', { style: { background: t.contourGlow } })), t.name))),
+      colourControl('Background', 'background', 'The surface behind the map', paint), colourControl('Contour lines', 'contour', 'The topographic map drawn behind every page', paint), colourControl('Contour glow', 'contourGlow', 'The soft light under the main contour lines', paint));
+    const fillMap = () => { mapBody.replaceChildren(h('h3', null, 'Background map'), ...mapControls(fillMap)); paint(); };
+    paint(); drawAccent(); drawControls(); fillMap();
+    host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
+      h('div', { class: 'sgo-modal ap-modal', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'ap-h' },
+        h('div', { class: 'ap-head' }, h('h2', { id: 'ap-h' }, 'Appearance'), h('button', { class: 'sgo-icon-btn', type: 'button', 'aria-label': 'Close', onclick: close }, icon('plus', 18))),
+        h('div', { class: 'ap-layout' }, h('div', { class: 'ap-left' }, prev, mapBody), h('div', { class: 'ap-right' }, controls, accentBox)),
+        h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Reset appearance', () => { S.resetAppearance(); drawControls(); drawAccent(); fillMap(); S.render(true); }, 'ghost', 'reload'), btn('Done', close, 'primary', 'check')))));
+  };
+
+  /** Settings card: the current look in miniature and a way into the panel. */
+  function appearanceCard() {
+    const P = S.prefs, known = S.THEME_PRESETS.find(sameLook), look = known || currentLook();
+    return h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'),
+      h('p', { class: 'sgo-muted' }, 'Pick a theme from miniature previews, choose an accent colour, and tune the background map. Changes apply instantly and are saved in this browser.'),
+      h('div', { class: 'ap-summary' },
+        h('span', { class: 'thm-prev' }, themeThumb(look, P.accent)),
+        h('div', { class: 'ap-l' }, h('b', null, known ? known.name : 'Custom colours'), h('small', null, 'Accent colour: ' + ((S.ACCENTS.find((x) => x[1] === P.accent) || ['Custom'])[0]))),
+        btn('Customise appearance', () => S.openAppearance(), 'primary', 'palette')));
+  }
+
+  /** Quick name change, saved as you type. */
+  S.openNameEditor = () => {
+    const host = S.modalHost; if (!host) return;
+    S.closeModal();
+    const close = () => { S.closeModal(true); S.render(true); };
+    S._modalKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', S._modalKey, true);
+    const inp = h('input', { class: 'sgo-input', value: S.prefs.displayName || '', placeholder: (S.state.user || 'First name').trim(), maxlength: '40', style: { width: '100%' }, 'aria-label': 'Your name',
+      oninput: (e) => { S.prefs.displayName = e.target.value.trim(); S.savePrefs(); },
+      onkeydown: (e) => { if (e.key === 'Enter') close(); } });
+    host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
+      h('div', { class: 'sgo-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Your name' },
+        h('h2', null, 'Your name'), h('p', { class: 'sgo-muted' }, 'Shown in the dashboard greeting. Saved as you type, only in this browser. Leave it empty to use the name Schoology gives.'),
+        h('div', { class: 'sgo-mrow' }, inp), h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Done', close, 'primary', 'check')))));
+    setTimeout(() => { inp.focus(); inp.select(); }, 30);
+  };
 
   V.settings = () => {
     const P = S.prefs, set = (k, v) => { P[k] = v;  S.savePrefs(); S.applyTheme(); S.render(true); };
     const row = (t, s, ctl) => h('div', { class: 'sgo-set' }, h('div', null, h('b', null, t), s && h('small', null, s)), ctl);
     const seg = (key, opts) => h('div', { class: 'sgo-seg' }, opts.map(([v, l]) => h('button', { class: P[key] === v ? 'on' : '', onclick: () => set(key, v) }, l)));
-    const courseRows = S.orderedCourses().map((c) => h('div', { class: 'sgo-set slim' }, h('span', null, dot(S.courseColor(c.id, c.name)), S.cn(c.id, c.name)),
-      h('label', { class: 'sgo-color' }, h('input', { type: 'color', value: S.courseColor(c.id, c.name), onchange: (e) => { P.courseColors[c.id] = e.target.value; S.savePrefs(); S.render(true); } }))));
+    const courseRows = S.orderedCourses().map((c) => { const cur = S.courseColor(c.id, c.name), open = S.ui.ccOpen === c.id, pick = (col) => { P.courseColors[c.id] = col; S.savePrefs(); S.render(true); };
+      return h('div', { class: 'cc-row' + (open ? ' open' : '') },
+        h('button', { class: 'cc-head', type: 'button', 'aria-expanded': String(open), 'aria-label': 'Colour for ' + S.cn(c.id, c.name) + ': ' + ((S.COURSE_GROUPS.flatMap((g) => g[1]).find((x) => x[1] === cur) || ['Custom'])[0]), dataset: { fk: 'cc-' + c.id },
+          onclick: () => { S.ui.ccOpen = open ? null : c.id; S.render(true); } },
+          h('span', { class: 'cc-dot', style: { background: cur } }), h('span', { class: 'cc-n' }, S.cn(c.id, c.name)), icon(open ? 'up' : 'down', 16)),
+        open ? h('div', { class: 'cc-pick' }, groupedSwatches(S.COURSE_GROUPS, cur, pick), h('label', { class: 'sw-custom' }, h('span', null, 'Custom colour'), h('input', { type: 'color', value: cur, 'aria-label': 'Custom colour for ' + S.cn(c.id, c.name), onchange: (e) => pick(e.target.value) }))) : null);
+    });
     return h('div', { class: 'sgo-page narrow' }, pageHead('Settings', 'Everything is stored only in this browser'),
-      h('section', { class: 'sgo-card' }, h('h2', null, 'Profile'), row('Your name', 'Used for the dashboard greeting. Stored only in this browser.',
-        h('input', { class: 'sgo-input', value: P.displayName || '', placeholder: 'First name', onchange: (e) => set('displayName', e.target.value.trim()) }))),
+      h('section', { class: 'sgo-card' }, h('h2', null, 'Profile'), row('Your name', 'Used for the dashboard greeting. Saved as you type, only in this browser. Empty uses the name Schoology gives.',
+        h('input', { class: 'sgo-input', value: P.displayName || '', placeholder: (S.state.user || 'First name').trim(), maxlength: '40', 'aria-label': 'Your name',
+          oninput: (e) => { P.displayName = e.target.value.trim(); S.savePrefs(); }, onchange: () => S.render(true) }))),
       appearanceCard(),
-      h('section', { class: 'sgo-card' }, h('h2', null, 'Course names'), row('Tidy names automatically', 'Turns “(MATH&151) CALCULUS I /AP CALC AB: (S1) Crane, A” into “AP Calculus AB”. Your own renames always win.', seg('cleanNames', [[true, 'On'], [false, 'Off']]))),
-      nameFixesCard(),
-      courseRows.length ? h('section', { class: 'sgo-card' }, h('h2', null, 'Course colours'), courseRows) : null,
-      h('section', { class: 'sgo-card' }, h('h2', null, 'School links'),
-        h('p', { class: 'sgo-muted' }, 'Schoology has no pages for these. Add your school\'s addresses and the top bar and rail will use them.'),
-        S.TOP_LINKS.map(([k, label]) => row(label, null, h('input', { class: 'sgo-input', type: 'url', placeholder: 'https://', value: (P.topLinks || {})[k] || '', 'aria-label': label + ' address',
-          onchange: (e) => { const u = e.target.value.trim(); P.topLinks = Object.assign({}, P.topLinks); if (/^https?:\/\//i.test(u)) P.topLinks[k] = u; else delete P.topLinks[k]; S.savePrefs(); S.render(true); } })))),
+      courseRows.length ? h('section', { class: 'sgo-card' }, h('h2', null, 'Course colours'), h('p', { class: 'sgo-muted' }, 'Pick from fourteen colours, grouped by family. Used for the typographic banner and the course page.'),
+        row('Colour-code assignments by course', 'Off keeps every assignment and material indicator in one clean colour. On tints each with its course colour.', seg('tagColours', [[false, 'Off'], [true, 'On']])), courseRows) : null,
       h('section', { class: 'sgo-card' }, h('h2', null, 'Course banners'),
         h('p', { class: 'sgo-muted' }, 'Original Schoology banners are never changed or removed. These actions only affect how classes look in this extension.'),
         h('div', { class: 'sgo-head-a' },

@@ -14,6 +14,9 @@
   const RAIL = () => [
     ['dashboard', 'Dashboard', 'home', '/home'],
     ['courses', 'Courses', 'book', '/courses'],
+    ['assignments', 'Assignments', 'notepad', '/home#/assignments'],
+    ['grades', 'Grades', 'sheet', '/grades/grades'],
+    ['search', 'Search', 'search', ''],
     ['groups', 'Groups', 'groups', '/groups'],
     ['calendar', 'Calendar', 'calendar', '/calendar'],
     ['inbox', 'Inbox', 'inbox', '/messages'],
@@ -40,11 +43,11 @@
     return null;
   }
   const route = () => routeFor(location);
-  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
+  const navKey = (r) => { const p = location.pathname; return r === 'course' ? 'courses' : r === 'assignment' ? 'assignments' : r || (/^\/course\//.test(p) ? 'courses' : /^\/groups?\b/.test(p) ? 'groups' : /^\/messages/.test(p) ? 'inbox' : ''); };
   const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups' };
 
   /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
-  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'midnight', t = S.THEME_PRESETS.find((x) => x.id === id); S.setAppearance({ accent: t.accent, contour: t.contour, contourGlow: t.contourGlow, background: t.background }); S.render(true); };
+  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'hearth', t = S.THEME_PRESETS.find((x) => x.id === id); S.applyLook(t); S.render(true); };
 
   /* ---------- hide native content but keep it alive ---------- */
   function clearHidden() {
@@ -67,19 +70,30 @@
 
   function sidebar(r) {
     const active = navKey(r), who = S.prefs.displayName || S.state.user || '';
-    const initials = who.split(' ').map((w) => w[0]).slice(0, 2).join('').toUpperCase() || 'Me';
-    const face = S.state.avatar ? h('img', { class: 'sgo-face', src: S.state.avatar, alt: '' }) : h('span', { class: 'sgo-face' }, initials);
+    const initial = (who.trim()[0] || 'Me').toUpperCase(); // the first letter of the name; profile pictures are not shown anywhere
+    const face = h('span', { class: 'sgo-face', 'aria-hidden': 'true' }, initial);
     const account = S.menu('Account' + (who ? ': ' + who : ''), [
-      ['Assignments', () => S.go('/home#/assignments')], ['Grades', () => S.go('/grades/grades')], ['Resources', () => S.go('/resources')],
+      ['Edit name…', () => S.openNameEditor()], ['Assignments', () => S.go('/home#/assignments')], ['Grades', () => S.go('/grades/grades')], ['Resources', () => S.go('/resources')],
       ['Extension settings', () => S.go('/home#/settings')], ['Schoology account', () => S.go('/settings/account')],
       ['Classic view', () => { S.prefs.classic = true; S.savePrefs(); S.render(); }], ['Sign out', () => S.go('/logout')],
     ], h('button', { class: 'sgo-rail-i', type: 'button' }, face, h('span', null, 'Account')));
     const collapsed = !!S.prefs.collapsed;
-    return h('nav', { class: 'sgo-rail', 'aria-label': 'Main' }, account,
-      RAIL().map(([k, label, ic, href]) => h('a', { class: 'sgo-rail-i', href, 'aria-current': active === k ? 'page' : null, title: label, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, icon(ic, 21), h('span', null, label),
+    return h('nav', { class: 'sgo-rail', 'aria-label': 'Main', onclick: (e) => { if (e.target.closest && e.target.closest('a, .sgo-rail-search')) closeNav(); } },
+      h('button', { class: 'sgo-rail-x', type: 'button', 'aria-label': 'Close navigation menu', onclick: closeNav }, icon('plus', 20)), account,
+      RAIL().map(([k, label, ic, href]) => k === 'search'
+        ? h('button', { class: 'sgo-rail-i sgo-rail-search', type: 'button', 'data-tip': label, 'aria-haspopup': 'dialog', 'aria-keyshortcuts': '/ Control+K', 'aria-current': active === k ? 'page' : null, onclick: () => S.openSearch() }, icon(ic, 21), h('span', null, label))
+        : h('a', { class: 'sgo-rail-i', href, 'aria-current': active === k ? 'page' : null, 'data-tip': label, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, icon(ic, 21), h('span', null, label),
         k === 'inbox' && S.state.unread.messages ? h('b', { class: 'sgo-rail-n', 'aria-label': `${S.state.unread.messages} unread` }, S.state.unread.messages) : null)),
-      h('button', { class: 'sgo-rail-tog', type: 'button', 'aria-expanded': String(!collapsed), 'aria-label': collapsed ? 'Expand navigation' : 'Collapse navigation', dataset: { fk: 'rail-toggle' },
-        onclick: () => { S.prefs.collapsed = !collapsed; S.savePrefs(); S.applyTheme(); S.render(true); } }, icon('left', 17)));
+      h('div', { class: 'rail-topo', 'aria-hidden': 'true' }),
+      h('button', { class: 'sgo-rail-i sgo-rail-tog', type: 'button', 'data-tip': collapsed ? 'Expand' : 'Collapse', 'aria-expanded': String(!collapsed), 'aria-label': collapsed ? 'Expand navigation' : 'Collapse navigation', dataset: { fk: 'rail-toggle' },
+        onclick: (e) => {
+          // Flip the class on the live page instead of rebuilding it: the rail node survives, so its width, labels and chevron all animate.
+          const next = !S.prefs.collapsed, b = e.currentTarget;
+          S.prefs.collapsed = next; S.savePrefs();
+          html.classList.toggle('sgo-collapsed', next);
+          b.setAttribute('aria-expanded', String(!next)); b.setAttribute('aria-label', next ? 'Expand navigation' : 'Collapse navigation'); b.dataset.tip = next ? 'Expand' : 'Collapse';
+          b.lastChild.textContent = next ? 'Expand' : 'Collapse';
+        } }, icon('left', 20), h('span', null, collapsed ? 'Expand' : 'Collapse')));
   }
 
   /* ---------- grade updates: a bell with an unread count and a small list ---------- */
@@ -109,16 +123,39 @@
   document.addEventListener('click', (e) => { if (S.ui && S.ui.accentOpen && !(e.target.closest && e.target.closest('.acc-wrap'))) { S.ui.accentOpen = false; S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.accentOpen) { S.ui.accentOpen = false; S.render(true); } });
 
+  /* Quick colour themes: one button, a small panel of looks. The layout never changes; only the four appearance colours do. */
+  const applyLook = (t) => { S.applyLook(t); S.ui.themeOpen = false; S.render(true); };
+  function themePicker() {
+    const open = !!S.ui.themeOpen;
+    const panel = open && h('div', { class: 'thm-p', role: 'dialog', 'aria-label': 'Colour theme' },
+      h('div', { class: 'notif-h' }, h('b', null, 'Colour theme')),
+      h('div', { class: 'thm-grid' }, S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'thm-i' + (S.sameLook(t) ? ' on' : ''), 'aria-pressed': String(S.sameLook(t)), dataset: { fk: 'thm-' + t.id }, onclick: () => applyLook(t) },
+        h('span', { class: 'thm-sw', style: { background: `radial-gradient(circle at 78% 22%, ${t.contourGlow}, transparent 62%), ${t.background}`, boxShadow: `inset 0 0 0 1px ${t.contour}55` } }, h('i', { style: { background: S.prefs.accent } })),
+        h('span', { class: 'thm-n' }, h('b', null, t.name), h('small', null, t.note))))),
+      h('button', { class: 'link', type: 'button', onclick: () => { S.ui.themeOpen = false; S.render(true); S.openAppearance(); } }, 'Customise appearance', icon('right', 14)));
+    return h('div', { class: 'sgo-notif thm-wrap' },
+      h('button', { class: 'sgo-icon-btn', type: 'button', title: 'Colour theme', 'aria-label': 'Colour theme', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'thm-btn' }, onclick: (e) => { e.stopPropagation(); S.ui.themeOpen = !open; S.render(true); } }, icon('palette', 18)),
+      panel || null);
+  }
+  document.addEventListener('click', (e) => { if (S.ui && S.ui.themeOpen && !(e.target.closest && e.target.closest('.thm-wrap'))) { S.ui.themeOpen = false; S.render(true); } });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.themeOpen) { S.ui.themeOpen = false; S.render(true); const b = document.querySelector('[data-fk="thm-btn"]'); if (b) b.focus(); } });
+
+  /* On narrow screens the rail is a slide-in menu instead of a bar along the bottom. One large button opens it. */
+  const closeNav = () => { html.classList.remove('sgo-nav-open'); const f = document.querySelector('.sgo-fab'); if (f) f.setAttribute('aria-expanded', 'false'); };
+  const openNav = () => { html.classList.add('sgo-nav-open'); const f = document.querySelector('.sgo-fab'); if (f) f.setAttribute('aria-expanded', 'true'); const first = document.querySelector('.sgo-rail .sgo-rail-i'); if (first) setTimeout(() => first.focus({ preventScroll: true }), 60); };
+  const navControls = () => [
+    h('div', { class: 'sgo-scrim', 'aria-hidden': 'true', onclick: closeNav }),
+    h('button', { class: 'sgo-fab', type: 'button', 'aria-label': 'Open navigation menu', 'aria-expanded': String(html.classList.contains('sgo-nav-open')), dataset: { fk: 'nav-fab' }, onclick: openNav }, icon('menu', 24), h('span', null, 'Menu'))];
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && html.classList.contains('sgo-nav-open')) { closeNav(); const f = document.querySelector('.sgo-fab'); if (f) f.focus(); } });
+
   function topbar() {
-    const q = h('input', { class: 'sgo-input sgo-search', type: 'search', placeholder: 'Search assignments…', 'aria-label': 'Search assignments',
-      onkeydown: (e) => { if (e.key === 'Enter') { S.ui.assign.q = e.target.value; S.ui.assign.f = 'all'; S.ui.assign.course = ''; S.go('/home#/assignments'); S.render(); } } });
     const dark = html.classList.contains('sgo-dark');
-    const links = [['Home', '/home'], ...S.TOP_LINKS.map(([k, label]) => [label, linkTo(k)])];
-    return h('div', { class: 'sgo-top' }, q,
-      h('nav', { class: 'sgo-toplinks', 'aria-label': 'Site links' }, links.map(([t, href]) => h('a', { href, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, t))),
+    // No bar: just the four utility buttons, grouped in one quiet pill at the top-right.
+    return h('div', { class: 'sgo-top' }, h('div', { class: 'sgo-util', role: 'toolbar', 'aria-label': 'Utilities' },
       notifications(),
-      h('button', { class: 'sgo-icon-btn', title: 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
-      h('button', { class: 'sgo-icon-btn', title: dark ? 'Light mode' : 'Dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18)));
+      themePicker(),
+      h('button', { class: 'sgo-icon-btn', type: 'button', title: 'Refresh data', 'aria-label': 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
+      h('button', { class: 'sgo-icon-btn', type: 'button', title: dark ? 'Light mode' : 'Dark mode', 'aria-label': dark ? 'Switch to light mode' : 'Switch to dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18))));
   }
 
   /** Shown when a request reveals that the Schoology session has ended. Existing data stays visible. */
@@ -144,6 +181,7 @@
     }
     const entering = r && (lastRoute === null || lastRoute === '__init' || S.needRelayout);
     if (entering) { S.needRelayout = false; hideNative(); }
+    html.dataset.sgoRoute = r || '';
     html.classList.toggle('sgo-app', !!r);
     html.classList.toggle('sgo-native', !r);
     const cm = /^\/course\/(\d+)/.exec(location.pathname);
@@ -154,7 +192,7 @@
 
     if (!r) {
       html.style.setProperty('--sgo-top', '0px');
-      root.replaceChildren(sidebar(null)); return;
+      root.replaceChildren(sidebar(null), ...navControls()); return;
     }
 
     let view;
@@ -164,7 +202,7 @@
     const sig = r + '|' + location.pathname + location.search + '|' + S.parseHash().path;
     content = h('main', { class: 'sgo-content' + (sig !== lastSig ? ' animate' : ''), id: 'sgo-content' }, view);
     lastSig = sig;
-    root.replaceChildren(sidebar(r), h('div', { class: 'sgo-main' }, topbar(), banner(), content), S.modalHost);
+    root.replaceChildren(sidebar(r), ...navControls(), h('div', { class: 'sgo-main' }, topbar(), banner(), content), S.modalHost);
     content.scrollTop = content.classList.contains('animate') ? 0 : scroll; // a different page starts at the top
     if (hadSearch) { const i = content.querySelector('input[type=search]'); if (i) { i.focus(); try { i.setSelectionRange(sel, sel); } catch (e) { /* ignore */ } } }
     if (fk) { const el = root.querySelector(`[data-fk="${CSS.escape(fk)}"]`) || root.querySelector('[data-fk-fallback]'); if (el) el.focus({ preventScroll: true }); }

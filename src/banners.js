@@ -1,11 +1,11 @@
-/* Optional course banners: seven real photographs (public domain or CC0, from Wikimedia Commons) bundled in /banners.
+/* Optional course banners: twelve real images (public domain or CC0, from Wikimedia Commons) bundled in /banners.
  * Nothing is generated and nothing is fetched at run time. Credits are in banners/CREDITS.md. A class keeps its own original
  * Schoology picture unless the student chooses one of these. */
 (() => {
   const S = window.SGO;
   if (S.banners) return;
   S.banners = true;
-  S.SUBJECT_BANNERS = [['science', 'Science'], ['biology', 'Biology'], ['history', 'History'], ['english', 'English / Literature'], ['cs', 'Computer Science'], ['languages', 'Languages'], ['electives', 'Arts & electives']];
+  S.SUBJECT_BANNERS = [['science', 'Science'], ['biology', 'Biology'], ['history', 'History'], ['english', 'English / Literature'], ['cs', 'Computer Science'], ['languages', 'Languages'], ['electives', 'Arts & electives'], ['calculus', 'Mathematics'], ['cells', 'Cell biology'], ['economics', 'Economics'], ['apush', 'US history (archival)'], ['anatomy', 'Anatomy & engineering']];
   const KNOWN = new Set(S.SUBJECT_BANNERS.map((b) => b[0]));
   /** Address of a banner photograph inside the extension. Unknown ids (for example the retired "math") return '' so the card falls back. */
   S.bannerUrl = (id) => {

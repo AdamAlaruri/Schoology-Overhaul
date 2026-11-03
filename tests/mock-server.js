@@ -74,7 +74,7 @@ const groupFeed = (gid) => `<ul>${[['Coach Lee', 'Practice moved to the lab on T
 const EARLY_JS = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8')).content_scripts.find((c) => c.run_at === 'document_start').js;
 const MAIN_CSS = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8')).content_scripts.find((c) => c.css).css;
 const MAIN_SCRIPTS = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'manifest.json'), 'utf8')).content_scripts.find((c) => c.run_at !== 'document_start').js;
-const shell = (body, extra = '') => `<!doctype html><html><head><meta charset="utf-8"><title>Schoology (mock)</title>
+const shell = (body, extra = '') => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Schoology (mock)</title>
 ${MAIN_CSS.map((f) => `<link rel="stylesheet" href="/${f}">`).join('')}<script>/* stand-in for chrome.storage.local, kept in localStorage so settings survive a reload like they do in the extension */
 window.chrome = window.chrome || {}; chrome.runtime = { id: 'mock' };
 (function () { var rd = function (k) { try { return JSON.parse(localStorage.getItem('mock_' + k)); } catch (e) { return null; } };

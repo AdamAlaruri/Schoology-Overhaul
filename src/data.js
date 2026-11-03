@@ -633,6 +633,7 @@
       .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
   };
   S.courseOf = (it) => state.courses.find((c) => c.id === it.courseId) || null;
-  S.colorOf = (it) => S.courseColor(it.courseId, it.courseName);
+  /** The indicator colour for an assignment: one unified colour (the accent) unless the student turns on colour-coding by course. */
+  S.colorOf = (it) => (S.prefs.tagColours ? S.courseColor(it.courseId, it.courseName) : 'var(--accent)');
   S.data = { SEL, parseCourses, parseUpcoming, parseOverdue, parseAnnouncements, parseGrades, parseBanners };
 })();
