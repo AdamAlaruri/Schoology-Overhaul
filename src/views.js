@@ -160,8 +160,22 @@
       .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
     const open = inView.filter((i) => !S.isComplete(i)), complete = inView.filter(S.isComplete);
     const pct = inView.length ? Math.round((complete.length / inView.length) * 100) : 0, C = 2 * Math.PI * 62;
+    // The ring starts where it was last drawn, so a check-off moves from the old value to the new one instead of jumping.
+    const from = ui.ringPct == null ? pct : ui.ringPct;
+    ui.ringPct = pct;
     const ring = document.createElement('template');
-    ring.innerHTML = `<svg viewBox="0 0 150 150" aria-hidden="true"><circle class="tp-track" cx="75" cy="75" r="62"/><circle class="tp-bar" cx="75" cy="75" r="62" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - pct / 100)}"/></svg>`;
+    ring.innerHTML = `<svg viewBox="0 0 150 150" aria-hidden="true"><circle class="tp-track" cx="75" cy="75" r="62"/><circle class="tp-bar" cx="75" cy="75" r="62" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - from / 100)}"/></svg>`;
+    const barEl = ring.content.querySelector('.tp-bar'), pctEl = h('b', null, from + '%');
+    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    // Runs once this render is in the page. Timers (not animation frames) so it also works while the window is in the background.
+    if (from !== pct) setTimeout(() => {
+      barEl.getBoundingClientRect(); // read the layout first, so the old value is committed and the change is animated
+      barEl.setAttribute('stroke-dashoffset', String(C * (1 - pct / 100)));
+      if (reduced) { pctEl.textContent = pct + '%'; return; }
+      const t0 = Date.now(), D = 500;
+      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 3); pctEl.textContent = Math.round(from + (pct - from) * e) + '%'; if (k < 1) setTimeout(step, 16); };
+      step();
+    });
 
     const tabs = [['announcements', 'Announcements', 'mega'], ['assignments', 'Assignments', 'notepad'], ['submitted', 'Submitted', 'check']];
     const pick = (k) => { ui.tab = k; ui.expanded = false; S.render(); };
@@ -211,7 +225,7 @@
       h('select', { class: 'sgo-input tp-filter', 'aria-label': 'Filter tasks by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; ui.expanded = false; S.render(); } },
         h('option', { value: 'all' }, 'All Courses'), S.orderedCourses().map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
       h('div', { class: 'tp-ring', role: 'img', 'aria-label': `${pct}% complete, ${complete.length} of ${inView.length}` }, ring.content.firstChild,
-        h('div', null, h('b', null, pct + '%'), h('span', null, `${complete.length}/${inView.length}`), h('small', null, 'Complete'))),
+        h('div', null, pctEl, h('span', null, `${complete.length}/${inView.length}`), h('small', null, 'Complete'))),
       tabBar,
       h('button', { class: 'sgo-btn ghost tp-add', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add to tasks'),
       h('div', { id: 'sgo-tabpanel', role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
@@ -224,33 +238,12 @@
       h('a', { class: 'sgo-btn primary tp-grades', href: '/grades/grades' }, 'View Grades')));
   }
 
-  /* Live clock: the browser's own local time and timezone. One timer, aligned to the minute, that stops when the dashboard is not on screen. */
-  const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-  const dateFmt = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
-  let clockTimer = 0;
-  const toNextMinute = () => { const d = new Date(); return 60000 - d.getSeconds() * 1000 - d.getMilliseconds() + 30; };
-  function paintClock() {
-    const els = document.querySelectorAll('[data-sgo-clock]'), d = new Date();
-    els.forEach((e) => { const time = e.dataset.sgoClock === 'time'; e.textContent = (time ? timeFmt : dateFmt).format(d); if (time) e.setAttribute('datetime', d.toISOString()); });
-    return els.length;
-  }
-  function tickClock() {
-    clockTimer = 0;
-    if (!paintClock()) return; // left the dashboard: the timer ends, and starts again the next time the dashboard is drawn
-    clockTimer = setTimeout(tickClock, toNextMinute());
-  }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) paintClock(); }); // a sleeping tab catches up the moment it is shown
-  function clock() {
-    const d = new Date();
-    if (!clockTimer) clockTimer = setTimeout(tickClock, toNextMinute());
-    return h('div', { class: 'dp-clock' }, h('time', { class: 'dp-time', datetime: d.toISOString(), dataset: { sgoClock: 'time' } }, timeFmt.format(d)), h('span', { class: 'dp-date', dataset: { sgoClock: 'date' } }, dateFmt.format(d)));
-  }
   V.dashboard = () => {
     const now = Date.now(), t = tasksOnly(), courses = S.orderedCourses(), review = S.unreviewedItems().length;
     S._dashStamp = S.dashStamp();
     const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0]; // no name known yet: just the greeting
     const head = h('div', { class: 'dp-head' }, h('div', null, h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}`), h('p', { class: 'dp-quip' }, S.quip())),
-      h('div', { class: 'dp-side' }, clock(),
+      h('div', { class: 'dp-side' },
         S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
           ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]])));
     const cards = courses.length ? h('div', { class: 'dc-grid' }, courses.map((c) => dashCard(c, t, now)))
