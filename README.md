@@ -86,6 +86,10 @@ Reading order: greeting, academic overview, today's priorities, courses, recent 
 
 **Settings → Appearance** has buttons to turn the **topographic map** on or off, set its **line density** (Light, Standard, Dense) and draw a **New map**, and four independent colours, each with a picker and a hex field, plus curated presets and a reset: contour lines (`--contour-color`), contour glow (`--contour-glow`, drawn under the major contours), background (`--app-background`) and accent (`--accent`). Changes apply instantly and are saved with the other preferences in `chrome.storage.local`. Tests: `node tests/topo-cases.js`.
 
+## Hypothetical grades
+
+Grades has two views: **Schoology grades** (as Schoology reports them) and **Hypothetical**, for planning. In Hypothetical mode a student picks a course, creates their own **categories with weights in %**, and adds **scores** (earned and possible points) to them. Inside a category the grade is points earned divided by points possible; the course grade is the weighted average of the categories that have scores. A category with no scores yet is left out and the rest are scaled up, weights that do not add up to 100% are scaled to 100% (with a note saying so), and if every weight is 0 all points count equally. **Copy from Schoology** fills the editor from the real gradebook (weights Schoology does not report are split evenly and flagged). Everything is saved only in this browser (`hypo` in the extension preferences); nothing is written to Schoology, and the official grade is shown next to the hypothetical one for comparison. No letter grade is shown because grading scales differ by school.
+
 ## Calendar, Inbox and Groups
 
 All three open in the redesigned app (no legacy flash, refresh and back/forward work). Data comes only from Schoology's own pages:
