@@ -46,6 +46,7 @@
     const known = new Set((p.widgets || []).map((w) => w.id));
     p.widgets = (p.widgets || []).filter((w) => S.WIDGETS[w.id]);
     Object.keys(S.WIDGETS).forEach((id) => { if (!known.has(id)) p.widgets.push({ id, size: S.WIDGETS[id].size, hidden: false }); });
+    if (p.courseSort === 'alpha') { p.courseSort = 'custom'; S.savePrefs(); } // the A-Z mode was removed: classes keep the student's own order
     S.prefs = p;
     if ((p.designV || 0) < 7) { // one-time: colours that were earlier defaults move to the current defaults; a colour the student picked stays
       const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], contour: ['#40526d'], contourGlow: ['#1d4f91'], background: [] }, now = DEFAULTS();
@@ -326,10 +327,16 @@
   S.resetCourse = (id) => { delete S.prefs.courseMeta[id]; delete S.prefs.courseColors[id]; S.savePrefs(); };
   /** Courses detected from Schoology, ordered by the user's choice (custom drag order or A-Z). */
   S.orderedCourses = () => {
-    const all = S.state.courses.slice();
-    if (S.prefs.courseSort === 'alpha') return all.sort((a, b) => S.cn(a.id, a.name).localeCompare(S.cn(b.id, b.name), undefined, { sensitivity: 'base' }));
+    const all = S.state.courses.slice(); // always the student's own order (set by dragging); there is no separate A-Z mode
     const pos = new Map(S.prefs.courseOrder.map((id, i) => [id, i]));
     return all.map((c, i) => [c, pos.has(c.id) ? pos.get(c.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
+  };
+  /** Move a course one place earlier (-1) or later (1) among the ones `visible` accepts. The keyboard alternative to dragging. */
+  S.moveCourse = (id, delta, visible) => {
+    const all = S.orderedCourses().map((c) => c.id), vis = visible ? all.filter(visible) : all, i = vis.indexOf(id), j = i + delta;
+    if (i < 0 || j < 0 || j >= vis.length) return false;
+    const a = all.indexOf(id), b = all.indexOf(vis[j]); [all[a], all[b]] = [all[b], all[a]];
+    S.prefs.courseOrder = all; S.savePrefs(); return true;
   };
   /** Downscale an uploaded image locally so it stays small in chrome.storage. */
   S.imageToDataUrl = (file) => new Promise((res, rej) => {
