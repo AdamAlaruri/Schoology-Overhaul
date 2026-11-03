@@ -734,3 +734,23 @@ html.sgo-collapsed .sgo-rail-i > .sgo-face { font-size: 22px; }
 html.sgo-collapsed .sgo-face { width: 36px; height: 36px; }
 html.sgo-collapsed .sgo-rail-i > .sgo-face { font-size: 17px; }
 @media (max-width: 900px) { .sgo-face, html.sgo-collapsed .sgo-face { width: 40px; height: 40px; } .sgo-rail-i > .sgo-face, html.sgo-collapsed .sgo-rail-i > .sgo-face { font-size: 19px; } }
+
+
+/* ---- header alignment, course section spacing, draggable cards ---- */
+/* the icon cluster ends exactly where the page and its hero card end (the page's scrollbar is subtracted), with an even gap above the card */
+.sgo-content { scrollbar-gutter: stable; }
+.sgo-top { padding-right: calc(var(--space-6) + var(--sgo-sbw, 0px)); }
+.sgo-page.dash6 { padding-top: var(--space-2); } /* the hero card sits one even step below the icon cluster */
+@media (max-width: 900px) { .sgo-top { padding-right: calc(var(--space-4) + var(--sgo-sbw, 0px)); } }
+@media (max-width: 700px) { .sgo-top { padding-right: calc(var(--space-3) + var(--sgo-sbw, 0px)); } }
+.dp-courses .sec-h { margin-bottom: var(--space-5); }
+.dp-courses .sec-h p { margin-top: var(--space-2); }
+.dc[draggable="true"] { cursor: grab; } .dc[draggable="true"] a, .dc[draggable="true"] button { cursor: pointer; }
+.dc.dragging { opacity: .4; transform: scale(.97); cursor: grabbing; }
+.dc.over { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+/* ---- performance: skip layout and paint for what is off screen, and isolate the background layer ---- */
+.dp-side-col > .side-card:nth-child(n+2), .dp-courses .dc { content-visibility: auto; contain-intrinsic-size: auto 320px; }
+#sgo-bg { contain: strict; }
+#sgo-topo { transition: opacity .6s ease; }
+#sgo-bg:not(.ready) #sgo-topo { opacity: 0; }
