@@ -252,3 +252,7 @@ textarea.sgo-input { padding: var(--space-2) var(--space-3); }
 .cm-msg { margin: 0; padding: var(--space-2) var(--space-3); border-radius: var(--r-md); font-size: var(--fs-small); }
 .cm-msg.bad { background: color-mix(in srgb, var(--bad) 18%, transparent); border: 1px solid var(--bad); }
 .cm-msg.ok { background: color-mix(in srgb, var(--accent) 16%, transparent); border: 1px solid var(--accent); }
+
+/* Tasks panel: the list slides in softly when a tab is picked; the progress ring eases toward its new value */
+.tp-panel.enter { animation: tp-enter .32s cubic-bezier(.2, .7, .2, 1) both; }
+@keyframes tp-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
