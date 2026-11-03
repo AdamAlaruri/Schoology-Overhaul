@@ -45,15 +45,23 @@
   }
 
   /* One fixed full-viewport SVG behind everything. The geometry is generated once (see topo.js) and kept for the page's life. */
-  let drawn = '';
+  let drawn = '', want = null, timer = 0, firstBuild = true;
   function buildLayer(density, seed) {
     if (!html.classList.contains('sgo-app') && !document.getElementById('sgo-bg')) return; // plain Schoology pages never get the map
     let el = document.getElementById('sgo-bg');
     if (!el) { el = document.createElement('div'); el.id = 'sgo-bg'; el.setAttribute('aria-hidden', 'true'); html.append(el); }
-    const key = density + ':' + seed;
-    if (key === drawn) return; // the same map is never rebuilt
-    drawn = key;
-    el.innerHTML = T.svg(1600, 900, seed, density);
+    want = [density, seed];
+    if (density + ':' + seed === drawn) return; // the same map is never rebuilt
+    clearTimeout(timer);
+    // The first map waits a moment so the interface paints first and the saved settings arrive (one build instead of two), then fades in.
+    // Changes made later, in Settings, apply at once.
+    timer = setTimeout(() => {
+      const [d, s] = want, key = d + ':' + s;
+      if (key === drawn) return;
+      drawn = key;
+      el.innerHTML = T.svg(1600, 900, s, d);
+      if (firstBuild) { firstBuild = false; setTimeout(() => el.classList.add('ready'), 30); } else el.classList.add('ready');
+    }, firstBuild ? 100 : 0);
   }
 
   // Keep this list in step with routeFor() in app.js.
