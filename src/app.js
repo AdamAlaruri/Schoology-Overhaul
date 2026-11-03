@@ -204,9 +204,18 @@
     lastSig = sig;
     root.replaceChildren(sidebar(r), ...navControls(), h('div', { class: 'sgo-main' }, topbar(), banner(), content), S.modalHost);
     content.scrollTop = content.classList.contains('animate') ? 0 : scroll; // a different page starts at the top
+    syncGutter();
     if (hadSearch) { const i = content.querySelector('input[type=search]'); if (i) { i.focus(); try { i.setSelectionRange(sel, sel); } catch (e) { /* ignore */ } } }
     if (fk) { const el = root.querySelector(`[data-fk="${CSS.escape(fk)}"]`) || root.querySelector('[data-fk-fallback]'); if (el) el.focus({ preventScroll: true }); }
   };
+
+  /* The page scrolls inside .sgo-content, so its scrollbar narrows the page. The top bar needs the same width to line its icons up with the page's right edge. */
+  function syncGutter() {
+    if (!content) return;
+    const w = content.offsetWidth - content.clientWidth;
+    if (html.style.getPropertyValue('--sgo-sbw') !== w + 'px') html.style.setProperty('--sgo-sbw', w + 'px');
+  }
+  addEventListener('resize', syncGutter);
 
   S.hardRefresh = async () => {
     S.state.loading = true; S.render(true);
@@ -279,7 +288,7 @@
   (async function boot() {
     const unboot = () => { document.documentElement.classList.remove('sgo-booting'); const b = document.getElementById('sgo-boot'); if (b) b.remove(); };
     if (!document.body || document.querySelector('form#s-user-login, #login-form')) { document.documentElement.classList.remove('sgo-app'); unboot(); return; } // login screen: hand the page back
-    await S.loadPrefs(); await S.loadCache();
+    await Promise.all([S.loadPrefs(), S.loadCache()]); // two independent storage reads: no need to wait for one before starting the other
     S.applyTheme(); buildShell(); interceptLinks(); S.render();
     document.documentElement.dataset.sgoT1 = String(Math.round(performance.now()));
     unboot(); // first real render is on screen: drop the placeholder
