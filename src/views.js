@@ -767,109 +767,172 @@
   const gWhen = (txt) => { const p = txt && S.parseDue(txt); return p ? `${mon3(p.ts)} ${new Date(p.ts).getDate()}` + (p.timed ? ' · ' + S.fmtTime(p.ts) : '') : txt || '—'; };
   /** Grading periods that actually hold graded entries (Schoology also lists an empty "(no grading period)" group). */
   const gradePeriods = (c) => { const p = c.periods.filter((x) => x.categories.some((cat) => cat.items.length)); return p.length ? p : c.periods; };
-  /** Category chips and the assignment table for one course's gradebook. Shared by the Grades page and the course Grades tab. */
+  /* ---------- Hypothetical layer on the Schoology gradebook ----------
+   * The real grades are never changed. When editing is unlocked a student can add scores and categories (with weights), try a
+   * different score on any item, and set weights for Schoology's own categories. The course shows its real grade and the grade
+   * with those changes side by side. Locked, the layer is read-only. Everything is stored in this browser only (prefs.hypo). */
+  const hyNum = (v) => { const x = parseFloat(String(v).replace(',', '.')); return Number.isFinite(x) && x >= 0 ? x : null; };
+  const hyId = () => 'h' + Math.random().toString(36).slice(2, 9);
+  const hyR2 = (n) => Math.round(n * 100) / 100;
+  const ovKey = (g) => g.courseId || g.gradebookId || g.courseName;
+  const ovGet = (g, create) => { const all = S.prefs.hypo || (S.prefs.hypo = {}), k = ovKey(g); if (!all[k] && create) all[k] = { cats: [], items: [], edits: {}, weights: {} }; const o = all[k] || { cats: [], items: [], edits: {}, weights: {} }; o.edits = o.edits || {}; o.weights = o.weights || {}; o.cats = o.cats || []; o.items = o.items || []; return o; };
+  const ovEditing = () => !!S.prefs.gradesEdit;
+  const ovSave = () => { S.savePrefs(); S.render(true); };
+  const ovPrune = (g) => { const all = S.prefs.hypo || {}, o = all[ovKey(g)]; if (o && !o.cats.length && !o.items.length && !Object.keys(o.edits || {}).length && !Object.keys(o.weights || {}).length) delete all[ovKey(g)]; };
+  const numInput = (value, label, fk, onCommit, onLive) => h('input', { class: 'sgo-input ov-num', type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: value == null ? '' : value, 'aria-label': label, dataset: { fk },
+    oninput: onLive ? (e) => onLive(hyNum(e.target.value)) : null, onchange: (e) => onCommit(hyNum(e.target.value)) });
+
+  /** Set (or clear) a what-if score for an item Schoology already lists. A value equal to the real one removes the edit. */
+  function setEdit(g, cat, it, field, value) {
+    const key = S.gradeKey(cat, it), o = ovGet(g, true), e = o.edits[key] || (o.edits[key] = {});
+    if (value === (it[field] == null ? null : it[field])) delete e[field]; else e[field] = value;
+    if (!Object.keys(e).length) delete o.edits[key];
+    ovPrune(g); ovSave();
+  }
+  const clearEdit = (g, cat, it) => { const o = ovGet(g, true); delete o.edits[S.gradeKey(cat, it)]; ovPrune(g); ovSave(); };
+
+  /** The two grades side by side, and a plain note when the weights or scores need attention. */
+  function ovSummary(g, calc) {
+    const total = hyR2(calc.totalWeight), notes = [];
+    if (calc.percent == null) notes.push('Add a score to a category to see a running total.');
+    else {
+      if (calc.weighted && Math.abs(total - 100) > 0.01) notes.push(`Weights add up to ${total}%. The total uses the weights you see, scaled to 100%.`);
+      if (calc.weighted && calc.usedWeight < calc.totalWeight) notes.push('Categories with no scores yet are left out and the others are scaled up.');
+      if (calc.missingWeights) notes.push('Some Schoology categories have no weight, so they are not counted. Set a weight for them below.');
+      if (!calc.weighted) notes.push('Schoology did not report category weights, so every point counts equally. Set weights below to weight by category.');
+    }
+    // the change is measured from the unchanged gradebook worked out the same way, so rounding or weights Schoology does not show never look like the student's doing
+    const base = S.overlayGrade(g, {}).percent, from = base != null ? base : g.percent, delta = calc.percent != null && from != null ? hyR2(calc.percent - from) : null;
+    if (calc.changed && calc.percent != null && base != null && g.percent != null && Math.abs(base - g.percent) > 0.1) notes.push(`Schoology shows ${gPct(g.percent)}. With the weights above, your unchanged gradebook works out to ${gPct(hyR2(base))}, so the change is measured from that.`);
+    return h('div', { class: 'ov-sum', 'aria-live': 'polite' },
+      h('div', { class: 'ov-pair' },
+        h('div', null, h('span', null, 'Schoology'), h('b', null, g.percent != null ? gPct(g.percent) : '—')),
+        h('div', { class: 'ov-hyp' }, h('span', null, 'With your changes'), h('b', null, calc.percent == null ? '—' : gPct(hyR2(calc.percent))),
+          delta != null && delta !== 0 ? h('small', { class: delta > 0 ? 'up' : 'down' }, (delta > 0 ? '+' : '') + delta + ' points') : null)),
+      notes.map((n) => h('p', { class: 'ov-note' }, icon('help', 14), n)));
+  }
+
+  /** Category weights (Schoology's own, editable when unlocked, and the student's) with a running total of the weights. */
+  function ovWeights(g, calc, edit) {
+    const o = ovGet(g), total = hyR2(calc.cats.reduce((a, k) => a + (Number(k.weight) || 0), 0)), ok = Math.abs(total - 100) < 0.01;
+    const setW = (k, v) => { const x = ovGet(g, true); if (k.custom) { const c = x.cats.find((q) => q.id === k.id); if (c) c.weight = v == null ? 0 : v; } else if (v == null || v === (k.official && g.periods ? reported(g, k.name) : null)) delete x.weights[k.name]; else x.weights[k.name] = v; ovPrune(g); ovSave(); };
+    const reported = (gb, name) => { for (const p of gb.periods || []) for (const c of p.categories) if (c.name === name && c.weight != null) return Number(c.weight); return null; };
+    const row = (k) => h('div', { class: 'ov-w' + (k.custom ? ' custom' : ''), role: 'group', 'aria-label': 'Category ' + k.name },
+      h('span', { class: 'ov-wn' }, edit && k.custom ? h('input', { class: 'sgo-input', type: 'text', value: k.name, maxlength: '40', 'aria-label': 'Category name', dataset: { fk: 'oc-n-' + k.id }, onchange: (e) => { const x = ovGet(g, true), c = x.cats.find((q) => q.id === k.id); if (c) c.name = e.target.value.trim() || 'Untitled'; ovSave(); } }) : k.name,
+        k.custom ? h('em', null, 'Yours') : k.set ? h('em', null, 'Edited') : null),
+      edit ? h('span', { class: 'ov-wi' }, numInput(k.weight, 'Weight of ' + k.name + ' in percent', 'oc-w-' + k.id, (v) => setW(k, v)), h('i', null, '%')) : h('span', { class: 'ov-wv' }, k.weight != null && Number(k.weight) > 0 ? hyR2(Number(k.weight)) + '%' : 'No weight'),
+      edit && k.custom ? h('button', { class: 'sgo-icon-btn ov-del', type: 'button', title: 'Delete category', 'aria-label': 'Delete category ' + k.name, onclick: () => {
+        const n = o.items.filter((i) => i.cat === k.id).length;
+        const go = () => { const x = ovGet(g, true); x.cats = x.cats.filter((q) => q.id !== k.id); x.items = x.items.filter((i) => i.cat !== k.id); ovPrune(g); ovSave(); };
+        if (n) S.openConfirm({ title: 'Delete this category?', body: `Its ${n} ${n === 1 ? 'score' : 'scores'} will be deleted too. Nothing changes in Schoology.`, ok: 'Delete', danger: true, onOk: go }); else go();
+      } }, icon('trash', 16)) : h('span', { class: 'ov-wx' }));
+    const addName = h('input', { class: 'sgo-input', type: 'text', maxlength: '40', placeholder: 'New category, e.g. Participation', 'aria-label': 'New category name' });
+    const addW = h('input', { class: 'sgo-input ov-num', type: 'number', min: '0', max: '100', step: 'any', placeholder: '0', 'aria-label': 'New category weight in percent' });
+    const addCat = () => { const name = addName.value.trim(); if (!name) { addName.focus(); return; } const x = ovGet(g, true); x.cats.push({ id: hyId(), name, weight: hyNum(addW.value) ?? 0 }); ovSave(); };
+    return h('div', { class: 'ov-weights' },
+      h('div', { class: 'ov-wh' }, h('b', null, 'Category weights'), h('span', { class: 'ov-total ' + (ok ? 'ok' : 'warn') }, ok ? 'Total 100%' : `Total ${total}%`)),
+      h('div', { class: 'ov-wl' }, calc.cats.map(row)),
+      edit ? h('form', { class: 'ov-addcat', onsubmit: (e) => { e.preventDefault(); addCat(); } },
+        addName, h('span', { class: 'ov-wi' }, addW, h('i', null, '%')),
+        h('button', { class: 'sgo-btn ghost', type: 'submit' }, icon('plus', 16), 'Add category')) : null);
+  }
+
+  /** Everything the student added to this course: a table of their own scores. */
+  function ovCustom(g, calc, edit) {
+    const o = ovGet(g);
+    if (!o.items.length) return edit ? h('p', { class: 'ov-empty' }, 'Scores you add with the Add grade button appear here.') : null;
+    const catName = (id) => (calc.cats.find((k) => k.id === id) || {}).name || 'Uncategorised';
+    const rows = o.items.map((it) => {
+      const pc = it.earned != null && it.possible ? hyR2((it.earned / it.possible) * 100) : null;
+      return h('tr', { class: 'ov-row' },
+        h('td', { class: 'gr2-t' }, edit ? h('input', { class: 'sgo-input', type: 'text', value: it.title, maxlength: '80', 'aria-label': 'Assignment name', dataset: { fk: 'oi-t-' + it.id }, onchange: (e) => { it.title = e.target.value.trim() || 'Untitled'; ovSave(); } }) : it.title),
+        h('td', { class: 'gr2-c' }, edit ? h('select', { class: 'sgo-input', 'aria-label': 'Category', dataset: { fk: 'oi-c-' + it.id }, onchange: (e) => { it.cat = e.target.value; ovSave(); } }, calc.cats.map((k) => h('option', { value: k.id, selected: it.cat === k.id ? 'selected' : null }, k.name))) : catName(it.cat)),
+        h('td', { class: 'gr2-d' }, 'Hypothetical'),
+        h('td', { class: 'n' }, edit ? numInput(it.earned, 'Earned', 'oi-e-' + it.id, (v) => { it.earned = v; ovSave(); }) : gNum(it.earned)),
+        h('td', { class: 'n' }, edit ? numInput(it.possible, 'Possible', 'oi-p-' + it.id, (v) => { it.possible = v; ovSave(); }) : gNum(it.possible)),
+        h('td', { class: 'n' }, pc == null ? '—' : pc + '%'),
+        h('td', null, edit ? h('button', { class: 'sgo-icon-btn ov-del', type: 'button', title: 'Delete score', 'aria-label': 'Delete ' + it.title, onclick: () => { const x = ovGet(g, true); x.items = x.items.filter((q) => q.id !== it.id); ovPrune(g); ovSave(); } }, icon('trash', 16)) : h('span', { class: 'gr2-st st-hyp' }, 'Your score')));
+    });
+    return h('div', { class: 'gr2-period ov-custom' }, h('div', { class: 'gr2-ph' }, h('b', null, 'Your hypothetical grades'), h('span', null, 'Not in Schoology')),
+      h('div', { class: 'gr2-scroll' }, h('table', { class: 'gr2-table ov-table' },
+        h('thead', null, h('tr', null, ['Assignment', 'Category', 'Source', 'Earned', 'Possible', '%', ''].map((t, i) => h('th', { class: i >= 3 && i <= 5 ? 'n' : '' }, t)))), h('tbody', null, rows))));
+  }
+
+  /** Lock / Edit toggle, the Add grade button and a one-line hint. Used at the top of the Grades page and of a course's Grades tab. */
+  function gradeControls(preferKey) {
+    const editing = ovEditing();
+    return [
+      h('button', { class: 'sgo-btn primary gr-add', type: 'button', disabled: editing ? null : true, title: editing ? 'Add a hypothetical grade' : 'Unlock to add grades', dataset: { fk: 'gr-add' }, onclick: () => S.openAddGrade(preferKey) }, icon('plus', 16), 'Add grade'),
+      h('button', { class: 'sgo-btn ghost gr-lock' + (editing ? ' on' : ''), type: 'button', 'aria-pressed': String(editing), dataset: { fk: 'gr-lock' },
+        title: editing ? 'Editing is on. Lock to secure your grades' : 'Locked. Unlock to add or change hypothetical grades', onclick: () => { S.prefs.gradesEdit = !editing; S.savePrefs(); S.render(true); } },
+        icon(editing ? 'unlock' : 'lock', 16), editing ? 'Editing' : 'Locked')];
+  }
+  const gradeHint = () => (ovEditing() ? 'Editing is on. Added grades and changes are hypothetical: saved only in this browser, never sent to Schoology.' : 'Locked. Your hypothetical grades are secured. Unlock to add or change them.');
+
+  /** Add a grade: pick a course, a category (or make a new one with a weight) and a score. */
+  S.openAddGrade = (preferKey) => {
+    const host = S.modalHost; if (!host || !ovEditing()) return;
+    const books = S.state.grades; if (!books.length) return;
+    S.closeModal();
+    const close = () => { S.closeModal(); S.render(true); };
+    S._modalKey = (e) => { if (e.key === 'Escape') close(); }; document.addEventListener('keydown', S._modalKey, true);
+    let g = books.find((b) => ovKey(b) === preferKey) || books[0];
+    const f = {}, err = h('p', { class: 'sgo-err', role: 'alert' }), newBox = h('div', { class: 'ov-new', hidden: true });
+    const courseSel = h('select', { class: 'sgo-input', 'aria-label': 'Course', onchange: (e) => { g = books.find((b) => ovKey(b) === e.target.value) || g; fillCats(); } }, books.map((b) => h('option', { value: ovKey(b), selected: b === g ? 'selected' : null }, S.cn(b.courseId, b.courseName))));
+    const catSel = h('select', { class: 'sgo-input', 'aria-label': 'Category', onchange: () => { newBox.hidden = catSel.value !== '__new'; } });
+    function fillCats() { const calc = S.overlayGrade(g, ovGet(g)); catSel.replaceChildren(...calc.cats.map((k) => h('option', { value: k.id }, k.name + (k.weight != null && Number(k.weight) > 0 ? ` (${hyR2(Number(k.weight))}%)` : ''))), h('option', { value: '__new' }, '+ New category…')); newBox.hidden = catSel.value !== '__new'; }
+    fillCats();
+    const name = h('input', { class: 'sgo-input', type: 'text', maxlength: '80', placeholder: 'e.g. Unit 4 test', 'aria-label': 'Assignment name' });
+    const earned = h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', 'aria-label': 'Points earned' }), possible = h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', 'aria-label': 'Points possible' });
+    const newName = h('input', { class: 'sgo-input', type: 'text', maxlength: '40', placeholder: 'Category name', 'aria-label': 'New category name' }), newW = h('input', { class: 'sgo-input', type: 'number', min: '0', max: '100', step: 'any', placeholder: 'Weight %', 'aria-label': 'New category weight in percent' });
+    newBox.append(newName, newW);
+    const submit = (e) => {
+      if (e) e.preventDefault();
+      const title = name.value.trim(), e1 = hyNum(earned.value), p1 = hyNum(possible.value);
+      if (!title) { err.textContent = 'Name the assignment.'; name.focus(); return; }
+      if (e1 == null || p1 == null || p1 <= 0) { err.textContent = 'Enter the points earned and the points possible (more than 0).'; (e1 == null ? earned : possible).focus(); return; }
+      const x = ovGet(g, true); let cat = catSel.value;
+      if (cat === '__new') { const n = newName.value.trim(); if (!n) { err.textContent = 'Name the new category.'; newName.focus(); return; } cat = hyId(); x.cats.push({ id: cat, name: n, weight: hyNum(newW.value) ?? 0 }); }
+      x.items.push({ id: hyId(), title, cat, earned: e1, possible: p1 });
+      S.ui.openGrade[g.gradebookId || g.courseName] = true; S.savePrefs(); close();
+    };
+    host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
+      h('form', { class: 'sgo-modal ov-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Add a hypothetical grade', onsubmit: submit },
+        h('h2', null, 'Add grade'), h('p', { class: 'sgo-muted' }, 'This is only for planning. It is added to your Schoology grades here and is never sent to Schoology.'),
+        h('label', { class: 'sgo-mrow' }, h('span', null, 'Course'), courseSel), h('label', { class: 'sgo-mrow' }, h('span', null, 'Assignment'), name),
+        h('label', { class: 'sgo-mrow' }, h('span', null, 'Category'), catSel), newBox,
+        h('div', { class: 'ov-pts' }, h('label', { class: 'sgo-mrow' }, h('span', null, 'Earned'), earned), h('label', { class: 'sgo-mrow' }, h('span', null, 'Possible'), possible)),
+        err, h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Cancel', close, 'ghost'), h('button', { class: 'sgo-btn primary', type: 'submit' }, icon('plus', 16), 'Add grade')))));
+    setTimeout(() => name.focus(), 30);
+  };
+
+  /** Category chips and the assignment table for one course's gradebook, with the student's hypothetical layer on top.
+   * Shared by the Grades page and the course Grades tab. */
   function gradeBody(c, shown) {
+    const edit = ovEditing(), ov = ovGet(c), calc = S.overlayGrade(c, ov);
     const blocks = shown.map((p) => {
       const items = p.categories.flatMap((cat) => cat.items.map((it) => ({ it, cat })));
       return h('div', { class: 'gr2-period' },
         shown.length > 1 ? h('div', { class: 'gr2-ph' }, h('b', null, p.name || 'Grading period'), h('span', null, `${p.letter || ''} ${gPct(p.percent)}`.trim())) : null,
         p.categories.length ? h('div', { class: 'gr2-cats' }, p.categories.filter((cat) => cat.items.length && (cat.weight != null || cat.grade)).map((cat) => h('span', { class: 'gr2-cat' },
-          h('b', null, cat.name), cat.weight != null ? h('i', null, cat.weight + '% of grade') : null, h('span', null, cat.letter ? `${cat.letter} ${gPct(cat.percent)}` : '—')))) : null,
+          h('b', null, cat.name), cat.weight != null ? h('i', null, cat.weight + '% of grade') : null, h('span', null, cat.letter ? `${cat.letter} ${gPct(cat.percent)}` : '\u2014')))) : null,
         items.length ? h('div', { class: 'gr2-scroll' }, h('table', { class: 'gr2-table' },
           h('thead', null, h('tr', null, ['Assignment', 'Category', 'Date', 'Earned', 'Possible', '%', 'Status'].map((t, i) => h('th', { class: i >= 3 && i <= 5 ? 'n' : '' }, t)))),
-          h('tbody', null, items.map(({ it, cat }) => h('tr', null,
-            h('td', { class: 'gr2-t' }, it.title), h('td', { class: 'gr2-c' }, cat.name), h('td', { class: 'gr2-d', title: it.dueText }, gWhen(it.dueText)),
-            h('td', { class: 'n' }, gNum(it.earned)), h('td', { class: 'n' }, gNum(it.possible)), h('td', { class: 'n' }, gItemPct(it) == null ? '—' : gItemPct(it) + '%'),
-            h('td', null, h('span', { class: 'gr2-st st-' + it.status }, it.statusLabel))))))) : h('div', { class: 'gr2-none' }, 'No graded items yet.'));
+          h('tbody', null, items.map(({ it, cat }) => {
+            const key = S.gradeKey(cat, it), e = ov.edits[key] || {}, earned = 'earned' in e ? e.earned : it.earned, possible = 'possible' in e ? e.possible : it.possible, edited = !!ov.edits[key];
+            const pc = earned != null && possible ? Math.round((earned / possible) * 1000) / 10 : null;
+            const cell = (field, val, label) => (edit ? numInput(val, label + ' for ' + it.title, 'oe-' + field[0] + '-' + key, (v) => setEdit(c, cat, it, field, v)) : field in e ? h('span', { class: 'ov-eval', title: 'Your what-if score' }, gNum(val)) : gNum(val));
+            return h('tr', { class: edited ? 'ov-edited' : '' },
+              h('td', { class: 'gr2-t' }, it.title), h('td', { class: 'gr2-c' }, cat.name), h('td', { class: 'gr2-d', title: it.dueText }, gWhen(it.dueText)),
+              h('td', { class: 'n' }, cell('earned', earned, 'Earned')), h('td', { class: 'n' }, cell('possible', possible, 'Possible')), h('td', { class: 'n' }, pc == null ? '\u2014' : pc + '%'),
+              h('td', null, edited ? h('span', { class: 'gr2-st st-hyp' }, 'What-if', edit ? h('button', { class: 'ov-reset', type: 'button', title: 'Back to the Schoology score', 'aria-label': 'Reset ' + it.title + ' to the Schoology score', onclick: () => clearEdit(c, cat, it) }, icon('reload', 13)) : null)
+                : h('span', { class: 'gr2-st st-' + it.status }, it.statusLabel)));
+          })))) : h('div', { class: 'gr2-none' }, 'No graded items yet.'));
     });
-    return h('div', { class: 'gr2-body' }, blocks.length ? blocks : h('div', { class: 'gr2-none' }, 'Schoology has not published grades for this course yet.'));
+    const reset = edit && calc.changed ? h('div', { class: 'ov-foot' }, btn('Reset my changes', () => S.openConfirm({ title: 'Reset your changes?', body: 'This removes the grades, categories, weights and what-if scores you added to this course. Your Schoology grades are not affected.', ok: 'Reset', danger: true, onOk: () => { delete (S.prefs.hypo || {})[ovKey(c)]; S.savePrefs(); S.render(true); } }), 'ghost', 'reload')) : null;
+    return h('div', { class: 'gr2-body' }, edit || calc.changed ? [ovSummary(c, calc), ovWeights(c, calc, edit)] : null,
+      blocks.length ? blocks : h('div', { class: 'gr2-none' }, 'Schoology has not published grades for this course yet.'), ovCustom(c, calc, edit), reset);
   }
-  /* ---------- Hypothetical grades: the student's own categories, weights and scores, kept only in this browser ---------- */
-  const hyNum = (v) => { const x = parseFloat(String(v).replace(',', '.')); return Number.isFinite(x) && x >= 0 ? x : null; };
-  const hyId = () => 'h' + Math.random().toString(36).slice(2, 9);
-  const hyR2 = (n) => Math.round(n * 100) / 100;
-  const hyCourse = () => { const list = S.orderedCourses(); return list.find((c) => c.id === S.ui.hypoCourse) || list[0] || null; };
-  const hyData = (id, create) => { const all = S.prefs.hypo || (S.prefs.hypo = {}); if (!all[id] && create) all[id] = { cats: [], items: [] }; return all[id] || { cats: [], items: [] }; };
-
-  /** The big number, how it was reached, and a plain note whenever the weights or the scores need the student's attention. */
-  function hyResult(d, official) {
-    const r = S.hypoGrade(d.cats, d.items), total = hyR2(r.totalWeight), notes = [];
-    if (!d.cats.length) notes.push('Add a category to begin.');
-    else if (r.percent == null) notes.push('Add a score to a category to see a grade.');
-    else {
-      if (r.weighted && Math.abs(total - 100) > 0.01) notes.push(`Your weights add up to ${total}%. The grade uses the weights you entered, scaled to 100%.`);
-      if (r.weighted && r.usedWeight < r.totalWeight) notes.push('Categories with no scores yet are left out, and the others are scaled up.');
-      if (!r.weighted) notes.push('Every weight is 0, so every point counts equally.');
-    }
-    return h('section', { class: 'hy-result', 'aria-live': 'polite', 'aria-label': 'Hypothetical grade' },
-      h('div', { class: 'hy-big' }, h('span', { class: 'hy-label' }, 'Hypothetical grade'), h('b', null, r.percent == null ? '—' : gPct(hyR2(r.percent)))),
-      official && official.percent != null ? h('p', { class: 'hy-off' }, 'Schoology reports ', h('b', null, gPct(official.percent)), ' as your official grade. This page does not change it.') : h('p', { class: 'hy-off' }, 'Only for planning. Your teacher’s grade in Schoology is the official one.'),
-      notes.map((n) => h('p', { class: 'hy-note' }, icon('help', 14), n)),
-      r.rows.some((x) => x.count) ? h('ul', { class: 'hy-break' }, r.rows.map((x) => h('li', null, h('b', null, x.name || 'Untitled'), h('span', null, `${hyR2(x.weight)}% of grade`),
-        h('span', null, x.count ? `${gNum(x.earned)} / ${gNum(x.possible)} points` : 'No scores'), h('strong', null, x.percent == null ? '—' : gPct(hyR2(x.percent)))))) : null);
-  }
-
-  function hypoView() {
-    const course = hyCourse();
-    if (!course) return empty('No courses found', 'Courses are read from your Schoology account.');
-    const id = course.id, d = hyData(id), official = S.gradeFor(id), D = () => hyData(id, true);
-    const live = () => { const el = document.querySelector('.hy-result'); if (el) el.replaceWith(hyResult(d, official)); };
-    const commit = () => { S.savePrefs(); S.render(true); };
-    const total = hyR2(d.cats.reduce((a, c) => a + (Number(c.weight) || 0), 0));
-
-    const catRow = (c) => h('div', { class: 'hy-row hy-cat', role: 'group', 'aria-label': 'Category ' + (c.name || 'untitled') },
-      h('label', { class: 'hy-f hy-name' }, h('span', null, 'Category'), h('input', { class: 'sgo-input', type: 'text', value: c.name, maxlength: '40', placeholder: 'e.g. Tests', dataset: { fk: 'hc-n-' + c.id },
-        oninput: (e) => { c.name = e.target.value; S.savePrefs(); live(); }, onchange: commit })),
-      h('label', { class: 'hy-f hy-num' }, h('span', null, 'Weight'), h('span', { class: 'hy-suf' }, h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', max: '100', step: 'any', value: c.weight == null ? '' : c.weight, placeholder: '0', dataset: { fk: 'hc-w-' + c.id },
-        oninput: (e) => { c.weight = hyNum(e.target.value) ?? 0; S.savePrefs(); live(); }, onchange: commit }), h('i', null, '%'))),
-      h('button', { class: 'sgo-icon-btn hy-del', type: 'button', title: 'Delete category', 'aria-label': 'Delete category ' + (c.name || 'untitled'), onclick: () => {
-        const n = d.items.filter((i) => i.cat === c.id).length;
-        const go = () => { const x = D(); x.cats = x.cats.filter((k) => k.id !== c.id); x.items = x.items.filter((i) => i.cat !== c.id); commit(); };
-        if (n) S.openConfirm({ title: 'Delete this category?', body: `Its ${n} ${n === 1 ? 'score' : 'scores'} will be deleted too. Nothing changes in Schoology.`, ok: 'Delete', danger: true, onOk: go }); else go();
-      } }, icon('trash', 16)));
-
-    const itemRow = (it) => {
-      const pc = it.earned != null && it.possible ? hyR2((it.earned / it.possible) * 100) : null;
-      return h('div', { class: 'hy-row hy-item', role: 'group', 'aria-label': 'Score ' + (it.title || 'untitled') },
-        h('label', { class: 'hy-f hy-name' }, h('span', null, 'Assignment'), h('input', { class: 'sgo-input', type: 'text', value: it.title, maxlength: '80', placeholder: 'e.g. Unit 3 test', dataset: { fk: 'hi-t-' + it.id }, oninput: (e) => { it.title = e.target.value; S.savePrefs(); }, onchange: commit })),
-        h('label', { class: 'hy-f hy-cat-sel' }, h('span', null, 'Category'), h('select', { class: 'sgo-input', dataset: { fk: 'hi-c-' + it.id }, onchange: (e) => { it.cat = e.target.value; commit(); } },
-          d.cats.map((c) => h('option', { value: c.id, selected: it.cat === c.id ? 'selected' : null }, c.name || 'Untitled')))),
-        h('label', { class: 'hy-f hy-num' }, h('span', null, 'Earned'), h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: it.earned == null ? '' : it.earned, dataset: { fk: 'hi-e-' + it.id }, oninput: (e) => { it.earned = hyNum(e.target.value); S.savePrefs(); live(); }, onchange: commit })),
-        h('label', { class: 'hy-f hy-num' }, h('span', null, 'Possible'), h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: it.possible == null ? '' : it.possible, dataset: { fk: 'hi-p-' + it.id }, oninput: (e) => { it.possible = hyNum(e.target.value); S.savePrefs(); live(); }, onchange: commit })),
-        h('div', { class: 'hy-pc', 'aria-label': 'Percent' }, h('span', null, 'Percent'), h('b', null, pc == null ? '—' : pc + '%')),
-        h('button', { class: 'sgo-icon-btn hy-del', type: 'button', title: 'Delete score', 'aria-label': 'Delete score ' + (it.title || 'untitled'), onclick: () => { const x = D(); x.items = x.items.filter((k) => k.id !== it.id); commit(); } }, icon('trash', 16)));
-    };
-
-    const importIt = () => {
-      const g = S.gradeFor(id); if (!g) return;
-      const go = () => { const imp = S.hypoFromGradebook(g), x = D(); x.cats = imp.cats; x.items = imp.items; S.ui.hypoNote = imp.evenSplit ? 'Schoology did not report category weights for this course, so they were split evenly. Edit them to match your syllabus.' : ''; commit(); };
-      if (d.cats.length || d.items.length) S.openConfirm({ title: 'Replace what is here?', body: 'This copies your Schoology gradebook into this course and replaces the categories and scores you entered.', ok: 'Replace', danger: true, onOk: go }); else go();
-    };
-    const resetIt = () => S.openConfirm({ title: 'Clear this course?', body: 'This deletes the categories and scores you entered for this course. Nothing changes in Schoology.', ok: 'Clear', danger: true, onOk: () => { delete (S.prefs.hypo || {})[id]; S.ui.hypoNote = ''; commit(); } });
-
-    const sel = h('select', { class: 'sgo-input hy-course', 'aria-label': 'Course', dataset: { fk: 'hy-course' }, onchange: (e) => { S.ui.hypoCourse = e.target.value; S.ui.hypoNote = ''; S.render(true); } },
-      S.orderedCourses().map((c) => h('option', { value: c.id, selected: c.id === id ? 'selected' : null }, S.cn(c.id, c.name))));
-    const wOk = d.cats.length && Math.abs(total - 100) < 0.01;
-    return h('div', { class: 'hy' },
-      h('div', { class: 'hy-bar' }, h('label', { class: 'hy-f' }, h('span', null, 'Course'), sel),
-        h('div', { class: 'sgo-head-a' }, official ? btn('Copy from Schoology', importIt, 'ghost', 'download') : null, d.cats.length || d.items.length ? btn('Clear', resetIt, 'ghost', 'trash') : null)),
-      S.ui.hypoNote ? h('p', { class: 'hy-note warn', role: 'status' }, icon('alert', 14), S.ui.hypoNote) : null,
-      hyResult(d, official),
-      h('section', { class: 'hy-sec', 'aria-labelledby': 'hy-c-h' },
-        h('div', { class: 'hy-sh' }, h('div', null, h('h2', { id: 'hy-c-h' }, 'Categories'), h('p', null, 'Group scores the way your teacher weights them, for example Tests 50%, Homework 30%.')),
-          d.cats.length ? h('span', { class: 'hy-total ' + (wOk ? 'ok' : 'warn') }, wOk ? 'Weights total 100%' : `Weights total ${total}%`) : null),
-        d.cats.length ? h('div', { class: 'hy-rows' }, d.cats.map(catRow)) : h('p', { class: 'hy-empty' }, 'No categories yet.'),
-        h('div', { class: 'hy-add' }, btn('Add category', () => { const x = D(); const c = { id: hyId(), name: '', weight: x.cats.length ? 0 : 100 }; x.cats.push(c); S.ui.hypoFocus = 'hc-n-' + c.id; commit(); setTimeout(() => { const el = document.querySelector(`[data-fk="${S.ui.hypoFocus}"]`); if (el) el.focus(); }, 30); }, 'ghost', 'plus'))),
-      h('section', { class: 'hy-sec', 'aria-labelledby': 'hy-s-h' },
-        h('div', { class: 'hy-sh' }, h('div', null, h('h2', { id: 'hy-s-h' }, 'Scores'), h('p', null, 'Add real or imagined scores. Leave Earned empty for work you have not done yet.'))),
-        d.items.length ? h('div', { class: 'hy-rows' }, d.items.map(itemRow)) : h('p', { class: 'hy-empty' }, d.cats.length ? 'No scores yet.' : 'Add a category first, then add scores to it.'),
-        h('div', { class: 'hy-add' }, d.cats.length ? btn('Add score', () => { const x = D(); const it = { id: hyId(), title: '', cat: x.cats[x.cats.length - 1].id, earned: null, possible: null }; x.items.push(it); commit(); setTimeout(() => { const el = document.querySelector(`[data-fk="hi-t-${it.id}"]`); if (el) el.focus(); }, 30); }, 'ghost', 'plus') : null)),
-      h('p', { class: 'sgo-note' }, 'Inside a category the grade is points earned divided by points possible. The course grade is the weighted average of the categories that have scores. Your entries are saved only in this browser and are never sent to Schoology.'));
-  }
-
-  const gradeModeSeg = () => h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Grades view' }, [['official', 'Schoology grades'], ['hypo', 'Hypothetical']].map(([k, l]) =>
-    h('button', { type: 'button', class: (S.prefs.gradeMode || 'official') === k ? 'on' : '', 'aria-pressed': String((S.prefs.gradeMode || 'official') === k), dataset: { fk: 'gm-' + k }, onclick: () => { S.prefs.gradeMode = k; S.savePrefs(); S.render(true); } }, l)));
-
   function officialGrades() {
     const g = S.state.grades;
     const courseBlock = (c, idx) => {
@@ -882,19 +945,17 @@
       const head = h('button', { class: 'gr2-h', 'aria-expanded': String(open), onclick: () => { S.ui.openGrade[key] = !open; S.render(true); } },
         h('span', { class: 'gr2-dot', style: { background: color } }),
         h('span', { class: 'gr2-id' }, h('span', { class: 'gr2-name' }, S.cn(c.courseId, c.courseName)), sub ? h('span', { class: 'gr2-sub' }, sub) : null),
-        h('span', { class: 'gr2-letter' }, c.letter || '—'), h('span', { class: 'gr2-pct' }, gPct(c.percent)),
+        h('span', { class: 'gr2-letter' }, c.letter || '—'), h('span', { class: 'gr2-pct' }, gPct(c.percent), (() => { const k = S.overlayGrade(c, ovGet(c)); return k.changed && k.percent != null ? h('small', { class: 'gr2-hyp', title: 'With your hypothetical changes' }, '\u2192 ' + gPct(hyR2(k.percent))) : null; })()),
         h('span', { class: 'gr2-chev' + (open ? ' open' : '') }, icon('right', 14)));
       const body = open ? gradeBody(c, shown) : null;
       return h('section', { class: 'gr2-course' + (open ? ' open' : '') }, head, body);
     };
-    return h('div', { class: 'sgo-page' }, pageHead('Grades', g.length ? `${g.length} ${g.length === 1 ? 'course' : 'courses'} · course, period and category grades are shown as Schoology reports them` : 'Shown as Schoology reports them', [gradeModeSeg(), btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
+    return h('div', { class: 'sgo-page' }, pageHead('Grades', g.length ? gradeHint() : 'Shown as Schoology reports them', g.length ? [...gradeControls(ovKey(g.find((c) => S.ui.openGrade[c.gradebookId || c.courseName]) || g[0])), btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')] : [btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
       g.length ? h('div', { class: 'gr2-list' }, g.map(courseBlock))
         : empty('No grades loaded', S.state.loading ? 'Loading…' : 'Grades could not be read from Schoology’s page. Use Classic view to see your gradebook, and check Settings → Diagnostics.'),
       g.length ? h('p', { class: 'sgo-note' }, 'The % column for each assignment is points earned divided by points possible. Nothing else is calculated here.') : null);
   }
-  V.grades = () => ((S.prefs.gradeMode || 'official') === 'hypo'
-    ? h('div', { class: 'sgo-page' }, pageHead('Grades', 'Plan with your own categories, weights and scores. Official grades stay in Schoology.', [gradeModeSeg()]), hypoView())
-    : officialGrades());
+  V.grades = officialGrades;
 
   /* ===================== COURSE ===================== */
   /* One workspace per course, built from Schoology's own course data. Addresses stay Schoology's own, so refresh and links work:
@@ -1084,6 +1145,7 @@
     if (!g) return h('section', { class: 'crs-pane' }, S.state.loaded && !S.state.loading ? h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'No grades yet'), h('div', { class: 'sgo-empty-s' }, 'Schoology has not published a gradebook for this course.')) : SKELETON(3));
     const shown = gradePeriods(g);
     return h('section', { class: 'crs-pane crs-grades', 'aria-label': 'Grades' },
+      h('div', { class: 'gr-bar' }, h('div', { class: 'sgo-head-a' }, gradeControls(ovKey(g))), h('p', { class: 'gr-hint' }, gradeHint())),
       h('div', { class: 'crs-card crs-gsum' }, h('span', { class: 'gr2-letter' }, g.letter || '\u2014'), h('b', null, gPct(g.percent)), h('small', null, [shown.map((p) => p.name).filter(Boolean).join(', '), 'as Schoology reports it'].filter(Boolean).join(' \u00b7 '))),
       h('div', { class: 'crs-card crs-gtable' }, gradeBody(g, shown)));
   }

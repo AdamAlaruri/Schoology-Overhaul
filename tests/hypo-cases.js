@@ -1,4 +1,4 @@
-// Hypothetical grade calculator. Run: node tests/hypo-cases.js
+// Hypothetical grades: the weighted calculation and the layer that sits on the Schoology gradebook. Run: node tests/hypo-cases.js
 const path = require('path');
 global.window = {};
 require(path.join(__dirname, '..', 'src', 'color.js')); require(path.join(__dirname, '..', 'src', 'core.js'));
@@ -33,11 +33,34 @@ near(S.hypoGrade(cats, [it('h', 12, 10)]).percent, 120, 'above 100% is allowed (
 near(S.hypoGrade([{ id: 'h', name: 'H', weight: '25' }], [it('h', 1, 2)]).rows[0].weight, 25, 'weights typed as text are read');
 near(S.hypoGrade([{ id: 'h', name: 'H', weight: -5 }], [it('h', 1, 2)]).rows[0].weight, 0, 'negative weights count as 0');
 
-// importing a Schoology gradebook
-const g = { periods: [{ name: 'S1', categories: [{ name: 'Homework', weight: 40, items: [{ title: 'HW1', earned: 9, possible: 10 }, { title: 'HW2', earned: null, possible: 10 }] }, { name: 'Tests', weight: 60, items: [{ title: 'T1', earned: 45, possible: 50 }] }] }] };
-let imp = S.hypoFromGradebook(g);
-near(imp.cats.length, 2, 'two categories imported'); near(imp.items.length, 2, 'only graded items are imported'); near(imp.cats[0].weight, 40, 'reported weights are kept'); near(imp.evenSplit ? 1 : 0, 0, 'no even split when weights are known');
-imp = S.hypoFromGradebook({ periods: [{ name: '', categories: [{ name: 'A', weight: null, items: [{ title: 'x', earned: 1, possible: 2 }] }, { name: 'B', weight: null, items: [{ title: 'y', earned: 2, possible: 2 }] }, { name: 'C', weight: null, items: [] }] }] });
-near(imp.cats[0].weight, 33.33, 'unknown weights are split evenly'); near(imp.evenSplit ? 1 : 0, 1, 'and flagged so the student can fix them');
+// the layer on top of a Schoology gradebook
+const book = () => ({ percent: 90, periods: [{ name: 'S1', categories: [
+  { name: 'Homework', weight: 40, items: [{ title: 'HW1', dueText: 'Oct 1', earned: 9, possible: 10 }, { title: 'HW2', dueText: 'Oct 8', earned: null, possible: 10 }] },
+  { name: 'Tests', weight: 60, items: [{ title: 'T1', dueText: 'Oct 20', earned: 45, possible: 50 }] }] }] });
+let o = S.overlayGrade(book(), null);
+near(o.changed ? 1 : 0, 0, 'no layer: nothing changed');
+near(o.percent, (40 * 90 + 60 * 90) / 100, 'no layer: the weighted grade of the real gradebook');
+near(o.cats.length, 2, 'Schoology categories are used as they are'); near(o.cats[0].weight, 40, 'Schoology weights are kept');
+// a what-if score for an item that is not graded yet
+const k = S.gradeKey({ name: 'Homework' }, { title: 'HW2', dueText: 'Oct 8' });
+o = S.overlayGrade(book(), { edits: { [k]: { earned: 5 } } });
+near(o.changed ? 1 : 0, 1, 'an edit marks the grade as changed'); near(o.rows[0].percent, (9 + 5) / 20 * 100, 'the ungraded item now counts with the what-if score');
+near(o.percent, (40 * 70 + 60 * 90) / 100, 'and the course grade follows');
+near(o.items.find((i) => i.key === k).edited ? 1 : 0, 1, 'the edited item is flagged');
+near(S.overlayGrade(book(), null).rows[0].earned, 9, 'the real gradebook object is never changed');
+// a score added to a Schoology category and a brand new weighted category
+o = S.overlayGrade(book(), { items: [{ id: 'x', title: 'Extra', cat: 'o:Tests', earned: 40, possible: 50 }], cats: [{ id: 'c1', name: 'Participation', weight: 20 }] });
+near(o.rows[1].percent, (45 + 40) / 100 * 100, 'a score added to Tests pools with the real ones');
+near(o.cats.length, 3, 'the new category is listed with the others'); near(o.totalWeight, 120, 'weights now total 120'); near(o.usedWeight, 100, 'the empty new category is left out until it has a score');
+o = S.overlayGrade(book(), { items: [{ id: 'y', title: 'Quiz', cat: 'c1', earned: 10, possible: 10 }], cats: [{ id: 'c1', name: 'Participation', weight: 20 }] });
+near(o.percent, (40 * 90 + 60 * 90 + 20 * 100) / 120, 'with a score in it the new category carries its weight (scaled over 120)');
+// the student sets a weight for a Schoology category
+o = S.overlayGrade(book(), { weights: { Homework: 10 } });
+near(o.cats[0].weight, 10, 'a weight set by the student replaces the reported one'); near(o.cats[0].set ? 1 : 0, 1, 'and is marked as set');
+// a gradebook that reports no weights: every point counts, and weights the student adds are the only ones
+const bare = { periods: [{ name: '', categories: [{ name: 'A', weight: null, items: [{ title: 'a', earned: 1, possible: 2 }] }, { name: 'B', weight: null, items: [{ title: 'b', earned: 3, possible: 3 }] }] }] };
+near(S.overlayGrade(bare, null).percent, (1 + 3) / (2 + 3) * 100, 'no reported weights: all points count equally');
+near(S.overlayGrade(bare, { weights: { A: 50, B: 50 } }).percent, 75, 'weights the student sets are used');
+near(S.overlayGrade(Object.assign(book(), { periods: [] }), null).percent, null, 'an empty gradebook gives no grade');
 console.log(fail ? `${fail} failing` : 'all hypothetical-grade checks passed');
 process.exit(fail ? 1 : 0);

@@ -113,11 +113,11 @@
     const list = S.prefs.gradeNotifs || [], n = S.unreadGrades(), open = !!S.ui.notifOpen;
     return h('div', { class: 'sgo-notif' },
       h('button', { class: 'sgo-icon-btn sgo-bell', type: 'button', title: 'Grade updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
-        'aria-label': n ? `Grade updates, ${n} unread` : 'Grade updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; S.render(true); } },
+        'aria-label': n ? `Grade updates, ${n} unread` : 'Grade updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; if (S.ui.notifOpen) { S.ui.themeOpen = false; S.ui.accentOpen = false; } S.render(true); } },
         icon('bell', 18), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
       open ? notifPanel(list) : null);
   }
-  document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen && !(e.target.closest && e.target.closest('.sgo-notif'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
+  document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen && !(e.target.closest && e.target.closest('.sgo-notif:not(.thm-wrap)'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.notifOpen) { S.ui.notifOpen = false; S.render(true); } });
   // the accent colour picker closes on a click elsewhere or Escape
   document.addEventListener('click', (e) => { if (S.ui && S.ui.accentOpen && !(e.target.closest && e.target.closest('.acc-wrap'))) { S.ui.accentOpen = false; S.render(true); } });
@@ -134,7 +134,7 @@
         h('span', { class: 'thm-n' }, h('b', null, t.name), h('small', null, t.note))))),
       h('button', { class: 'link', type: 'button', onclick: () => { S.ui.themeOpen = false; S.render(true); S.openAppearance(); } }, 'Customise appearance', icon('right', 14)));
     return h('div', { class: 'sgo-notif thm-wrap' },
-      h('button', { class: 'sgo-icon-btn', type: 'button', title: 'Colour theme', 'aria-label': 'Colour theme', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'thm-btn' }, onclick: (e) => { e.stopPropagation(); S.ui.themeOpen = !open; S.render(true); } }, icon('palette', 18)),
+      h('button', { class: 'sgo-icon-btn', type: 'button', title: 'Colour theme', 'aria-label': 'Colour theme', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'thm-btn' }, onclick: (e) => { e.stopPropagation(); S.ui.themeOpen = !open; if (S.ui.themeOpen) S.ui.notifOpen = false; S.render(true); } }, icon('palette', 18)),
       panel || null);
   }
   document.addEventListener('click', (e) => { if (S.ui && S.ui.themeOpen && !(e.target.closest && e.target.closest('.thm-wrap'))) { S.ui.themeOpen = false; S.render(true); } });
@@ -146,6 +146,14 @@
   const navControls = () => [
     h('div', { class: 'sgo-scrim', 'aria-hidden': 'true', onclick: closeNav }),
     h('button', { class: 'sgo-fab', type: 'button', 'aria-label': 'Open navigation menu', 'aria-expanded': String(html.classList.contains('sgo-nav-open')), dataset: { fk: 'nav-fab' }, onclick: openNav }, icon('menu', 24), h('span', null, 'Menu'))];
+  /* The Menu button floats over the page on phones. It slips out of the way while the page is scrolled down, so it never covers the words being read, and comes back on scroll up, at the top, or when focused. */
+  let fabY = 0;
+  document.addEventListener('scroll', (e) => {
+    const t = e.target; if (!t || !t.classList || !t.classList.contains('sgo-content')) return;
+    const y = t.scrollTop;
+    if (y > fabY + 6 && y > 96) html.classList.add('sgo-fab-hide'); else if (y < fabY - 6 || y <= 96) html.classList.remove('sgo-fab-hide');
+    fabY = y;
+  }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && html.classList.contains('sgo-nav-open')) { closeNav(); const f = document.querySelector('.sgo-fab'); if (f) f.focus(); } });
 
   function topbar() {

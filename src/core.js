@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false, hypo: {}, gradeMode: 'official',
+    accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false, hypo: {}, gradesEdit: false,
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', courseHidden: {}, tagColours: false, cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
@@ -129,6 +129,8 @@
     eyeoff: '<path d="M3 3l18 18M10.6 6.2A9.8 9.8 0 0112 6c5 0 8.5 4 9.5 6a14 14 0 01-3 3.7M6.6 7.6C4.5 9 3 11 2.5 12c1 2 4.5 6 9.5 6a9 9 0 004-1"/>',
     drag: '<circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/>',
     plus: '<path d="M12 5v14M5 12h14"/>',
+    lock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    unlock: '<rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 7.4-2"/>',
     send: '<path d="M22 2 11 13M22 2l-7 20-4-9-9-4z"/>',
     up: '<path d="M6 15l6-6 6 6"/>',
     down: '<path d="M6 9l6 6 6-6"/>',
@@ -341,18 +343,28 @@
     else if (scored.length) { const e = scored.reduce((a, r) => a + r.earned, 0), p = scored.reduce((a, r) => a + r.possible, 0); percent = p > 0 ? (e / p) * 100 : null; } // every weight is 0: all points count equally
     return { percent, rows, totalWeight, usedWeight, weighted: usedWeight > 0 };
   };
-  /** Copy a course's Schoology gradebook into editable categories and scores. Categories without a reported weight are split evenly (and flagged). */
-  S.hypoFromGradebook = (g) => {
-    const periods = (g.periods || []).filter((p) => p.categories.some((c) => c.items.length)), use = periods.length ? periods : (g.periods || []);
-    const id = () => 'h' + Math.random().toString(36).slice(2, 9), byName = new Map(), items = [];
+  /* The hypothetical layer sits on top of the real gradebook (prefs.hypo[course]):
+   *   cats     categories the student added, each with a weight
+   *   items    scores the student added (cat is one of their categories, or "o:<name>" for a Schoology category)
+   *   edits    "what if" scores for items Schoology already lists (by gradebook key), earned and/or possible
+   *   weights  weights the student set for Schoology's own categories
+   * Nothing is written to Schoology; with no layer the real grade is untouched. */
+  S.gradeKey = (cat, it) => `${cat.name}|${it.title}|${it.dueText || ''}`;
+  S.overlayGrade = (g, ov) => {
+    ov = ov || {};
+    const periods = (g.periods || []).filter((p) => p.categories.some((k) => k.items.length)), use = periods.length ? periods : (g.periods || []);
+    const byId = new Map(), items = [], edits = ov.edits || {}, weights = ov.weights || {};
     use.forEach((p) => p.categories.forEach((cat) => {
-      let c = byName.get(cat.name);
-      if (!c) { c = { id: id(), name: cat.name, weight: cat.weight == null ? null : Number(cat.weight) }; byName.set(cat.name, c); } else if (c.weight == null && cat.weight != null) c.weight = Number(cat.weight);
-      cat.items.forEach((it) => { if (it.earned != null && it.possible != null) items.push({ id: id(), title: it.title, cat: c.id, earned: it.earned, possible: it.possible }); });
+      const id = 'o:' + cat.name; let k = byId.get(id);
+      if (!k) { k = { id, name: cat.name, weight: weights[cat.name] != null ? weights[cat.name] : cat.weight == null ? null : Number(cat.weight), official: true, set: weights[cat.name] != null }; byId.set(id, k); }
+      cat.items.forEach((it) => { const key = S.gradeKey(cat, it), e = edits[key] || {}; items.push({ id: key, key, cat: id, title: it.title, official: true, edited: !!edits[key], earned: 'earned' in e ? e.earned : it.earned, possible: 'possible' in e ? e.possible : it.possible }); });
     }));
-    const cats = [...byName.values()], known = cats.filter((c) => c.weight != null).length, evenSplit = known === 0 && cats.length > 0, even = evenSplit ? Math.round((100 / cats.length) * 100) / 100 : 0;
-    cats.forEach((c) => { if (c.weight == null) c.weight = even; });
-    return { cats, items, evenSplit };
+    const cats = [...byId.values(), ...(ov.cats || []).map((k) => ({ id: k.id, name: k.name, weight: k.weight, custom: true }))];
+    const all = [...items, ...(ov.items || []).map((i) => ({ id: i.id, cat: i.cat, title: i.title, earned: i.earned, possible: i.possible, custom: true }))];
+    const r = S.hypoGrade(cats, all);
+    const changed = !!((ov.cats || []).length || (ov.items || []).length || Object.keys(edits).length || Object.keys(weights).length);
+    const officialCats = cats.filter((k) => k.official), someWeights = cats.some((k) => Number(k.weight) > 0);
+    return Object.assign(r, { changed, cats, items: all, missingWeights: someWeights && officialCats.some((k) => !(Number(k.weight) > 0)) });
   };
   S.resetCourse = (id) => { delete S.prefs.courseMeta[id]; delete S.prefs.courseColors[id]; S.savePrefs(); };
   /** Courses detected from Schoology, ordered by the user's choice (custom drag order or A-Z). */
