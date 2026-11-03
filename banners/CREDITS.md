@@ -16,3 +16,5 @@ Real photographs and archival images from Wikimedia Commons, all public domain o
 | economics | US Federal Reserve Eccles Building 1937.jpg | Federal Reserve | Public domain | https://commons.wikimedia.org/wiki/File:US_Federal_Reserve_Eccles_Building_1937.jpg |
 | apush | Engrossed Declaration of Independence, front.jpg | Second Continental Congress (US National Archives) | Public domain | https://commons.wikimedia.org/wiki/File:Engrossed_Declaration_of_Independence,_front.jpg |
 | anatomy | 0 The Vitruvian Man - by Leonardo da Vinci.jpg | Leonardo da Vinci | Public domain | https://commons.wikimedia.org/wiki/File:0_The_Vitruvian_Man_-_by_Leonardo_da_Vinci.jpg |
+
+All photographs were resized to 1000 px wide and recompressed (JPEG quality 76) to load faster. No other changes were made.
