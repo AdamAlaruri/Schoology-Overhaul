@@ -163,6 +163,9 @@
     // The ring starts where it was last drawn, so a check-off moves from the old value to the new one instead of jumping.
     const from = ui.ringPct == null ? pct : ui.ringPct;
     ui.ringPct = pct;
+    // the list fades in when its tab is picked, not on every redraw
+    const enter = ui.shownTab !== undefined && ui.shownTab !== ui.tab;
+    ui.shownTab = ui.tab;
     const ring = document.createElement('template');
     ring.innerHTML = `<svg viewBox="0 0 150 150" aria-hidden="true"><circle class="tp-track" cx="75" cy="75" r="62"/><circle class="tp-bar" cx="75" cy="75" r="62" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - from / 100)}"/></svg>`;
     const barEl = ring.content.querySelector('.tp-bar'), pctEl = h('b', null, from + '%');
@@ -172,8 +175,9 @@
       barEl.getBoundingClientRect(); // read the layout first, so the old value is committed and the change is animated
       barEl.setAttribute('stroke-dashoffset', String(C * (1 - pct / 100)));
       if (reduced) { pctEl.textContent = pct + '%'; return; }
-      const t0 = Date.now(), D = 500;
-      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 3); pctEl.textContent = Math.round(from + (pct - from) * e) + '%'; if (k < 1) setTimeout(step, 16); };
+      const t0 = Date.now(), D = 700;
+      // a timer, not an animation frame: frames stop while the window is hidden or occluded, and the number would freeze
+      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 4); pctEl.textContent = Math.round(from + (pct - from) * e) + '%'; if (k < 1) setTimeout(step, 16); };
       step();
     });
 
@@ -228,7 +232,7 @@
         h('div', null, pctEl, h('span', null, `${complete.length}/${inView.length}`), h('small', null, 'Complete'))),
       tabBar,
       h('button', { class: 'sgo-btn ghost tp-add', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add to tasks'),
-      h('div', { id: 'sgo-tabpanel', role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
+      h('div', { id: 'sgo-tabpanel', class: 'tp-panel' + (enter ? ' enter' : ''), role: 'tabpanel', 'aria-labelledby': 'sgo-tab-' + ui.tab, tabindex: '-1', 'data-fk-fallback': '' }, body),
       h('section', { class: 'tp-feedback' },
         h('button', { class: 'tp-fbh', type: 'button', 'aria-expanded': String(fbOpen), dataset: { fk: 'feedback-toggle' }, onclick: () => { S.prefs.feedbackOpen = !fbOpen; S.savePrefs(); S.render(true); } },
           h('h3', null, 'Recent Feedback'), feedback.length ? h('span', null, feedback.length) : null, icon(fbOpen ? 'up' : 'down', 16)),
