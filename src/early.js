@@ -7,14 +7,20 @@
   const p = location.pathname.replace(/\/+$/, '') || '/';
   const classic = /[?&]sgo=classic\b/.test(location.search); // the explicit "Open in Schoology" link: show the original page
   const C = window.SGO_COLOR, T = window.SGO_TOPO;
-  const DEFAULTS = { accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311' };
+  const DEFAULTS = { accent: '#f0b46c', contour: '#d9b98a', contourGlow: '#c8843f', background: '#12100e' };
+  const DARK_BG = '#12100e', DARK_ACCENT = '#f0b46c';
 
   /* The four colours that define the look. They are CSS variables on <html>: the contour map, its glow, the page surface and every
    * interactive element read them, so a change here recolours the real paths and controls at once. The theme (light or dark UI)
    * follows the background colour, so text always has the right contrast. Also called by the app whenever a colour changes. */
   window.__sgoTheme = (prefs) => {
     const pick = (k) => C.normHex(prefs && prefs[k]) || DEFAULTS[k], st = html.style;
-    const bg = pick('background'), accent = pick('accent');
+    // Theme mode: 'light', 'dark' or 'system' override the saved background's brightness; unset keeps whatever the student's colours imply.
+    const mode = prefs && prefs.themeMode, sysDark = !!(window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+    const wantDark = mode === 'dark' || (mode === 'system' && sysDark), wantLight = mode === 'light' || (mode === 'system' && !sysDark);
+    let bg = pick('background'), accent = pick('accent');
+    if (wantDark && !C.isDark(bg)) bg = DARK_BG; else if (wantLight && C.isDark(bg)) bg = '#f8fafc';
+    if (C.contrast(accent, bg) < 4.5) accent = C.isDark(bg) ? DARK_ACCENT : '#1769d6'; // an accent that cannot be read on this background is replaced, never shown
     st.setProperty('--app-background', bg);
     st.setProperty('--contour-color', pick('contour'));
     st.setProperty('--contour-glow', pick('contourGlow'));
@@ -22,6 +28,7 @@
     st.setProperty('--on-accent', C.onAccent(accent));
     html.classList.toggle('sgo-dark', C.isDark(bg));
     // the map itself: shown or hidden, how dense and which seed (its blur is fixed in theme.css)
+    html.classList.toggle('sgo-compact', !!(prefs && prefs.density === 'compact')); // spacing only; type size and layout stay the same
     html.dataset.sgoTopo = prefs && prefs.topoOn === false ? 'off' : 'on';
     st.setProperty('--topo-w', String({ thin: .55, standard: 1, bold: 1.9 }[(prefs && prefs.topoWeight) || 'standard'] || 1)); // line weight scales both the index and the ordinary contours
     buildLayer((prefs && prefs.topoDensity) || 'standard', Number(prefs && prefs.topoSeed) || 20260);

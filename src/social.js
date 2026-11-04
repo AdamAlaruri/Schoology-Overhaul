@@ -153,7 +153,7 @@
       if (it.earned == null || !it.title) continue;
       const key = `${g.courseId || g.courseName}|${it.title}|${it.dueText || ''}`, sig = `${it.earned}/${it.possible == null ? '' : it.possible}`;
       next[key] = sig;
-      if (baseline && (seen || {})[key] !== sig) events.push({ id: key + '|' + sig, key, title: it.title, course: g.courseName || '', courseId: g.courseId || '', earned: it.earned, possible: it.possible == null ? null : it.possible, due: it.dueText || '' });
+      if (baseline && (seen || {})[key] !== sig) events.push({ id: key + '|' + sig, key, title: it.title, course: g.courseName || '', courseId: g.courseId || '', earned: it.earned, possible: it.possible == null ? null : it.possible, due: it.dueText || '', comment: it.comment || '' });
     }
     return { events, seen: Object.assign({}, seen, next) };
   };

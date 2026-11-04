@@ -47,7 +47,8 @@
   const TITLES = { dashboard: 'Dashboard', courses: 'Courses', assignments: 'Assignments', assignment: 'Assignment', calendar: 'Calendar', grades: 'Grades', settings: 'Settings', inbox: 'Inbox', groups: 'Groups' };
 
   /* ---------- theme: S.applyTheme (core.js) applies the four saved colours; the UI theme follows the background colour ---------- */
-  const themeToggle = () => { const dark = html.classList.contains('sgo-dark'), id = dark ? 'paper' : 'hearth', t = S.THEME_PRESETS.find((x) => x.id === id); S.applyLook(t); S.render(true); };
+  const themeToggle = () => { S.setThemeMode(html.classList.contains('sgo-dark') ? 'light' : 'dark'); S.render(true); };
+  if (window.matchMedia) matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (S.prefs.themeMode === 'system') { S.applyTheme(); S.render(true); } });
 
   /* ---------- hide native content but keep it alive ---------- */
   function clearHidden() {
@@ -74,6 +75,7 @@
     const face = h('span', { class: 'sgo-face', 'aria-hidden': 'true' }, initial);
     const account = S.menu('Account' + (who ? ': ' + who : ''), [
       ['Edit name…', () => S.openNameEditor()], ['Assignments', () => S.go('/home#/assignments')], ['Grades', () => S.go('/grades/grades')], ['Resources', () => S.go('/resources')],
+      ['Colour theme…', () => S.openAppearance()], [html.classList.contains('sgo-dark') ? 'Light mode' : 'Dark mode', themeToggle], ['Refresh data', () => S.hardRefresh()],
       ['Extension settings', () => S.go('/home#/settings')], ['Schoology account', () => S.go('/settings/account')],
       ['Classic view', () => { S.prefs.classic = true; S.savePrefs(); S.render(); }], ['Sign out', () => S.go('/logout')],
     ], h('button', { class: 'sgo-rail-i', type: 'button' }, face, h('span', null, 'Account')));
@@ -84,6 +86,7 @@
         ? h('button', { class: 'sgo-rail-i sgo-rail-search', type: 'button', 'data-tip': label, 'aria-haspopup': 'dialog', 'aria-keyshortcuts': '/ Control+K', 'aria-current': active === k ? 'page' : null, onclick: () => S.openSearch() }, icon(ic, 21), h('span', null, label))
         : h('a', { class: 'sgo-rail-i', href, 'aria-current': active === k ? 'page' : null, 'data-tip': label, target: /^https?:/.test(href) ? '_blank' : null, rel: /^https?:/.test(href) ? 'noopener' : null }, icon(ic, 21), h('span', null, label),
         k === 'inbox' && S.state.unread.messages ? h('b', { class: 'sgo-rail-n', 'aria-label': `${S.state.unread.messages} unread` }, S.state.unread.messages) : null)),
+      notifications(),
       h('div', { class: 'rail-topo', 'aria-hidden': 'true' }),
       h('button', { class: 'sgo-rail-i sgo-rail-tog', type: 'button', 'data-tip': collapsed ? 'Expand' : 'Collapse', 'aria-expanded': String(!collapsed), 'aria-label': collapsed ? 'Expand navigation' : 'Collapse navigation', dataset: { fk: 'rail-toggle' },
         onclick: (e) => {
@@ -98,23 +101,35 @@
 
   /* ---------- grade updates: a bell with an unread count and a small list ---------- */
   const pct = (n) => (n.possible ? Math.round((n.earned / n.possible) * 1000) / 10 + '%' : '');
+  /** Teacher comments on graded work, newest first. Same gradebook source the dashboard's feedback list used before it was folded in here. */
+  const recentFeedback = () => S.state.grades.flatMap((g) => (g.periods || []).flatMap((p) => p.categories.flatMap((c) => c.items.filter((x) => x.comment).map((x) => ({ x, g })))))
+    .map((f) => Object.assign(f, { ts: (S.parseDue(f.x.dueText) || {}).ts || 0 })).sort((a, b) => b.ts - a.ts).slice(0, 4);
   function notifPanel(list) {
     const row = (n) => h('li', { class: 'notif-i' + (n.read ? '' : ' unread') },
       h('div', { class: 'notif-t' },
         h('a', { href: '/grades/grades', onclick: () => { S.markGradeRead(n.id); S.ui.notifOpen = false; } }, n.title),
         h('span', { class: 'notif-g' }, `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}`)),
       h('div', { class: 'notif-m' }, [S.cn(n.courseId, n.course) || n.course, n.due && 'Due ' + n.due.replace(/^Due:?\s*/i, ''), 'Seen ' + S.fmtDate(n.at)].filter(Boolean).join(' · ')),
+      n.comment ? h('p', { class: 'notif-c' }, n.comment.slice(0, 140)) : null,
       n.read ? null : h('button', { class: 'sgo-icon-btn notif-r', type: 'button', title: 'Mark as read', 'aria-label': 'Mark ' + n.title + ' as read', onclick: () => { S.markGradeRead(n.id); S.render(true); } }, icon('check', 16)));
-    return h('div', { class: 'notif-p', role: 'dialog', 'aria-label': 'Grade updates' },
-      h('div', { class: 'notif-h' }, h('b', null, 'Grade updates'), list.some((n) => !n.read) ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all as read') : null),
-      list.length ? h('ul', { class: 'notif-l' }, list.map(row)) : h('p', { class: 'sgo-muted notif-none' }, 'No grade updates yet. When a teacher grades an assignment, it shows up here.'));
+    const fb = recentFeedback();
+    return h('div', { class: 'notif-p', role: 'dialog', 'aria-label': 'Updates' },
+      h('div', { class: 'notif-h' }, h('b', null, 'Updates'), list.some((n) => !n.read) ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all as read') : null),
+      h('h4', { class: 'notif-s' }, 'New grades'),
+      list.length ? h('ul', { class: 'notif-l' }, list.slice(0, 6).map(row)) : h('p', { class: 'sgo-muted notif-none' }, 'No new grades yet. When a teacher grades an assignment, it shows up here.'),
+      h('h4', { class: 'notif-s' }, 'Teacher feedback'),
+      fb.length ? h('ul', { class: 'notif-l' }, fb.map(({ x, g }) => h('li', { class: 'notif-i' },
+        h('div', { class: 'notif-t' }, h('a', { href: '/grades/grades', onclick: () => { S.ui.notifOpen = false; } }, x.title), x.earned != null ? h('span', { class: 'notif-g' }, `${x.earned}${x.possible != null ? ' / ' + x.possible : ''}`) : null),
+        h('div', { class: 'notif-m' }, S.cn(g.courseId, g.courseName)), h('p', { class: 'notif-c' }, x.comment.slice(0, 140)))))
+        : h('p', { class: 'sgo-muted notif-none' }, 'No teacher comments yet.'),
+      h('a', { class: 'link', href: '/grades/grades' }, 'All grades', icon('right', 14)));
   }
   function notifications() {
     const list = S.prefs.gradeNotifs || [], n = S.unreadGrades(), open = !!S.ui.notifOpen;
-    return h('div', { class: 'sgo-notif' },
-      h('button', { class: 'sgo-icon-btn sgo-bell', type: 'button', title: 'Grade updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
-        'aria-label': n ? `Grade updates, ${n} unread` : 'Grade updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; if (S.ui.notifOpen) { S.ui.themeOpen = false; S.ui.accentOpen = false; } S.render(true); } },
-        icon('bell', 18), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
+    return h('div', { class: 'sgo-notif sgo-rail-notif' },
+      h('button', { class: 'sgo-rail-i sgo-bell', type: 'button', 'data-tip': 'Updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
+        'aria-label': n ? `Updates, ${n} unread` : 'Updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; S.render(true); } },
+        icon('bell', 21), h('span', null, 'Updates'), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
       open ? notifPanel(list) : null);
   }
   document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen && !(e.target.closest && e.target.closest('.sgo-notif:not(.thm-wrap)'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
@@ -122,23 +137,6 @@
   // the accent colour picker closes on a click elsewhere or Escape
   document.addEventListener('click', (e) => { if (S.ui && S.ui.accentOpen && !(e.target.closest && e.target.closest('.acc-wrap'))) { S.ui.accentOpen = false; S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.accentOpen) { S.ui.accentOpen = false; S.render(true); } });
-
-  /* Quick colour themes: one button, a small panel of looks. The layout never changes; only the four appearance colours do. */
-  const applyLook = (t) => { S.applyLook(t); S.ui.themeOpen = false; S.render(true); };
-  function themePicker() {
-    const open = !!S.ui.themeOpen;
-    const panel = open && h('div', { class: 'thm-p', role: 'dialog', 'aria-label': 'Colour theme' },
-      h('div', { class: 'notif-h' }, h('b', null, 'Colour theme')),
-      h('div', { class: 'thm-grid' }, S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'thm-i' + (S.sameLook(t) ? ' on' : ''), 'aria-pressed': String(S.sameLook(t)), dataset: { fk: 'thm-' + t.id }, onclick: () => applyLook(t) },
-        h('span', { class: 'thm-sw', style: { background: `radial-gradient(circle at 78% 22%, ${t.contourGlow}, transparent 62%), ${t.background}`, boxShadow: `inset 0 0 0 1px ${t.contour}55` } }, h('i', { style: { background: S.prefs.accent } })),
-        h('span', { class: 'thm-n' }, h('b', null, t.name), h('small', null, t.note))))),
-      h('button', { class: 'link', type: 'button', onclick: () => { S.ui.themeOpen = false; S.render(true); S.openAppearance(); } }, 'Customise appearance', icon('right', 14)));
-    return h('div', { class: 'sgo-notif thm-wrap' },
-      h('button', { class: 'sgo-icon-btn', type: 'button', title: 'Colour theme', 'aria-label': 'Colour theme', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'thm-btn' }, onclick: (e) => { e.stopPropagation(); S.ui.themeOpen = !open; if (S.ui.themeOpen) S.ui.notifOpen = false; S.render(true); } }, icon('palette', 18)),
-      panel || null);
-  }
-  document.addEventListener('click', (e) => { if (S.ui && S.ui.themeOpen && !(e.target.closest && e.target.closest('.thm-wrap'))) { S.ui.themeOpen = false; S.render(true); } });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.themeOpen) { S.ui.themeOpen = false; S.render(true); const b = document.querySelector('[data-fk="thm-btn"]'); if (b) b.focus(); } });
 
   /* On narrow screens the rail is a slide-in menu instead of a bar along the bottom. One large button opens it. */
   const closeNav = () => { html.classList.remove('sgo-nav-open'); const f = document.querySelector('.sgo-fab'); if (f) f.setAttribute('aria-expanded', 'false'); };
@@ -155,16 +153,6 @@
     fabY = y;
   }, true);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && html.classList.contains('sgo-nav-open')) { closeNav(); const f = document.querySelector('.sgo-fab'); if (f) f.focus(); } });
-
-  function topbar() {
-    const dark = html.classList.contains('sgo-dark');
-    // No bar: just the four utility buttons, grouped in one quiet pill at the top-right.
-    return h('div', { class: 'sgo-top' }, h('div', { class: 'sgo-util', role: 'toolbar', 'aria-label': 'Utilities' },
-      notifications(),
-      themePicker(),
-      h('button', { class: 'sgo-icon-btn', type: 'button', title: 'Refresh data', 'aria-label': 'Refresh data', onclick: () => S.hardRefresh() }, icon('reload', 18)),
-      h('button', { class: 'sgo-icon-btn', type: 'button', title: dark ? 'Light mode' : 'Dark mode', 'aria-label': dark ? 'Switch to light mode' : 'Switch to dark mode', onclick: themeToggle }, icon(dark ? 'sun' : 'moon', 18))));
-  }
 
   /** Shown when a request reveals that the Schoology session has ended. Existing data stays visible. */
   function banner() {
@@ -210,7 +198,7 @@
     const sig = r + '|' + location.pathname + location.search + '|' + S.parseHash().path;
     content = h('main', { class: 'sgo-content' + (sig !== lastSig ? ' animate' : ''), id: 'sgo-content' }, view);
     lastSig = sig;
-    root.replaceChildren(sidebar(r), ...navControls(), h('div', { class: 'sgo-main' }, topbar(), banner(), content), S.modalHost);
+    root.replaceChildren(sidebar(r), ...navControls(), h('div', { class: 'sgo-main' }, banner(), content), S.modalHost);
     content.scrollTop = content.classList.contains('animate') ? 0 : scroll; // a different page starts at the top
     syncGutter();
     if (hadSearch) { const i = content.querySelector('input[type=search]'); if (i) { i.focus(); try { i.setSelectionRange(sel, sel); } catch (e) { /* ignore */ } } }

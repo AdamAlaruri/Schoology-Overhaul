@@ -545,6 +545,14 @@
   };
 
   /* ---------- same-origin fetches (reuses the user's existing login) ---------- */
+  const syncErr = {};
+  /** Honest freshness for the UI: 'failed' (a fetch errored or the session ended), 'ok', or 'none' (nothing loaded yet). */
+  S.syncStatus = () => {
+    const t = Math.max(0, ...Object.values(state.fetchedAt || {}));
+    if (state.session === 'expired' || Object.keys(syncErr).length) return { kind: 'failed', at: t || null };
+    return { kind: t ? 'ok' : 'none', at: t || null };
+  };
+
   async function attempt(name, path, parse, apply, force) {
     if (!force && Date.now() - (state.fetchedAt[name] || 0) < (TTL[name] || 0)) return; // fresh enough: reuse what is already loaded
     const g = (gens[name] = (gens[name] || 0) + 1);
@@ -556,7 +564,8 @@
       const n = Array.isArray(res) ? res.length : res.items.length;
       state.fetchedAt[name] = Date.now();
       diag(name, n > 0 || (res && res.found), n, path);
-    } catch (e) { if (gens[name] === g) diag(name, false, 0, path + ' — ' + (e.message || e)); }
+      delete syncErr[name];
+    } catch (e) { if (gens[name] === g) { syncErr[name] = true; diag(name, false, 0, path + ' — ' + (e.message || e)); } }
   }
 
   let pending = 0;

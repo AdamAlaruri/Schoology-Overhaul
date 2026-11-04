@@ -27,7 +27,7 @@ Runs as a content script on Schoology pages; native pages are hidden, never remo
 - Open: Schoology's markup could not be validated on a real account; the Spanish-overdue and refresh issues were fixed without live reproduction.
 
 ## Brand Commitments
-Name: Schoology Overhaul. Users asked explicitly for a plain, human look: one sans-serif (Inter), normal tracking, sentence case, no italics, eyebrows, numbering or decorative dividers, quiet containers with one soft border, a fainter contour background, and a large initial avatar plus a sleek top-right utility pill.
+Name: Schoology Overhaul. Direction changed (Nov 2026): the default is now a light, blue-and-white, Schoology-inspired look (near-white background `#f8fafc`, accent `#1769d6`, dark navy/charcoal text), with Light / Dark / System theme modes in Settings → Display. The contour map is off by default and there is no blur setting. Still true: one sans-serif (Inter), sentence case, no italics or decorative dividers, quiet containers with one soft border. An accent that cannot reach 4.5:1 contrast on the page is replaced automatically. Existing users on the old charcoal default are migrated once (`blueV`); their own custom colours are kept.
 
 ## Evidence on Hand
 README.md documents behaviour; tests/ holds 8 case scripts and a mock Schoology server (`node tests/mock-server.js`). Bundled assets: Inter font, 12 public-domain/CC0 banner photos with credits in `banners/CREDITS.md`. No real-account screenshots, user research or metrics exist; none should be invented.

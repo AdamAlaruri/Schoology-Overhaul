@@ -34,7 +34,7 @@
   };
   const defaultWidgets = () => Object.keys(S.WIDGETS).map((id) => ({ id, size: S.WIDGETS[id].size, hidden: false }));
   const DEFAULTS = () => ({
-    accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false, hypo: {}, gradesEdit: false,
+    accent: '#f0b46c', contour: '#d9b98a', contourGlow: '#c8843f', background: '#12100e', topoOn: true, topoDensity: 'standard', topoWeight: 'standard', topoSeed: 20260, gradeNotifs: [], gradeSeen: {}, gradeBase: false, classic: false, hypo: {}, gradesEdit: false,
     widgets: defaultWidgets(), courseColors: {}, courseMeta: {}, courseOrder: [], courseSort: 'custom', courseHidden: {}, tagColours: false, cleanNames: true, manual: {}, reviewed: {}, topLinks: {}, done: {},
   });
   S.DEFAULTS = DEFAULTS;
@@ -53,6 +53,24 @@
       if (String(p.background).toLowerCase() === light.background) { Object.keys(light).forEach((k) => { if (String(p[k]).toLowerCase() === light[k]) p[k] = now[k]; }); p.topoOn = true; }
       p.designV = 7; S.savePrefs();
     }
+    if (!p.blueV) { // one-time: the old charcoal default becomes the blue-and-white default; colours the student chose stay
+      if (String(p.background).toLowerCase() === '#151311') { const now = DEFAULTS(); ['accent', 'contour', 'contourGlow', 'background'].forEach((k) => { p[k] = now[k]; }); p.topoOn = false; }
+      delete p.blurBg; p.blueV = 1; S.savePrefs();
+    }
+    if ((p.blueV || 0) < 2) { // contour lines come back on the light theme, drawn a little darker so they show on white
+      if (String(p.contour).toLowerCase() === '#cbd5e1') p.contour = '#9fb3cc';
+      if (String(p.background).toLowerCase() === '#f8fafc') p.topoOn = true;
+      p.blueV = 2; S.savePrefs();
+    }
+    if ((p.blueV || 0) < 3) { // the default is now a warm brown with clearly visible contour lines; a look the student chose themselves stays
+      const bg = String(p.background).toLowerCase();
+      if (bg === '#f8fafc' || bg === '#151311') { const now = DEFAULTS(); ['accent', 'contour', 'contourGlow', 'background'].forEach((k) => { p[k] = now[k]; }); p.topoOn = true; }
+      p.blueV = 3; S.savePrefs();
+    }
+    if ((p.blueV || 0) < 4) { // the dark base is now #12100e; the previous brown default moves over, chosen colours stay
+      if (String(p.background).toLowerCase() === '#33261d') p.background = '#12100e';
+      p.blueV = 4; S.savePrefs();
+    }
     if ((p.designV || 0) < 7) { // one-time: colours that were earlier defaults move to the current defaults; a colour the student picked stays
       const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], contour: ['#40526d'], contourGlow: ['#1d4f91'], background: [] }, now = DEFAULTS();
       Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });
@@ -70,6 +88,8 @@
   S.ACCENT_GROUPS = [['Blue', ['Blue', 'Sky', 'Cyan', 'Indigo']], ['Green', ['Teal', 'Emerald', 'Green', 'Lime']], ['Warm', ['Yellow', 'Amber', 'Orange', 'Red']], ['Purple & pink', ['Rose', 'Pink', 'Fuchsia', 'Purple', 'Violet']], ['Neutral', ['Slate']]];
   /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
+    { id: 'brown', name: 'Brown', note: 'Warm brown, visible contours', accent: '#f0b46c', contour: '#d9b98a', contourGlow: '#c8843f', background: '#12100e' },
+    { id: 'schoology', name: 'Schoology blue', note: 'Light, blue and white', accent: '#1769d6', contour: '#9fb3cc', contourGlow: '#93c5fd', background: '#f8fafc' },
     { id: 'hearth', name: 'Hearth', note: 'Warm charcoal', accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311' },
     { id: 'slate', name: 'Slate', note: 'Cool slate', accent: '#7fb0ff', contour: '#9fb0c8', contourGlow: '#3f6fb5', background: '#12161c' },
     { id: 'midnight', name: 'Midnight', note: 'Blue-black', accent: '#8fa2ff', contour: '#8aa0d0', contourGlow: '#3b52a8', background: '#0b0e16' },
@@ -80,6 +100,9 @@
   ];
   /** Push the four appearance colours (accent, contour, glow, background) to the page. Called after every change; nothing reloads. */
   S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
+  /** 'light', 'dark' or 'system'. Colours the student picked are kept; only the brightness of the page follows the mode. */
+  S.setThemeMode = (m) => { if (!['light', 'dark', 'system'].includes(m)) return; S.prefs.themeMode = m; S.savePrefs(); S.applyTheme(); };
+  S.themeMode = () => S.prefs.themeMode || (C.isDark(S.prefs.background) ? 'dark' : 'light');
   S.setAppearance = (patch) => {
     const out = {};
     for (const k of Object.keys(patch)) { const hex = C.normHex(patch[k]); if (!hex) return false; out[k] = hex; }
@@ -91,6 +114,7 @@
     if ('topoOn' in patch) P.topoOn = !!patch.topoOn;
     if ('topoDensity' in patch && ['light', 'standard', 'dense'].includes(patch.topoDensity)) P.topoDensity = patch.topoDensity;
     if ('topoWeight' in patch && ['thin', 'standard', 'bold'].includes(patch.topoWeight)) P.topoWeight = patch.topoWeight;
+    if ('density' in patch && ['comfortable', 'compact'].includes(patch.density)) P.density = patch.density;
     if ('topoSeed' in patch) P.topoSeed = Math.max(1, Math.round(Number(patch.topoSeed) || 20260));
     S.savePrefs(); S.applyTheme();
   };
