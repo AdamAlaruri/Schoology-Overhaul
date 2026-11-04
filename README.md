@@ -70,6 +70,12 @@ Every course opens inside the app; the legacy Schoology course page is never sho
 - **Name:** Settings → Profile saves as you type; the Account menu in the rail has **Edit name…** for a quick fix.
 - The interface switches between light and dark text according to the background colour, so contrast always holds.
 
+## Document reader and missing work
+
+- **Reader:** clicking a course file or an assignment attachment opens it inside the app (`src/reader.js`), not in Schoology's document-viewer popup. The file is fetched same-origin with your session (viewer links such as `/attachment/ID/docviewer` are rewritten to `/attachment/ID/download`), held in memory as a blob and shown by the browser's own viewer: PDFs, images, video, audio and text. Escape or Back closes it; New tab and Download are in its bar. Other file types offer Download. Modified clicks (Ctrl, Shift, middle) keep their normal meaning.
+- **Missing work:** assignments the gradebook marks Missing are added to Today's Priorities, the counts and the course Needs-attention list even when Schoology's overdue list omits them (`gbMissing`, recomputed on each refresh). Tests: `node tests/missing-cases.js`.
+- **Calmer background:** the page glow and contour map are much fainter, and cards use neutral shadows instead of coloured glows.
+
 ## Dashboard
 
 Reading order: greeting, academic overview, today's priorities, courses, recent activity.

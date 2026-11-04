@@ -193,7 +193,7 @@
     html.classList.toggle('sgo-app', !!r);
     html.classList.toggle('sgo-native', !r);
     const cm = /^\/course\/(\d+)/.exec(location.pathname);
-    const cc = cm ? S.courseColor(cm[1], (S.state.courses.find((c) => c.id === cm[1]) || {}).name) : S.prefs.accent;
+    const cc = cm ? S.tint(cm[1], (S.state.courses.find((c) => c.id === cm[1]) || {}).name) : S.prefs.accent;
     html.style.setProperty('--course', cc);
     if (!r && lastRoute !== null) clearHidden();
     lastRoute = r;
@@ -254,7 +254,7 @@
     if (location.href === lastHref) return;
     lastHref = location.href; S.closeModal(); S.render(); observe();
     const r = route();
-    if (r) S.refresh(r).then((changed) => { if (changed || S.state.session !== 'ok') S.render(true); }); // cache-aware: usually no request at all
+    if (r) S.refresh(r).then((changed) => { if (changed || S.state.session !== 'ok') S.render(true); }, (e) => console.error('[Schoology Overhaul]', e)); // cache-aware: usually no request at all
   }
   /** Client-side navigation between app pages: no reload, no flash, the shell stays mounted. */
   S.navigate = (href) => {
@@ -296,13 +296,18 @@
   (async function boot() {
     const unboot = () => { document.documentElement.classList.remove('sgo-booting'); const b = document.getElementById('sgo-boot'); if (b) b.remove(); };
     if (!document.body || document.querySelector('form#s-user-login, #login-form')) { document.documentElement.classList.remove('sgo-app'); unboot(); return; } // login screen: hand the page back
-    await Promise.all([S.loadPrefs(), S.loadCache()]); // two independent storage reads: no need to wait for one before starting the other
-    S.applyTheme(); buildShell(); interceptLinks(); S.render();
+    try {
+      await Promise.all([S.loadPrefs(), S.loadCache()]); // two independent storage reads: no need to wait for one before starting the other
+      S.applyTheme(); buildShell(); interceptLinks(); S.render();
+    } catch (e) { // never leave the loading placeholder up: hand the page back to Schoology
+      console.error('[Schoology Overhaul] could not start', e);
+      document.documentElement.classList.remove('sgo-app'); unboot(); return;
+    }
     document.documentElement.dataset.sgoT1 = String(Math.round(performance.now()));
     unboot(); // first real render is on screen: drop the placeholder
     addEventListener('hashchange', onNav); addEventListener('popstate', onNav);
     syncAcrossTabs();
-    const tick = setInterval(() => { if (!alive()) { clearInterval(tick); if (obs) obs.disconnect(); return; } onNav(); }, 700); // catches pushState navigation inside Schoology's own scripts
+    const tick = setInterval(() => { if (!alive()) { clearInterval(tick); if (obs) obs.disconnect(); return; } if (!document.hidden) onNav(); }, 700); // catches pushState navigation inside Schoology's own scripts
     const clock = setInterval(() => {
       if (!alive()) { clearInterval(clock); return; }
       if (document.hidden || route() !== 'dashboard' || !S.dashStamp) return;
@@ -310,6 +315,6 @@
     }, 30000);
     observe();
     const r = route();
-    S.refresh(r || 'native').then(() => S.render(true));
+    S.refresh(r || 'native').catch((e) => console.error('[Schoology Overhaul]', e)).then(() => S.render(true)); // always draw once data (or its failure) is known
   })();
 })();

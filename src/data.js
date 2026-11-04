@@ -438,6 +438,26 @@
   function relink() {
     Object.values(state.items).forEach((i) => { if (!i.courseId && i.courseName) i.courseId = courseIdFor(i.courseName); });
     state.grades.forEach((g) => { if (!g.courseId) g.courseId = courseIdFor(g.courseName); });
+    syncMissing();
+  }
+  /** Schoology's overdue list can omit work its gradebook marks Missing. Those entries are added to the task list too (flag gbMissing,
+   *  recomputed on every refresh), so unsubmitted work always shows in Today's Priorities and the counts. */
+  function syncMissing() {
+    const all = Object.values(state.items);
+    all.forEach((i) => { if (i.gbMissing) i.gbMissing = false; });
+    state.grades.forEach((g) => {
+      if (!g.courseId) return;
+      (g.periods || []).forEach((p) => p.categories.forEach((cat) => cat.items.forEach((x) => {
+        if (x.status !== 'missing') return;
+        const aid = idFrom(x.href, 'assignment'), low = x.title.toLowerCase();
+        const hit = all.find((i) => (aid && i.key === '/assignment/' + aid) || (i.courseId === g.courseId && (i.title || '').toLowerCase() === low));
+        if (hit) { hit.gbMissing = true; if (!hit.due && x.dueText) { const d = S.parseDue(x.dueText); if (d) { hit.due = d.ts; hit.timed = d.timed; } } return; }
+        const d = x.dueText ? S.parseDue(x.dueText) : null, key = aid ? '/assignment/' + aid : `gb:${g.courseId}:${low}`;
+        const it = { key, url: aid ? '/assignment/' + aid : `/course/${g.courseId}/materials`, title: x.title, type: 'assignment', courseId: g.courseId, courseName: g.courseName,
+          due: d ? d.ts : null, timed: d ? d.timed : false, gbMissing: true, lastSeen: Date.now() };
+        state.items[key] = it; all.push(it);
+      })));
+    });
   }
 
   /** Signature of everything the UI renders. Comparing it avoids re-rendering when a scan finds identical data. */
@@ -467,7 +487,8 @@
 
   function prune() {
     const cut = Date.now() - 90 * S.DAY;
-    for (const k in state.items) { const i = state.items[k]; if ((i.due && i.due < cut) || i.lastSeen < Date.now() - 120 * S.DAY) delete state.items[k]; }
+    for (const k in state.items) { const i = state.items[k]; if (i.fromOverdue || i.gbMissing) continue; // work still missing is never dropped for being old
+      if ((i.due && i.due < cut) || i.lastSeen < Date.now() - 120 * S.DAY) delete state.items[k]; }
   }
   const saveCache = S.debounce(() => {
     prune();
@@ -550,9 +571,12 @@
       attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
     if (route === 'dashboard') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
     if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
-    await Promise.all(jobs);
-    relink();
-    pending--; state.loading = pending > 0; state.loaded = true; state.lastRefresh = Date.now();
+    try {
+      await Promise.all(jobs);
+      relink();
+    } finally { // a failure must never leave the page stuck on "loading"
+      pending--; state.loading = pending > 0; state.loaded = true; state.lastRefresh = Date.now();
+    }
     saveCache(); // also persists fetchedAt so the cache lifetimes survive a page reload
     return sig() !== before;
   };
@@ -577,11 +601,11 @@
   /* ---------- derived, non-fabricated helpers ---------- */
   S.isDone = (it) => !!S.prefs.done[it.key];
   /** Overdue means Schoology lists it as missing. The student's own tasks have no such list, so their date decides. */
-  S.isOverdue = (it) => !S.isDone(it) && (!!it.fromOverdue || (!!it.manual && !!it.due && it.due < Date.now()));
+  S.isOverdue = (it) => !S.isDone(it) && (!!it.fromOverdue || !!it.gbMissing || (!!it.manual && !!it.due && it.due < Date.now()));
   /** Past its due date and not marked done. Schoology does not reliably expose submissions, so this is the student's own view. */
   S.isPastDue = (it) => !S.isDone(it) && !!it.due && it.due < Date.now();
   /** Past its date but not on Schoology's missing list: it may well be submitted, so its status is unknown. Kept out of To-do and counts. */
-  S.isStale = (it) => S.isPastDue(it) && !it.fromOverdue && !it.manual;
+  S.isStale = (it) => S.isPastDue(it) && !it.fromOverdue && !it.gbMissing && !it.manual;
   /* Gradebook lookups: which assignment has been submitted or graded, how many points it is worth. */
   let gradeIndex = null, gradeIndexOf = null;
   S.gradeFor = (courseId) => state.grades.find((g) => g.courseId === courseId) || null;
@@ -600,11 +624,11 @@
     return it.courseId ? gradeIndex.get(it.courseId + '|' + it.title.toLowerCase()) || null : null;
   };
   /** Schoology's gradebook shows it as submitted or graded. */
-  S.isSubmitted = (it) => { const e = S.gradeEntry(it); return !!e && (e.status === 'graded' || e.status === 'pending'); };
+  S.isSubmitted = (it) => { if (it.fromOverdue || it.gbMissing) return false; /* Schoology's own overdue list outranks a zero entered in the gradebook */ const e = S.gradeEntry(it); return !!e && (e.status === 'graded' || e.status === 'pending'); };
   S.isComplete = (it) => S.isDone(it) || S.isSubmitted(it);
   S.statusOf = (it) => {
     if (S.isDone(it)) return { id: 'done', label: 'Done (marked by you)' };
-    if (it.fromOverdue) return { id: 'missing', label: 'Not submitted' };
+    if (it.fromOverdue || it.gbMissing) return { id: 'missing', label: 'Not submitted' };
     if (it.due && it.due > Date.now()) return { id: 'upcoming', label: 'Not yet due' };
     return { id: 'past', label: 'Past due date' };
   };
@@ -634,6 +658,8 @@
   };
   S.courseOf = (it) => state.courses.find((c) => c.id === it.courseId) || null;
   /** The indicator colour for an assignment: one unified colour (the accent) unless the student turns on colour-coding by course. */
+  /** The colour a course shows on cards, banners, rows and bars: one calm accent for every course unless the student turns on colour-coding. */
+  S.tint = (courseId, name) => (S.prefs.tagColours ? S.courseColor(courseId, name) : (/^#[0-9a-f]{6}$/i.test(S.prefs.accent || '') ? S.prefs.accent : '#8aa8ff'));
   S.colorOf = (it) => (S.prefs.tagColours ? S.courseColor(it.courseId, it.courseName) : 'var(--accent)');
-  S.data = { SEL, parseCourses, parseUpcoming, parseOverdue, parseAnnouncements, parseGrades, parseBanners };
+  S.data = { SEL, parseCourses, parseUpcoming, parseOverdue, parseAnnouncements, parseGrades, parseBanners, relink };
 })();

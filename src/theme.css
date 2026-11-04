@@ -59,8 +59,8 @@ html.sgo-collapsed { --sb: 72px; }
 html.sgo-app #sgo-bg { display: block; }
 html.sgo-app, html.sgo-app body { background: var(--app-background) !important; }
 html.sgo-app body { background: transparent !important; }
-#sgo-bg::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--contour-glow) 22%, transparent), transparent 65%); }
-#sgo-topo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; opacity: .15; } /* a soft, permanent blur on the background layer only; the scale keeps the blurred edges off-screen */
+#sgo-bg::before { content: ''; position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--contour-glow) 14%, transparent), transparent 62%); }
+#sgo-topo { position: absolute; inset: 0; width: 100%; height: 100%; display: block; pointer-events: none; opacity: .22; } /* a soft, permanent blur on the background layer only; the scale keeps the blurred edges off-screen */
 html[data-sgo-topo="off"] #sgo-topo { display: none; }
 #sgo-topo path { fill: none; stroke-linecap: round; stroke-linejoin: round; }
 #sgo-topo .topo-lines path { stroke: var(--contour-color); stroke-width: calc(1px * var(--topo-w, 1)); }
@@ -488,8 +488,8 @@ html.sgo-collapsed .sgo-rail-i.sgo-rail-tog { min-height: 56px; padding: var(--s
 
 /* ================= course view ================= */
 /* the map and glow are a touch stronger here, so the page feels lit from behind its cards */
-html[data-sgo-route="course"] #sgo-topo { opacity: .26; }
-html[data-sgo-route="course"] #sgo-bg::before { background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--contour-glow) 34%, transparent), transparent 68%); }
+html[data-sgo-route="course"] #sgo-topo { opacity: .2; }
+html[data-sgo-route="course"] #sgo-bg::before { background: radial-gradient(ellipse at 50% 0%, color-mix(in srgb, var(--contour-glow) 9%, transparent), transparent 60%); }
 
 /* hero: a tall rounded banner that dissolves into the page */
 .crs-head { position: relative; margin-bottom: var(--space-4); }
@@ -521,8 +521,8 @@ html[data-sgo-route="course"] #sgo-bg::before { background: radial-gradient(elli
 .crs-tabs a[aria-current="page"], .crs-tabs a[aria-current="page"]:hover { background: transparent; box-shadow: none; color: var(--on-accent) !important; opacity: 1; }
 
 /* cards: charcoal panels, soft corners, a glow behind the border that wakes on hover */
-.crs-card { padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--layer-2); box-shadow: 0 18px 44px -28px color-mix(in srgb, var(--contour-glow) 55%, transparent); transition: transform var(--t-card) var(--ease), border-color var(--t-card) var(--ease), box-shadow var(--t-glow) var(--ease), background var(--t-card) var(--ease); }
-.crs-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 34%, var(--line)); background: var(--layer-3); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent), 0 18px 50px -20px color-mix(in srgb, var(--contour-glow) 80%, transparent); }
+.crs-card { padding: var(--space-4); border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--layer-2); box-shadow: 0 18px 44px -28px rgb(0 0 0 / .28); transition: transform var(--t-card) var(--ease), border-color var(--t-card) var(--ease), box-shadow var(--t-glow) var(--ease), background var(--t-card) var(--ease); }
+.crs-card:hover { transform: translateY(-2px); border-color: color-mix(in srgb, var(--accent) 34%, var(--line)); background: var(--layer-3); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent), 0 18px 50px -20px rgb(0 0 0 / .28); }
 .crs-grid { gap: var(--space-4); } .crs-col { gap: var(--space-4); }
 .crs-card-h { align-items: center; margin-bottom: var(--space-3); } .crs-card-h h2 { font-size: var(--fs-card); line-height: var(--lh-small); font-weight: var(--fw-h4); letter-spacing: 0; }
 .crs-none { display: flex; align-items: center; gap: var(--space-2); margin: 0; font-size: var(--fs-small); line-height: var(--lh-small); color: var(--muted); } .crs-none svg { color: var(--text-3); }
@@ -571,7 +571,7 @@ html[data-sgo-route="course"] #sgo-bg::before { background: radial-gradient(elli
 
 /* ================= materials lead the course page ================= */
 .crs-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
-.crs-card.primary { padding: var(--space-5); border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), 0 24px 60px -30px color-mix(in srgb, var(--contour-glow) 75%, transparent); }
+.crs-card.primary { padding: var(--space-5); border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent), 0 24px 60px -30px rgb(0 0 0 / .28); }
 .crs-card.primary .crs-card-h { margin-bottom: var(--space-4); } .crs-card.primary .crs-card-h h2 { font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: var(--fw-h3); letter-spacing: -.01em; }
 .mat-chips { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-3); }
 .mat-chip { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 32px; padding: 0 var(--space-md); border: 1px solid var(--line-strong); border-radius: 999px; background: transparent; color: var(--muted); font-size: var(--fs-small); font-weight: var(--fw-strong); cursor: pointer; transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
@@ -705,7 +705,7 @@ html[data-sgo-route="course"] #sgo-bg::before { background: radial-gradient(elli
 
 /* ================= no heads-up bar: only the utility buttons remain ================= */
 .sgo-top { justify-content: flex-end; min-height: 0; padding: var(--space-3) var(--space-6) 0; background: none; box-shadow: none; border: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
-.sgo-util { display: inline-flex; align-items: center; gap: 2px; padding: var(--space-1); border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--layer-1) 80%, transparent); box-shadow: 0 10px 28px -16px color-mix(in srgb, var(--contour-glow) 70%, transparent); }
+.sgo-util { display: inline-flex; align-items: center; gap: 2px; padding: var(--space-1); border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--layer-1) 80%, transparent); box-shadow: 0 10px 28px -16px rgb(0 0 0 / .28); }
 .sgo-util .sgo-icon-btn { width: 38px; height: 38px; min-width: 38px; padding: 0; border-radius: 50%; background: transparent; color: var(--muted); transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease), transform var(--t-fast) var(--ease); }
 .sgo-util .sgo-icon-btn:hover, .sgo-util .sgo-icon-btn[aria-expanded="true"] { background: var(--surface2); color: var(--text); } .sgo-util .sgo-icon-btn:active { transform: scale(.92); }
 .sgo-util .sgo-icon-btn svg { width: 18px; height: 18px; }
@@ -901,3 +901,119 @@ html:not(.sgo-dark) .sgo-util { box-shadow: inset 0 1px 0 rgb(255 255 255 / .7),
   html.sgo-fab-hide .sgo-fab { transform: translateY(calc(100% + var(--space-4))); opacity: 0; pointer-events: none; }
   html.sgo-fab-hide .sgo-fab:focus-visible { transform: none; opacity: 1; pointer-events: auto; }
 }
+
+/* ---- native document reader ---- */
+html.sgo-reading body { overflow: hidden; }
+.rd { position: fixed; inset: 0; z-index: 2147483100; display: flex; flex-direction: column; background: var(--layer-1); animation: sgo-reveal var(--t-card) var(--ease); }
+.rd-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3) var(--space-4); border-bottom: 1px solid var(--line); background: var(--layer-2); }
+.rd-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-body); }
+.rd-acts { display: inline-flex; gap: var(--space-2); }
+.rd-body { flex: 1; min-height: 0; display: flex; justify-content: center; overflow: auto; }
+.rd-frame { flex: 1; width: 100%; height: 100%; border: 0; background: #fff; }
+.rd-media { display: flex; align-items: center; justify-content: center; padding: var(--space-4); width: 100%; }
+.rd-media img, .rd-media video { max-width: 100%; max-height: 100%; border-radius: var(--r-md); }
+.rd-text { margin: 0; padding: var(--space-5); width: min(100%, 90ch); white-space: pre-wrap; font: inherit; line-height: 1.6; color: var(--text); }
+.rd-skel { width: min(100%, 720px); height: 60%; margin-top: var(--space-5); }
+.rd-body > .sgo-empty { align-self: center; }
+
+/* ---- refinements: hidden-courses note, embedded Schoology pages, top-right utility, text safety ---- */
+.dc-hidden-note { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); box-sizing: border-box; min-height: 44px; padding: var(--space-2) var(--space-4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--layer-2); font-size: var(--fs-body); line-height: 1.45; color: var(--text); text-shadow: none; }
+.dc-hidden-note .link { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 36px; padding: 0 var(--space-2); margin-left: calc(-1 * var(--space-2)); border-radius: var(--r-sm, 8px); white-space: nowrap; font-weight: var(--fw-strong); }
+.dc-hidden-note .link:hover { background: var(--accent-soft); }
+
+/* Schoology's own pages (course content, material details) inside the redesigned shell */
+html.sgo-native body { overflow-x: hidden; }
+html.sgo-native #main-content-wrapper, html.sgo-native #content-wrapper, html.sgo-native #main-inner, html.sgo-native #center-top { max-width: 100%; box-sizing: border-box; overflow-wrap: anywhere; }
+html.sgo-native iframe, html.sgo-native video, html.sgo-native embed, html.sgo-native object { max-width: 100% !important; }
+html.sgo-native iframe { width: 100%; min-height: 70vh; border: 0; border-radius: var(--r-md); background: #fff; }
+html.sgo-native img { max-width: 100%; height: auto; }
+html.sgo-native pre, html.sgo-native table { max-width: 100%; }
+html.sgo-native pre, html.sgo-native .s-rte, html.sgo-native .info-body { overflow-x: auto; }
+html.sgo-native .content-body, html.sgo-native .info-body, html.sgo-native .s-rte { overflow-wrap: anywhere; line-height: 1.6; }
+html.sgo-native.sgo-dark .content-body, html.sgo-native.sgo-dark .info-body, html.sgo-native.sgo-dark .s-rte, html.sgo-native.sgo-dark .s-rte *,
+html.sgo-native.sgo-dark .item-title, html.sgo-native.sgo-dark .item-subtitle, html.sgo-native.sgo-dark h1, html.sgo-native.sgo-dark h2, html.sgo-native.sgo-dark h3, html.sgo-native.sgo-dark p, html.sgo-native.sgo-dark li, html.sgo-native.sgo-dark label { color: var(--text) !important; }
+html.sgo-native.sgo-dark .item-subtitle, html.sgo-native.sgo-dark .small, html.sgo-native.sgo-dark .gray { color: var(--muted) !important; }
+html.sgo-native.sgo-dark .s-rte [style*="color"] { color: var(--text) !important; }
+
+/* top-right utility: solid, crisp, always above the page */
+.sgo-util { background: var(--layer-2); -webkit-backdrop-filter: none; backdrop-filter: none; border-color: var(--line-strong); box-shadow: 0 6px 18px -8px rgb(0 0 0 / .5); z-index: 5; }
+.sgo-util .sgo-icon-btn { color: var(--text); opacity: 1; }
+
+/* long titles wrap instead of clipping or running under neighbours */
+.pr-title, .dc-title, .dc-typo-t, .rs-main b, .sgo-item-title, .crs-title h1, .sgo-detail h1 { overflow-wrap: anywhere; }
+.pr-main, .rs-main, .sgo-item-main { min-width: 0; }
+
+/* dashboard foot: the note and the page end get room; dropdown lists follow the theme instead of showing white */
+.dc-hidden-note { margin: var(--space-4) 0 0; }
+.dc-hidden-note .dc-hn-t { flex: 1 1 auto; min-width: 0; }
+.dash6 { padding-bottom: var(--space-7, 64px); }
+.dp-courses { padding-bottom: var(--space-4); }
+.topo-div { margin-top: var(--space-5); pointer-events: none; }
+select.sgo-input, .sgo-input select { color-scheme: dark; }
+html:not(.sgo-dark) select.sgo-input { color-scheme: light; }
+select.sgo-input option, select.sgo-input optgroup { background: var(--layer-3); color: var(--text); }
+
+/* ---- plain typography and calmer containers ----
+ * One sans-serif, normal tracking, sentence case, no italics, no decorative dividers. Layout, grids and sizes are unchanged. */
+html.sgo-app, html.sgo-app *:not(svg):not(svg *) { letter-spacing: normal !important; font-style: normal !important; text-transform: none !important; }
+html.sgo-app .sgo-input.hex { text-transform: lowercase !important; }
+html.sgo-app em { font-weight: var(--fw-strong); }
+html.sgo-app h1, html.sgo-app h2, html.sgo-app h3 { font-family: var(--font); }
+
+/* decoration off, spacing kept */
+.rail-topo { opacity: .16; }
+.sec-h::after, .sec-h::before { content: none !important; }
+
+/* one soft edge per container: no glow, no tinted or doubled borders, no lifting on hover */
+.crs-card, .crs-card.primary, .crs-card:hover, .sgo-card, .dc, .dc:hover, .pri, .sgo-detail, .sgo-util { box-shadow: none; }
+.crs-card:hover { transform: none; border-color: var(--line-strong); }
+.crs-card.primary { border-color: var(--line); }
+.sgo-util { border-color: var(--line); }
+.crs-tabs a, .tp-tabs button, .ib-tabs a, .sgo-seg button { opacity: 1; }
+.dc-hidden-note { background: transparent; }
+
+/* ---- restraint: no coloured edges, menus always fit the screen ---- */
+.sgo-detail, .sgo-gcard, .sgo-detail:hover { border-top: 1px solid var(--line); }
+.sgo-item::before { width: 2px; }
+.sgo-course:hover { transform: none; box-shadow: none; }
+#sgo-menus .sgo-menu-p { max-height: calc(100vh - 16px); max-width: calc(100vw - 16px); overflow-y: auto; overscroll-behavior: contain; box-sizing: border-box; }
+#sgo-menus .sgo-menu-p button { width: 100%; text-align: left; white-space: nowrap; }
+
+/* ---- dashboard v2: header, an ordered to-do agenda, a compact course list ---- */
+.sgo-page.dash6 { grid-template-columns: minmax(0, 1fr) 380px; }
+@media (max-width: 1180px) { .sgo-page.dash6 { grid-template-columns: minmax(0, 1fr); } }
+.dh { grid-column: 1 / -1; display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-4); padding: var(--space-2) 0 0; }
+.dh-l { min-width: 0; }
+.dh-date { margin: 0 0 var(--space-1); font-size: var(--fs-small); line-height: var(--lh-small); color: var(--muted); }
+.dh h1 { margin: 0; font-size: 30px; line-height: 1.2; font-weight: var(--fw-h1); }
+.dh-msg { margin: var(--space-2) 0 0; font-size: var(--fs-h4); line-height: var(--lh-body); color: var(--text); }
+.dh-wk { display: flex; align-items: center; gap: var(--space-md); margin-top: var(--space-md); font-size: var(--fs-small); color: var(--muted); font-variant-numeric: tabular-nums; }
+.dh-wk .meter { width: 200px; flex: none; }
+.dh-r { flex: none; margin-right: 200px; position: relative; } /* clear of the floating utility pill */
+@media (max-width: 900px) { .dh-r { margin-right: 0; } }
+
+.ag .sec-h { margin-bottom: var(--space-2); }
+.ag .sec-h h2 { font-size: var(--fs-h2); font-weight: var(--fw-h2); }
+.ag-g { margin-top: var(--space-4); }
+.ag-gh { display: flex; align-items: center; gap: var(--space-2); margin: 0 0 var(--space-2); font-size: var(--fs-small); line-height: var(--lh-small); font-weight: var(--fw-h4); color: var(--muted); }
+.ag-gh b { font-weight: var(--fw-body); color: var(--text-3); font-variant-numeric: tabular-nums; }
+.ag-g.g-overdue .ag-gh { color: var(--bad); }
+.ag .pr-list { margin: 0; padding: 0; list-style: none; background: var(--layer-2); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; }
+
+.cl .cl-list { margin: var(--space-2) 0 0; padding: 0; list-style: none; }
+.cl-r { display: flex; align-items: center; gap: var(--space-1); border-top: 1px solid var(--line); }
+.cl-r:first-child { border-top: 0; }
+.cl-a { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-md); padding: var(--space-md) 0; color: inherit; text-decoration: none; }
+.cl-chip { flex: none; width: 40px; height: 40px; border-radius: var(--r-sm); background-size: cover; background-position: center; display: grid; place-items: center; font-weight: var(--fw-h2); }
+.cl-chip.plain { background: var(--accent-soft); color: var(--accent-ink); }
+.cl-m { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.cl-m b { font-size: var(--fs-body); line-height: var(--lh-small); font-weight: var(--fw-h4); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-m small { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cl-r.late .cl-m small { color: var(--bad); }
+.cl-g { font-size: var(--fs-h4); font-weight: var(--fw-h2); font-variant-numeric: tabular-nums; }
+.cl-g.na { color: var(--text-3); font-weight: var(--fw-body); }
+.cl-n { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--fs-caption); color: var(--muted); text-decoration: none; }
+.cl-a:hover .cl-m b { text-decoration: underline; text-underline-offset: 3px; }
+.cl-dots { width: 32px; height: 32px; min-width: 32px; }
+.pr::before { content: none !important; }
+.dh-wk .meter { width: auto; flex: 1 1 80px; max-width: 200px; } .dh-wk span { white-space: nowrap; }

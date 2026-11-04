@@ -48,6 +48,11 @@
     Object.keys(S.WIDGETS).forEach((id) => { if (!known.has(id)) p.widgets.push({ id, size: S.WIDGETS[id].size, hidden: false }); });
     if (p.courseSort === 'alpha') { p.courseSort = 'custom'; S.savePrefs(); } // the A-Z mode was removed: classes keep the student's own order
     S.prefs = p;
+    if (p.designV === 8) { // the short-lived light redesign is withdrawn: bring back the dark topographic look unless the student chose their own colours
+      const light = { accent: '#2457d6', contour: '#64748b', contourGlow: '#cbd5e1', background: '#f7f8fa' }, now = DEFAULTS();
+      if (String(p.background).toLowerCase() === light.background) { Object.keys(light).forEach((k) => { if (String(p[k]).toLowerCase() === light[k]) p[k] = now[k]; }); p.topoOn = true; }
+      p.designV = 7; S.savePrefs();
+    }
     if ((p.designV || 0) < 7) { // one-time: colours that were earlier defaults move to the current defaults; a colour the student picked stays
       const old = { accent: ['#5b6cff', '#2f8f83', '#20c5d9', '#7c9cff'], contour: ['#40526d'], contourGlow: ['#1d4f91'], background: [] }, now = DEFAULTS();
       Object.keys(old).forEach((k) => { if (old[k].includes(String(p[k]).toLowerCase())) p[k] = now[k]; });

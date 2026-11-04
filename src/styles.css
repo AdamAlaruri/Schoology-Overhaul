@@ -371,7 +371,7 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 /* hero: L1 surface, soft blue light from the upper right, contour art emerging from beneath on the right, clean left for the text */
 .hero { grid-column: 1 / -1; position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--space-4) var(--space-5); min-height: 200px; padding: var(--space-6);
   border: 1px solid color-mix(in srgb, var(--line-strong) 80%, var(--contour-glow)); border-radius: var(--r-xl);
-  background: radial-gradient(ellipse at 82% 8%, color-mix(in srgb, var(--contour-glow) 28%, transparent), transparent 56%), linear-gradient(120deg, color-mix(in srgb, var(--layer-3) 88%, var(--contour-glow)), var(--layer-1) 72%); }
+  background: radial-gradient(ellipse at 82% 8%, color-mix(in srgb, var(--contour-glow) 8%, transparent), transparent 50%), linear-gradient(120deg, color-mix(in srgb, var(--layer-3) 88%, var(--contour-glow)), var(--layer-1) 72%); }
 .hero::before { content: ''; position: absolute; inset: 0; z-index: -2; pointer-events: none; background: var(--topo-hero) right center / auto 150% no-repeat; opacity: .32;
   -webkit-mask-image: linear-gradient(90deg, transparent 8%, rgb(0 0 0 / .5) 42%, #000 100%); mask-image: linear-gradient(90deg, transparent 8%, rgb(0 0 0 / .5) 42%, #000 100%); }
 .hero::after { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; background: linear-gradient(180deg, transparent 55%, rgb(0 0 0 / .22)); }

@@ -86,7 +86,11 @@
       panel.hidden = false; menuHost().append(panel);
       const r = btn.getBoundingClientRect(), w = panel.offsetWidth, hgt = panel.offsetHeight;
       panel.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
-      panel.style.top = (r.bottom + hgt + 8 > innerHeight ? Math.max(8, r.top - hgt - 4) : r.bottom + 4) + 'px';
+      const below = innerHeight - r.bottom - 12, above = r.top - 12; // open on the side with more room, and never taller than that room
+      const up = hgt > below && above > below, room = Math.max(120, up ? above : below);
+      panel.style.maxHeight = Math.min(room, innerHeight - 16) + 'px';
+      const hh = Math.min(hgt, room);
+      panel.style.top = (up ? Math.max(8, r.top - hh - 4) : Math.max(8, Math.min(r.bottom + 4, innerHeight - hh - 8))) + 'px';
       btn.setAttribute('aria-expanded', 'true');
       openMenu = { btn, panel };
       panel.querySelector('[role="menuitem"]').focus();
@@ -151,43 +155,14 @@
   /* The week the dashboard talks about: today and the next six days, plus anything Schoology lists as missing and tasks with no date. */
   function weekOf(t, now) {
     const start = S.sod(now), end = start + 7 * S.DAY;
-    const inView = t.filter((i) => (S.isComplete(i) || !S.isStale(i)) && ((i.due && i.due >= start && i.due < end) || i.fromOverdue || S.isOverdue(i) || !i.due))
+    const inView = t.filter((i) => (S.isComplete(i) || !S.isStale(i)) && ((i.due && i.due >= start && i.due < end) || i.fromOverdue || i.gbMissing || S.isOverdue(i) || !i.due))
       .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
     const open = inView.filter((i) => !S.isComplete(i)), complete = inView.filter(S.isComplete);
     const overdue = open.filter(S.isOverdue).length, today = open.filter((i) => !S.isOverdue(i) && i.due && daysUntil(i.due, now) <= 0).length;
     return { inView, open, complete, overdue, today, pct: inView.length ? Math.round((complete.length / inView.length) * 100) : 0 };
   }
 
-  /** A live clock and date. It ticks on the minute and stops by itself once the dashboard has left the page. */
-  function clock() {
-    const time = h('b', { class: 'clk-t' }), ap = h('span', { class: 'clk-ap' }), date = h('span', { class: 'clk-d' });
-    const paint = () => {
-      const n = new Date(), p = n.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }).match(/^(.*?)\s?([AP]M)?$/i) || [];
-      time.textContent = p[1] || n.toLocaleTimeString(); ap.textContent = p[2] || '';
-      date.textContent = longDate(n.getTime());
-    };
-    paint();
-    const tick = () => { if (!time.isConnected) return; paint(); setTimeout(tick, 60000 - (Date.now() % 60000) + 50); };
-    setTimeout(tick, 60000 - (Date.now() % 60000) + 50);
-    return h('div', { class: 'clk', role: 'timer', 'aria-label': 'Current time and date' }, h('div', { class: 'clk-row' }, time, ap), date);
-  }
 
-  /** Hero: greeting and one honest sentence about the day on the left with the count of open assignments; the clock on the right. */
-  function hero(wk, now, review) {
-    const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0]; // no name known yet: just the greeting
-    const msg = wk.overdue ? `${plural(wk.overdue, 'assignment')} overdue. Start there, then move on to what is due today.`
-      : wk.today ? `${plural(wk.today, 'assignment')} due today. Here is what deserves your attention.`
-        : wk.open.length ? 'Nothing is due today. Here is what is coming up this week.' : S.quip();
-    return h('section', { class: 'hero', 'aria-label': 'Welcome' },
-      h('div', { class: 'hero-l' },
-        h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}.`),
-        h('p', { class: 'hero-msg' }, msg),
-        h('div', { class: 'hero-count', role: 'status' }, h('b', { class: 'num' }, wk.open.length), h('span', null, wk.open.length === 1 ? 'assignment to do this week' : 'assignments to do this week'),
-          wk.overdue ? h('span', { class: 'badge b-overdue' }, icon('alert', 13), `${wk.overdue} overdue`) : null)),
-      h('div', { class: 'hero-r' }, clock()),
-      h('div', { class: 'hero-menu' }, S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
-        ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]])));
-  }
 
   /* A small floating notice, kept outside the page markup: it never moves the layout, survives page redraws, pauses while the pointer or
    * focus is on it, and always leaves the same way (fades and drops out, then is removed). One at a time. */
@@ -247,25 +222,6 @@
       h('a', { class: 'pr-open', href: itemHref(it), title: 'Open', 'aria-label': 'Open assignment: ' + it.title }, icon('right', 18)));
   }
 
-  function priorities(t, wk, now) {
-    const ui = dui(), byCourse = (i) => ui.course === 'all' || i.courseId === ui.course;
-    const rank = (i) => { const u = urgency(i, now).id; return { overdue: 0, today: 1, soon: 2, later: 3 }[u] ?? 4; };
-    const open = wk.open.filter(byCourse).sort((a, b) => rank(a) - rank(b) || (a.due ?? 9e15) - (b.due ?? 9e15));
-    const done = wk.complete.filter(byCourse), limit = 5, shown = ui.expanded ? open : open.slice(0, limit);
-    const empty = h('div', { class: 'sgo-empty topo-empty' }, h('div', { class: 'sgo-empty-t' }, 'No assignments due.'),
-      h('div', { class: 'sgo-empty-s' }, done.length ? `You finished everything on your list this week. ${plural(done.length, 'item')} completed.` : 'Nothing needs your attention right now. New work appears here when your teachers post it.'));
-    return h('section', { class: 'pri', 'aria-labelledby': 'pri-h' },
-      h('div', { class: 'sec-h' },
-        h('div', null, h('h2', { id: 'pri-h' }, "Today's Priorities"), h('p', null, 'Your upcoming academic deadlines.')),
-        h('div', { class: 'sec-a' },
-          h('select', { class: 'sgo-input pri-filter', 'aria-label': 'Filter priorities by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; ui.expanded = false; S.render(); } },
-            h('option', { value: 'all' }, 'All courses'), S.orderedCourses().filter((c) => !hiddenCourse(c)).map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
-          h('button', { class: 'sgo-btn', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add task'))),
-      open.length ? h('ul', { class: 'pr-list' }, shown.map((i) => priorityRow(i, now))) : empty,
-      open.length > limit ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more' }, onclick: () => { ui.expanded = !ui.expanded; S.render(); } }, ui.expanded ? 'Show fewer' : `Show ${open.length - limit} more`) : null,
-      done.length && open.length ? h('details', { class: 'pr-done', open: ui.showDone ? 'open' : null, ontoggle: (e) => { ui.showDone = e.target.open; } },
-        h('summary', null, icon('check', 14), `${plural(done.length, 'completed item')} this week`), h('ul', { class: 'pr-list' }, done.map((i) => priorityRow(i, now)))) : null);
-  }
 
   /* Course covers on the dashboard. A cover the student chose always wins. Otherwise: a real photograph when one of the bundled
    * photographs fits the subject, and a typographic banner (course name set large on a soft gradient) for everything else. Schoology's own
@@ -295,7 +251,7 @@
   const hueOf = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 215; const k = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return Math.round((k * 60 + 360) % 360); };
   /** The course name set large on a soft gradient in the course's own colour. plain: no link (for use inside a button or an already-linked card). */
   function typoBanner(c, name, meta, plain) {
-    const hue = hueOf(S.courseColor(c.id, c.name)), t = plain ? h('span', { class: 'dc-typo-t' }, name) : h('a', { class: 'dc-typo-t', href: `/course/${c.id}/materials`, tabindex: '-1', 'aria-hidden': 'true' }, name);
+    const hue = hueOf(S.tint(c.id, c.name)), t = plain ? h('span', { class: 'dc-typo-t' }, name) : h('a', { class: 'dc-typo-t', href: `/course/${c.id}/materials`, tabindex: '-1', 'aria-hidden': 'true' }, name);
     return h('div', { class: 'dc-typo', style: { '--h': hue } }, h('span', null, meta || 'Course'), t);
   }
   /** Fills a cover element from a resolved choice. */
@@ -331,48 +287,7 @@
 
   /* ---- courses ---- */
   const visibleCourse = (id) => { const c = S.state.courses.find((x) => x.id === id); return !!c && !hiddenCourse(c); };
-  function dashCard(c, tasks, now, featured) {
-    const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), g = S.gradeFor(c.id);
-    const open = tasks.filter((i) => i.courseId === c.id && !S.isComplete(i) && (S.isOverdue(i) || (i.due && i.due >= S.sod(now)))).sort((a, b) => (S.isOverdue(b) - S.isOverdue(a)) || (a.due ?? 9e15) - (b.due ?? 9e15));
-    const next = open[0], u = next && urgency(next, now);
-    const news = S.state.announcements.filter((a) => a.courseId === c.id).length;
-    const term = (/\((S\d|Q\d|T\d|Y\d?)\)/.exec(c.name + ' ' + (c.section || '')) || [])[1] || (g && g.periods[0] && g.periods[0].name) || '';
-    const hasGrade = g && g.percent != null;
-    const editing = S.ui.renaming === c.id, cv = coverFor(c, name), metaLine = [S.courseCode(c.name) || c.section, term].filter(Boolean).join(' · ');
-    const cover = h('div', { class: 'dc-banner' + (cv.typo ? ' typo' : ''), style: cv.css ? { background: cv.css } : null }, cv.typo ? typoBanner(c, name, S.courseCode(c.name) || 'Course') : null,
-      h('button', { class: 'sgo-icon-btn dc-rename', type: 'button', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: () => { S.ui.renaming = c.id; S.render(); } }, icon('edit', 16)),
-      S.menu('Options for ' + name, [['Rename', () => { S.ui.renaming = c.id; S.render(); }], ['Change banner', () => S.openBannerPicker(c)], ['Notification icon…', () => S.openIconPicker(c)], ['Colour and name…', () => S.openCourseEditor(c)], ['Move earlier', () => { S.moveCourse(c.id, -1, visibleCourse); S.render(true); }], ['Move later', () => { S.moveCourse(c.id, 1, visibleCourse); S.render(true); }], ['Hide from dashboard', () => S.setCourseHidden(c, true)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn dc-dots', type: 'button' }, icon('dots', 18)), 'dc-menu'));
-    if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cover, c.id, c.name);
-    const card = h('article', { class: 'dc' + (featured ? ' featured' : '') + (cv.typo && !editing ? ' has-typo' : ''), style: { '--c': color }, 'aria-label': name, dataset: { id: c.id } }, cover,
-      h('div', { class: 'dc-body' },
-        h('h2', null, editing ? renameField(c) : h('a', { href: `/course/${c.id}/materials` }, name)),
-        h('div', { class: 'dc-meta' }, metaLine || 'Course'),
-        h('a', { class: 'sgo-icon-btn dc-news', href: `/course/${c.id}/updates`, title: 'Announcements', 'aria-label': news ? `${news} announcements for ${name}` : `Announcements for ${name}` }, icon(S.notifIcon(c), 18), news ? h('span', { class: 'dc-count' }, news) : null)),
-      h('div', { class: 'dc-stat' },
-        h('span', { class: 'micro' }, hasGrade ? 'Current grade' : 'Grade not available'),
-        hasGrade ? h('b', { class: 'dc-gv', 'aria-label': `Current grade ${pctText(g.percent)}` }, pctText(g.percent)) : h('span', { class: 'dc-gna' }, 'Schoology has not reported one')),
-      h('div', { class: 'dc-next' },
-        h('span', { class: 'micro' }, 'Next assignment'),
-        next ? [h('a', { class: 'dc-nt', href: itemHref(next) }, next.title),
-          h('div', { class: 'dc-nw' }, h('span', { class: 'badge b-' + u.id }, icon(u.icon, 12), u.label), h('span', null, S.isOverdue(next) ? dueLabel(next, now) : next.due ? shortDate(next.due) : ''))]
-          : h('span', { class: 'dc-gna' }, 'Nothing due')));
-    if (!editing) bindCourseDrag(card, c);
-    return card;
-  }
 
-  /* ---- right column: weekly progress, announcements, recent feedback ---- */
-  function weeklyCard(wk) {
-    const ui = dui(), from = ui.weekPct == null ? wk.pct : ui.weekPct; ui.weekPct = wk.pct;
-    const pctEl = h('b', { class: 'num' }); countTo(pctEl, from, wk.pct, '%');
-    const note = !wk.inView.length ? 'No work this week. Enjoy the quiet.' : wk.pct === 100 ? 'Everything is done this week. Nicely done.' : wk.pct >= 50 ? 'More than halfway there. Keep going.' : wk.complete.length ? 'Good start. One at a time.' : 'A fresh week. Begin with the first one.';
-    return h('section', { class: 'side-card progress', 'aria-labelledby': 'wp-h' },
-      h('h3', { id: 'wp-h' }, 'This week'),
-      h('div', { class: 'wp-big' }, pctEl, h('span', null, wk.inView.length ? `${wk.complete.length} of ${wk.inView.length} done` : '')),
-      meter(from, wk.pct, 'lg'),
-      h('p', { class: 'wp-note' }, note),
-      h('dl', { class: 'wp-nums' },
-        h('div', null, h('dt', null, 'Done'), h('dd', null, wk.complete.length)), h('div', null, h('dt', null, 'To do'), h('dd', null, wk.open.length)), h('div', null, h('dt', null, 'Overdue'), h('dd', { class: wk.overdue ? 'bad' : '' }, wk.overdue))));
-  }
   function announcementsCard() {
     const ui = dui(), all = S.state.announcements, shown = ui.annAll ? all : all.slice(0, 3);
     return h('section', { class: 'side-card', 'aria-labelledby': 'an-h' },
@@ -395,20 +310,76 @@
         : h('p', { class: 'side-empty' }, 'No teacher feedback yet. Comments on graded work show up here.'));
   }
 
+  /* ---- dashboard v2: what needs doing, in order ---- */
+  const AGENDA = [['overdue', 'Overdue', 6], ['today', 'Due today', 6], ['soon', 'Next 7 days', 8], ['later', 'Later', 4], ['none', 'No due date', 3]];
+  function agenda(t, wk, now) {
+    const ui = dui(), byCourse = (i) => ui.course === 'all' || i.courseId === ui.course, groups = categorize(wk.open.filter(byCourse));
+    ui.open = ui.open || {};
+    const done = wk.complete.filter(byCourse), total = AGENDA.reduce((n, [k]) => n + groups[k].length, 0);
+    const sections = AGENDA.filter(([k]) => groups[k].length).map(([k, label, cap]) => {
+      const list = groups[k], open = !!ui.open[k], shown = open ? list : list.slice(0, cap);
+      return h('section', { class: 'ag-g g-' + k, 'aria-label': label },
+        h('h3', { class: 'ag-gh' }, k === 'overdue' ? icon('alert', 15) : null, h('span', null, label), h('b', null, list.length)),
+        h('ul', { class: 'pr-list' }, shown.map((i) => priorityRow(i, now))),
+        list.length > cap ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more-' + k }, onclick: () => { ui.open[k] = !open; S.render(true); } }, open ? 'Show fewer' : `Show ${list.length - cap} more`) : null);
+    });
+    return h('section', { class: 'ag', 'aria-labelledby': 'ag-h' },
+      h('div', { class: 'sec-h' },
+        h('h2', { id: 'ag-h' }, 'To do'),
+        h('div', { class: 'sec-a' },
+          h('select', { class: 'sgo-input pri-filter', 'aria-label': 'Filter by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; S.render(); } },
+            h('option', { value: 'all' }, 'All courses'), S.orderedCourses().filter((c) => !hiddenCourse(c)).map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
+          h('button', { class: 'sgo-btn primary', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add task'))),
+      total ? sections : h('div', { class: 'sgo-empty topo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Nothing to do'),
+        h('div', { class: 'sgo-empty-s' }, done.length ? `Everything on your list is finished. ${plural(done.length, 'item')} completed this week.` : 'New work appears here when your teachers post it.')),
+      done.length && total ? h('details', { class: 'pr-done', open: ui.showDone ? 'open' : null, ontoggle: (e) => { ui.showDone = e.target.open; } },
+        h('summary', null, icon('check', 14), `${plural(done.length, 'completed item')} this week`), h('ul', { class: 'pr-list' }, done.map((i) => priorityRow(i, now)))) : null);
+  }
+
+  /** The course list: one compact row per course (cover chip, name, grade, next due) with the options menu the cards had. */
+  function courseRow(c, tasks, now) {
+    const name = S.cn(c.id, c.name), g = S.gradeFor(c.id), hasGrade = g && g.percent != null, cv = coverFor(c, name);
+    const next = tasks.filter((i) => i.courseId === c.id && !S.isComplete(i) && (S.isOverdue(i) || (i.due && i.due >= S.sod(now)))).sort((a, b) => (S.isOverdue(b) - S.isOverdue(a)) || (a.due ?? 9e15) - (b.due ?? 9e15))[0];
+    const news = S.state.announcements.filter((a) => a.courseId === c.id).length;
+    const sub = next ? (S.isOverdue(next) ? 'Overdue: ' : 'Next: ') + next.title : 'Nothing due';
+    const chip = h('span', { class: 'cl-chip' + (cv.css ? '' : ' plain'), 'aria-hidden': 'true', style: cv.css ? { background: cv.css } : null }, cv.css ? null : name.replace(/^\W+/, '').charAt(0).toUpperCase());
+    return h('li', { class: 'cl-r' + (next && S.isOverdue(next) ? ' late' : ''), dataset: { id: c.id } },
+      h('a', { class: 'cl-a', href: `/course/${c.id}/materials`, 'aria-label': `${name}${hasGrade ? ', grade ' + pctText(g.percent) : ''}` }, chip,
+        h('span', { class: 'cl-m' }, h('b', null, name), h('small', null, sub)),
+        hasGrade ? h('span', { class: 'cl-g' }, pctText(g.percent)) : h('span', { class: 'cl-g na' }, '--')),
+      news ? h('a', { class: 'cl-n', href: `/course/${c.id}/updates`, title: 'Announcements', 'aria-label': `${news} announcements for ${name}` }, icon(S.notifIcon(c), 15), news) : null,
+      S.menu('Options for ' + name, [['Rename or recolour…', () => S.openCourseEditor(c)], ['Change banner', () => S.openBannerPicker(c)], ['Notification icon…', () => S.openIconPicker(c)], ['Move earlier', () => { S.moveCourse(c.id, -1, visibleCourse); S.render(true); }], ['Move later', () => { S.moveCourse(c.id, 1, visibleCourse); S.render(true); }], ['Hide from dashboard', () => S.setCourseHidden(c, true)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn cl-dots', type: 'button' }, icon('dots', 16)), 'cl-menu'));
+  }
+  function courseList(courses, tasks, now, hidden) {
+    return h('section', { class: 'side-card cl', 'aria-labelledby': 'cl-h' },
+      h('div', { class: 'side-h' }, h('h3', { id: 'cl-h' }, 'Courses'), h('a', { class: 'link', href: '/courses' }, 'All courses')),
+      courses.length ? h('ul', { class: 'cl-list' }, courses.map((c) => courseRow(c, tasks, now)))
+        : !S.state.loaded ? h('div', { class: 'sk-row' }) : h('p', { class: 'side-empty' }, 'No courses found. Settings → Diagnostics shows what was read from Schoology.'),
+      hidden ? h('p', { class: 'dc-hidden-note' }, h('span', { class: 'dc-hn-t' }, `${plural(hidden, 'course')} hidden from the dashboard`), h('a', { class: 'link', href: '/courses' }, 'Show in Courses', icon('right', 14))) : null);
+  }
+
+  /** Page header: the greeting, one sentence about the day, and the week's progress as a single line. */
+  function dashHead(wk, now, review) {
+    const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0];
+    const msg = wk.overdue ? `${plural(wk.overdue, 'assignment')} overdue${wk.today ? `, ${wk.today} due today` : ''}.`
+      : wk.today ? `${plural(wk.today, 'assignment')} due today.` : wk.open.length ? 'Nothing is due today.' : S.quip();
+    const ui = dui(), from = ui.weekPct == null ? wk.pct : ui.weekPct; ui.weekPct = wk.pct;
+    return h('div', { class: 'dh' },
+      h('div', { class: 'dh-l' },
+        h('p', { class: 'dh-date' }, longDate(now)),
+        h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}`),
+        h('p', { class: 'dh-msg', role: 'status' }, msg),
+        wk.inView.length ? h('div', { class: 'dh-wk' }, meter(from, wk.pct, 'sm'), h('span', null, `${wk.complete.length} of ${wk.inView.length} done this week`)) : null),
+      h('div', { class: 'dh-r' }, S.menu('Dashboard options', [['New task', () => S.openNewAssignment(null)], review ? [`Review ${review} new ${review === 1 ? 'item' : 'items'}`, () => S.go(assignmentsHref())] : null,
+        ['All assignments', () => S.go(assignmentsHref())], ['Refresh data', () => S.hardRefresh()], ['Settings', () => S.go('/home#/settings')]])));
+  }
+
   V.dashboard = () => {
     const now = Date.now(), skip = new Set(S.state.courses.filter(hiddenCourse).map((c) => c.id)), t = tasksOnly().filter((i) => !skip.has(i.courseId)), courses = S.orderedCourses().filter((c) => !skip.has(c.id)), review = S.unreviewedItems().length, wk = weekOf(t, now);
     S._dashStamp = S.dashStamp();
-    // the course with the soonest open deadline gets the one contour treatment
-    const soonest = courses.map((c) => ({ c, d: Math.min(...t.filter((i) => i.courseId === c.id && !S.isComplete(i) && i.due && i.due >= S.sod(now)).map((i) => i.due), Infinity) })).filter((x) => x.d < Infinity).sort((a, b) => a.d - b.d)[0];
-    const cards = courses.length ? h('div', { class: 'dc-grid' }, courses.map((c) => dashCard(c, t, now, soonest && soonest.c.id === c.id)))
-      : !S.state.loaded ? h('div', { class: 'dc-grid', 'aria-busy': 'true', 'aria-label': 'Loading courses' }, [0, 1, 2].map(() => h('div', { class: 'sk-row dc-sk' })))
-        : empty('No courses found', 'Open Settings → Diagnostics to see what was read from Schoology.');
-    return h('div', { class: 'sgo-page dash6' }, hero(wk, now, review),
-      h('div', { class: 'dp-main' }, priorities(t, wk, now),
-        h('section', { class: 'dp-courses', 'aria-labelledby': 'dp-courses-h' }, h('div', { class: 'sec-h' }, h('div', null, h('h2', { id: 'dp-courses-h' }, 'Your courses'), h('p', null, courses.length ? plural(courses.length, 'course') + ' this term' : 'Detected from your Schoology account'))), cards,
-          skip.size ? h('p', { class: 'dc-hidden-note' }, `${plural(skip.size, 'course')} hidden from the dashboard. `, h('a', { class: 'link', href: '/courses' }, 'See everything in Courses', icon('right', 14))) : null),
-        h('div', { class: 'topo-div', 'aria-hidden': 'true' })),
-      h('aside', { class: 'dp-side-col', 'aria-label': 'Progress and recent activity' }, weeklyCard(wk), announcementsCard(), feedbackCard()));
+    return h('div', { class: 'sgo-page dash6' }, dashHead(wk, now, review),
+      h('div', { class: 'dp-main' }, agenda(t, wk, now)),
+      h('aside', { class: 'dp-side-col', 'aria-label': 'Courses and recent activity' }, courseList(courses, t, now, skip.size), announcementsCard(), feedbackCard()));
   };
 
   function pageHead(title, sub, actions) {
@@ -432,7 +403,7 @@
     });
   }
   function courseCard(c, opts = {}) {
-    const color = S.courseColor(c.id, c.name), name = S.cn(c.id, c.name), custom = !!S.cmeta(c.id, c.name).name;
+    const color = S.tint(c.id, c.name), name = S.cn(c.id, c.name), custom = !!S.cmeta(c.id, c.name).name;
     const items = tasksOnly().filter((i) => i.courseId === c.id);
     const od = items.filter(S.isOverdue).length, soon = items.filter((i) => !S.isDone(i) && i.due && i.due >= Date.now() && i.due < Date.now() + 7 * S.DAY).length;
     const editing = S.ui.renaming === c.id, canDrag = !opts.dash && !editing;
@@ -645,7 +616,7 @@
     if (ctx.q.f) u.f = ctx.q.f; if (ctx.q.course !== undefined) u.course = ctx.q.course;
     const now = Date.now();
     const filters = {
-      all: () => true, upcoming: (i) => !S.isDone(i) && i.due && i.due >= now, missing: (i) => !S.isDone(i) && i.fromOverdue,
+      all: () => true, upcoming: (i) => !S.isDone(i) && i.due && i.due >= now, missing: (i) => !S.isDone(i) && (i.fromOverdue || i.gbMissing),
       overdue: S.isOverdue, done: S.isDone,
     };
     const byCourse = (i) => !u.course || i.courseId === u.course;
@@ -936,7 +907,7 @@
   function officialGrades() {
     const g = S.state.grades;
     const courseBlock = (c, idx) => {
-      const key = c.gradebookId || c.courseName, color = S.courseColor(c.courseId, c.courseName);
+      const key = c.gradebookId || c.courseName, color = S.tint(c.courseId, c.courseName);
       const open = key in S.ui.openGrade ? S.ui.openGrade[key] : false; // every course starts collapsed
       // Schoology also lists an empty "(no grading period)" group; only show periods that actually contain graded entries.
       const shown = gradePeriods(c);
@@ -987,8 +958,8 @@
     const find = (aid, title) => list.find((r) => (aid && r.aid === aid) || (!(aid && r.aid) && norm(r.title) === norm(title))); // ids decide when both have one, else the title
     S.allItems().filter((i) => i.courseId === c.id && !i.manual && i.type !== 'event').forEach((i) => {
       const aid = aidOf(i), hit = find(aid, i.title);
-      if (hit) { hit.item = hit.item || i; hit.aid = hit.aid || aid; hit.missing = hit.missing || !!i.fromOverdue; if (hit.due == null) hit.due = i.due; return; }
-      list.push({ aid, title: i.title, due: i.due, dueText: '', timed: i.timed, item: i, missing: !!i.fromOverdue });
+      if (hit) { hit.item = hit.item || i; hit.aid = hit.aid || aid; hit.missing = hit.missing || !!(i.fromOverdue || i.gbMissing); if (hit.due == null) hit.due = i.due; return; }
+      list.push({ aid, title: i.title, due: i.due, dueText: '', timed: i.timed, item: i, missing: !!(i.fromOverdue || i.gbMissing) });
     });
     const g = S.gradeFor(c.id);
     if (g) (g.periods || []).forEach((p) => p.categories.forEach((cat) => cat.items.forEach((x) => {
@@ -1044,7 +1015,8 @@
     const type = it.kind === 'file' ? it.fmtLabel : KIND_LABEL[it.kind] || it.label || 'Item';
     const ic = it.kind === 'file' ? FMT_ICON[it.fmt] || 'file' : it.kind === 'assignment' ? 'notepad' : it.kind === 'assessment' ? 'rocket' : it.kind === 'link' ? 'link' : 'file';
     const sub = [type, it.size, it.dueText ? 'Due ' + dueShort(it.dueText) : ''].filter(Boolean).join(' · ');
-    const title = it.kind === 'assignment' && it.id ? h('a', { href: asgHref(c.id, it.id) }, it.title) : h('a', { href: absHref(it.href), target: '_blank', rel: 'noopener' }, it.title);
+    const rd = it.kind === 'file' && (it.dl || it.href) ? { href: it.dl || it.href, name: it.title } : null; // files open in the built-in reader, not Schoology's viewer
+    const title = it.kind === 'assignment' && it.id ? h('a', { href: asgHref(c.id, it.id) }, it.title) : rd ? h('a', { href: absHref(rd.href), onclick: S.docClick(rd) }, it.title) : h('a', { href: absHref(it.href), target: '_blank', rel: 'noopener' }, it.title);
     return h('li', null, h('div', { class: 'rs rs-' + it.kind },
       h('span', { class: 'rs-ic' + (isA ? ' asg' : '') }, icon(ic, 20)),
       h('span', { class: 'rs-main' }, h('b', null, title), h('small', null, sub), it.body && it.kind !== 'file' ? h('small', { class: 'rs-body' }, it.body) : null),
@@ -1052,6 +1024,7 @@
       h('span', { class: 'rs-acts' },
         it.kind === 'assignment' && it.id ? h('a', { class: 'sgo-act', href: asgHref(c.id, it.id), title: 'View details', 'aria-label': 'View details: ' + it.title }, icon('right', 15)) : null,
         it.dl ? h('a', { class: 'sgo-act', href: absHref(it.dl), target: '_blank', rel: 'noopener', title: 'Download', 'aria-label': 'Download ' + it.title }, icon('download', 15)) : null,
+        rd ? h('a', { class: 'sgo-act', href: absHref(rd.href), onclick: S.docClick(rd), title: 'Read here', 'aria-label': 'Read ' + it.title }, icon('file', 15)) : null,
         it.href ? h('a', { class: 'sgo-act', href: absHref(it.href), target: '_blank', rel: 'noopener', title: 'Open in Schoology', 'aria-label': 'Open ' + it.title + ' in Schoology' }, icon('external', 15)) : null)));
   }
 
@@ -1105,8 +1078,8 @@
     const title = (d && d.title) || (row && row.title) || 'Assignment', dueText = (d && d.dueText) || (row && row.dueText) || '';
     const back = h('a', { class: 'sgo-back', href: cHref(c.id, 'assignments') }, icon('left', 16), 'Assignments');
     return h('section', { class: 'crs-pane', 'aria-label': 'Assignment' }, back,
-      h('div', { class: 'sgo-detail', style: { '--c': S.courseColor(c.id, c.name) } },
-        h('div', { class: 'sgo-detail-top' }, h('span', { class: 'sgo-course-tag' }, dot(S.courseColor(c.id, c.name)), S.cn(c.id, c.name)), row ? h('span', { class: 'gr2-st st-' + (row.st === 'submitted' ? 'pending' : row.st) }, row.stLabel) : null),
+      h('div', { class: 'sgo-detail', style: { '--c': S.tint(c.id, c.name) } },
+        h('div', { class: 'sgo-detail-top' }, h('span', { class: 'sgo-course-tag' }, dot(S.tint(c.id, c.name)), S.cn(c.id, c.name)), row ? h('span', { class: 'gr2-st st-' + (row.st === 'submitted' ? 'pending' : row.st) }, row.stLabel) : null),
         h('h1', null, title),
         h('div', { class: 'sgo-facts' },
           h('div', { class: 'sgo-fact' }, h('span', null, 'Due'), h('b', null, dueText ? dueShort(dueText) || dueText : 'No due date')),
@@ -1117,7 +1090,7 @@
         h('h3', { class: 'sgo-sub' }, 'Instructions'),
         d ? (d.descHtml && d.descHtml.trim() ? h('div', { class: 'sgo-desc' }, S.sanitize(d.descHtml)) : h('p', { class: 'sgo-muted' }, 'This assignment has no written instructions.'))
           : st.error ? failure('this assignment', st.error, () => S.retryAssignment(aid), nativeHref) : h('div', { class: 'sgo-skel' }),
-        d && d.attachments.length ? [h('h3', { class: 'sgo-sub' }, 'Attachments'), h('ul', { class: 'rs-list' }, d.attachments.map((a) => h('li', null, h('a', { class: 'rs', href: absHref(a.href), target: '_blank', rel: 'noopener' }, h('span', { class: 'rs-ic' }, icon('file', 20)), h('span', { class: 'rs-main' }, h('b', null, a.name)), h('span', { class: 'rs-go' }, icon('download', 16))))))] : null,
+        d && d.attachments.length ? [h('h3', { class: 'sgo-sub' }, 'Attachments'), h('ul', { class: 'rs-list' }, d.attachments.map((a) => h('li', null, h('a', Object.assign({ class: 'rs', href: absHref(a.href) }, S.isDocLink(a.href) ? { onclick: S.docClick({ href: a.href, name: a.name }) } : { target: '_blank', rel: 'noopener' }), h('span', { class: 'rs-ic' }, icon('file', 20)), h('span', { class: 'rs-main' }, h('b', null, a.name)), h('span', { class: 'rs-go' }, icon('download', 16))))))] : null,
         h('div', { class: 'crs-mine' }, h('button', { class: 'sgo-btn ghost', type: 'button', 'aria-pressed': String(done), onclick: () => { S.prefs.done[itemKey] ? delete S.prefs.done[itemKey] : (S.prefs.done[itemKey] = Date.now()); S.savePrefs(); S.render(true); } }, icon('check', 16), done ? 'Ticked in my to-do' : 'Tick off in my to-do'),
           h('small', null, 'Only your own checklist. This does not submit anything to Schoology.'))));
   }
@@ -1217,7 +1190,7 @@
     paintCover(cover, c, name, coverFor(c, name), true);
     if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cover, c.id, c.name);
     const meta = [code && h('span', { class: 'crs-code' }, code), teacher && h('span', null, teacher), term && h('span', null, term)].filter(Boolean);
-    const header = h('div', { class: 'crs-head', style: { '--c': S.courseColor(c.id, c.name) } }, cover,
+    const header = h('div', { class: 'crs-head', style: { '--c': S.tint(c.id, c.name) } }, cover,
       h('div', { class: 'crs-actions' }, btn('Change banner', () => S.openBannerPicker(c), 'ghost', 'image'),
         S.menu('Course options', [['Rename and colour', () => S.openCourseEditor(c)], ['Notification icon…', () => S.openIconPicker(c)], [S.courseHidden(c) ? 'Show on dashboard' : 'Hide from dashboard', () => S.setCourseHidden(c, !S.courseHidden(c))], ['View as Schoology page', () => window.open(originalHref(`/course/${c.id}/materials`), '_blank', 'noopener')]])),
       h('div', { class: 'crs-title' },

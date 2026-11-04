@@ -22,7 +22,8 @@
       ],
       "css": [
         "src/styles.css",
-        "src/theme.css"
+        "src/theme.css",
+        "src/studio.css"
       ],
       "js": [
         "src/color.js",
@@ -45,6 +46,7 @@
         "src/quips.js",
         "src/data.js",
         "src/social.js",
+        "src/reader.js",
         "src/views.js",
         "src/views-social.js",
         "src/app.js"
