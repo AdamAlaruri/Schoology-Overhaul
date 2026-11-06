@@ -1,4 +1,4 @@
-<p align="center"><img src="icons/icon512.png" alt="Schoology Overhaul logo: a bold S on an amber-to-coral gradient" width="120"></p>
+<p align="center"><img src="icons/icon512.png" alt="Schoology Overhaul logo: a white S with a check mark on a blue tile" width="120"></p>
 
 <h1 align="center">Schoology Overhaul</h1>
 
@@ -120,7 +120,7 @@ Known limits: the calendar shows items Schoology exposes through its upcoming an
 
 ## The logo
 
-A bold dark S on a rounded amber-to-coral gradient tile, kept simple so it stays readable at every size, down to a 16px toolbar icon.
+A white S on a Schoology-style blue tile, with a check-mark badge for getting things done. At toolbar size (16px) the badge is dropped so the letter stays crisp.
 
 ## Credits
 
