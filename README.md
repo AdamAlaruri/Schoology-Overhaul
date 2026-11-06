@@ -1,4 +1,4 @@
-<p align="center"><img src="icons/icon512.png" alt="Schoology Overhaul logo: a coloured topographic map" width="120"></p>
+<p align="center"><img src="icons/icon512.png" alt="Schoology Overhaul logo: a bold S on a coloured topographic map" width="120"></p>
 
 <h1 align="center">Schoology Overhaul</h1>
 
@@ -120,7 +120,7 @@ Known limits: the calendar shows items Schoology exposes through its upcoming an
 
 ## The logo
 
-The icon is a topographic map: contour lines over elevation colours, from deep blue valleys to a coral peak. It uses the same idea as the maps on your course tiles, and it is not tied to any one accent colour.
+The icon is a bold S on a topographic map: contour lines over elevation colours, from deep blue valleys to a coral peak. It uses the same idea as the maps on your course tiles, and it is not tied to any one accent colour.
 
 ## Credits
 
