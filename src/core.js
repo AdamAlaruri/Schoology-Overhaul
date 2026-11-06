@@ -85,7 +85,6 @@
   const C = window.SGO_COLOR;
   S.normHex = C.normHex; S.onAccent = C.onAccent;
   S.ACCENTS = [['Blue', '#3b82f6'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
-  S.ACCENT_GROUPS = [['Blue', ['Blue', 'Sky', 'Cyan', 'Indigo']], ['Green', ['Teal', 'Emerald', 'Green', 'Lime']], ['Warm', ['Yellow', 'Amber', 'Orange', 'Red']], ['Purple & pink', ['Rose', 'Pink', 'Fuchsia', 'Purple', 'Violet']], ['Neutral', ['Slate']]];
   /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
     { id: 'brown', name: 'Brown', note: 'Warm brown, visible contours', accent: '#f0b46c', contour: '#d9b98a', contourGlow: '#c8843f', background: '#12100e' },
@@ -281,7 +280,6 @@
 
   /* Bands from the spec: 5:00-11:59 morning, 12:00-16:59 afternoon, 17:00-4:59 evening. */
   S.greeting = (now = new Date()) => { const hr = now.getHours(); return hr >= 5 && hr < 12 ? 'Good morning' : hr >= 12 && hr < 17 ? 'Good afternoon' : 'Good evening'; };
-  S.greetingSub = (now = new Date()) => { const hr = now.getHours(); return hr >= 5 && hr < 12 ? "Here's what's happening with your classes today." : hr >= 12 && hr < 17 ? "Let's see what's coming up." : 'Your academic overview.'; };
 
   /* ---------- colour ---------- */
   /* Fourteen distinct, evenly weighted colours for tagging courses. They read on every theme; new courses are given one by a stable hash of their id. */
@@ -317,7 +315,6 @@
     const u = S.prefs.nameRules || {};
     return { expand: Object.assign({}, DEFAULT_EXPAND, u.expand || {}), keep: new Set(DEFAULT_KEEP.concat(u.keep || []).map((x) => x.toUpperCase())) };
   };
-  S.setNameRules = (rules) => { S.prefs.nameRules = rules; cleanCache.clear(); S.savePrefs(); if (S.render) S.render(true); };
   const cleanCache = new Map();
   S.cleanName = (raw) => {
     if (!raw) return '';
@@ -399,30 +396,6 @@
     const pos = new Map(S.prefs.courseOrder.map((id, i) => [id, i]));
     return all.map((c, i) => [c, pos.has(c.id) ? pos.get(c.id) : 1e6 + i]).sort((a, b) => a[1] - b[1]).map((x) => x[0]);
   };
-  /** Move a course one place earlier (-1) or later (1) among the ones `visible` accepts. The keyboard alternative to dragging. */
-  S.moveCourse = (id, delta, visible) => {
-    const all = S.orderedCourses().map((c) => c.id), vis = visible ? all.filter(visible) : all, i = vis.indexOf(id), j = i + delta;
-    if (i < 0 || j < 0 || j >= vis.length) return false;
-    const a = all.indexOf(id), b = all.indexOf(vis[j]); [all[a], all[b]] = [all[b], all[a]];
-    S.prefs.courseOrder = all; S.savePrefs(); return true;
-  };
-  /** Downscale an uploaded image locally so it stays small in chrome.storage. */
-  S.imageToDataUrl = (file) => new Promise((res, rej) => {
-    const fr = new FileReader();
-    fr.onerror = rej;
-    fr.onload = () => {
-      const img = new Image();
-      img.onerror = rej;
-      img.onload = () => {
-        const w = Math.min(720, img.width), hgt = Math.round(img.height * (w / img.width));
-        const c = document.createElement('canvas'); c.width = w; c.height = hgt;
-        c.getContext('2d').drawImage(img, 0, 0, w, hgt);
-        res(c.toDataURL('image/jpeg', 0.82));
-      };
-      img.src = fr.result;
-    };
-    fr.readAsDataURL(file);
-  });
 
   /* ---------- HTML sanitiser for assignment descriptions ---------- */
   S.sanitize = (html) => {
@@ -441,6 +414,5 @@
     return frag;
   };
 
-  S.esc = (s) => String(s == null ? '' : s);
   S.debounce = (fn, ms) => { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; };
 })();

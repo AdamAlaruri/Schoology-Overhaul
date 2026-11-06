@@ -31,7 +31,6 @@
     const back = current.opener; current = null;
     if (back && back.isConnected) back.focus();
   };
-  S.closeDoc = close;
 
   S.openDoc = async (opts) => {
     close();

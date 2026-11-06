@@ -278,8 +278,6 @@
     return input;
   }
 
-  /* ---- courses ---- */
-  const visibleCourse = (id) => { const c = S.state.courses.find((x) => x.id === id); return !!c && !hiddenCourse(c); };
 
   /* Which announcements the student has already opened. The first time the list loads, everything present counts as seen, so only later arrivals show as new. */
   const annKey = (a) => (a.courseId || '') + ':' + a.id;
@@ -854,7 +852,6 @@
 
   /* ===================== GRADES ===================== */
   const gPct = (p) => (p == null ? '—' : (Math.round(p * 100) / 100) + '%');
-  const gItemPct = (it) => (it.earned != null && it.possible ? Math.round((it.earned / it.possible) * 1000) / 10 : null);
   const gNum = (n) => (n == null ? '—' : String(Math.round(n * 100) / 100));
   const gWhen = (txt) => { const p = txt && S.parseDue(txt); return p ? `${mon3(p.ts)} ${new Date(p.ts).getDate()}` + (p.timed ? ' · ' + S.fmtTime(p.ts) : '') : txt || '—'; };
   /** Grading periods that actually hold graded entries (Schoology also lists an empty "(no grading period)" group). */
@@ -1444,12 +1441,6 @@
   };
   /* The preview draws the real map: the same generator, seed, density and weight as the page, in the colours being edited, with the page's ambient
    * glow and the hero's own glow. It is a little brighter than the page (which shows it very softly) so the lines read at thumbnail size. */
-  const mapMarkup = new Map();
-  function mapPaths() {
-    const P = S.prefs, d = P.topoDensity || 'standard', seed = Number(P.topoSeed) || 20260, key = d + ':' + seed;
-    if (!mapMarkup.has(key)) { if (mapMarkup.size > 6) mapMarkup.clear(); const T = window.SGO_TOPO.build(1600, 900, seed, d); mapMarkup.set(key, T.paths.map((x) => `<path d="${x.d}"${x.major ? ' class="mj"' : ` stroke-opacity="${x.o}"`}/>`).join('')); }
-    return mapMarkup.get(key);
-  }
   /** The preferences as they are right now. The app replaces S.prefs when storage changes (another tab, or an earlier save arriving late),
    *  so anything that holds a copy goes stale; the Appearance panel reads through this instead. */
   const livePrefs = new Proxy({}, { get: (_, k) => S.prefs[k], set: (_, k, v) => { S.prefs[k] = v; return true; } });
@@ -1491,17 +1482,6 @@
   }
   const currentLook = () => ({ id: 'cur', name: 'Custom', contour: S.prefs.contour, contourGlow: S.prefs.contourGlow, background: S.prefs.background });
 
-  /** One colour: a picker and a hex box that stay in step; invalid codes are flagged and snap back. (No longer used by the panel.) */
-  function colourControl(label, key, hint, after) {
-    const P = livePrefs;
-    const text = h('input', { class: 'sgo-input hex', value: P[key], maxlength: '7', spellcheck: 'false', autocomplete: 'off', 'aria-label': label + ' as a hex code', 'aria-invalid': 'false' });
-    const pick = h('input', { class: 'sgo-swatch-in', type: 'color', value: P[key], 'aria-label': label });
-    const write = (hex) => { text.value = hex; pick.value = hex; text.setAttribute('aria-invalid', 'false'); };
-    pick.addEventListener('input', () => { if (S.setAppearance({ [key]: pick.value })) { write(P[key]); if (after) after(); } });
-    text.addEventListener('input', () => { const hex = S.normHex(text.value); text.setAttribute('aria-invalid', hex || text.value === '' ? 'false' : 'true'); if (hex && S.setAppearance({ [key]: hex })) { pick.value = P[key]; if (after) after(); } });
-    text.addEventListener('change', () => write(P[key])); // an unfinished or invalid code snaps back to the colour in use
-    return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
-  }
   function mapControls(redraw) {
     const P = livePrefs, segBtn = (opts, cur, on) => opts.map(([v, l]) => h('button', { type: 'button', class: cur === v ? 'on' : '', 'aria-pressed': String(cur === v), onclick: () => on(v) }, l));
     const seg = (label, hint, opts, cur, on) => h('div', { class: 'ap-row', title: hint }, h('div', { class: 'ap-l' }, h('b', null, label)), h('div', { class: 'sgo-seg', role: 'group', 'aria-label': label }, segBtn(opts, cur, on)));

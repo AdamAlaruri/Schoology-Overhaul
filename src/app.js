@@ -9,8 +9,6 @@
   const html = document.documentElement;
   let root, side, main, content, top;
 
-  S.TOP_LINKS = [['portal', 'Portal']];
-  const linkTo = (k) => (S.prefs.topLinks || {})[k] || '/home#/settings'; // unset school links open Settings, where they can be added
   const RAIL = () => [
     ['dashboard', 'Dashboard', 'home', '/home'],
     ['courses', 'Courses', 'book', '/courses'],

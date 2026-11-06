@@ -439,7 +439,6 @@
 
   /** Signature of everything the UI renders. Comparing it avoids re-rendering when a scan finds identical data. */
   const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.avatar, state.unread, (S.prefs.gradeNotifs || []).length]);
-  S.stateSig = sig;
   /** Adopt cache written by another tab. Returns true only if the data actually differs. */
   S.adoptCache = (c) => {
     if (c.v !== CACHE_VERSION) return false;
@@ -634,7 +633,6 @@
     return Object.values(state.items).filter((i) => i.type !== 'event' && !S.prefs.reviewed[i.key] && (!i.due || i.due >= cut))
       .sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15));
   };
-  S.courseOf = (it) => state.courses.find((c) => c.id === it.courseId) || null;
   /** The indicator colour for an assignment: one unified colour (the accent) unless the student turns on colour-coding by course. */
   /** The colour a course shows on cards, banners, rows and bars: one calm accent for every course unless the student turns on colour-coding. */
   S.tint = (courseId, name) => (S.prefs.tagColours ? S.courseColor(courseId, name) : (/^#[0-9a-f]{6}$/i.test(S.prefs.accent || '') ? S.prefs.accent : '#8aa8ff'));

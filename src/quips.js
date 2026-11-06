@@ -126,7 +126,6 @@
   /** One message for this time of day. It is chosen once per time the extension opens and stays put while the student
    *  clicks around; the last one shown is remembered so it is not repeated back to back. */
   let current = null, last = null;
-  S.quipReady = S.store.get('sgo_quip_last').then((v) => { last = v || null; });
   S.quip = (now = new Date()) => {
     const band = S.quipBand(now);
     if (current && current.band === band) return current.text;

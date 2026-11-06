@@ -105,8 +105,6 @@ html.sgo-app .sgo-page > .sgo-head, html.sgo-app .cl-top, html.sgo-app .asg6 > .
 /* page-level action buttons, fields, chips: one height everywhere */
 html.sgo-app .sgo-page:not(.dash6) .sgo-head-a .sgo-btn, html.sgo-app .cl-top .sgo-btn { height: 44px; min-height: 44px; padding: 0 20px; border-radius: 10px; font-size: 15px; font-weight: 700; }
 /* Grades: same surfaces as the other pages */
-html.sgo-app .gr2-list { border-radius: 18px; padding: 10px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
-html.sgo-app .gr2-course { border-radius: 12px; }
 html.sgo-app .gr-bar, html.sgo-app .sgo-page .sgo-note { font-size: 14px; color: var(--t3); }
 html.sgo-app .sgo-empty { border-radius: 18px; background: var(--s1); }
 /* Course page: the same banner as the Courses tiles (course-colour wash and its own topographic map), thick tabs, no stat strip */
@@ -169,10 +167,7 @@ html.sgo-app .gx-bar i { display: block; height: 100%; width: var(--p, 0%); bord
 html.sgo-app .gx-detail { min-width: 0; }
 html.sgo-app .gx-detail.swap { animation: dash-rise .3s var(--ease-out) both; }
 html.sgo-app .gx-body { display: flex; flex-direction: column; gap: 0; }
-html.sgo-app .gx-big { display: grid; grid-template-columns: auto auto; align-items: baseline; justify-content: start; column-gap: 12px; }
 html.sgo-app .gx-lbl { grid-column: 1 / -1; margin-bottom: 4px; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--t3); }
-html.sgo-app .gx-big b { font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--t1); }
-html.sgo-app .gx-big em { padding: 4px 12px; border-radius: 10px; font-style: normal; font-size: 18px; font-weight: 800; color: var(--t1); background: color-mix(in srgb, var(--text) 10%, transparent); }
 html.sgo-app .gx-wi b { color: var(--accent); }
 html.sgo-app .gx-wi small { align-self: center; padding: 4px 10px; border-radius: 10px; font-size: 14px; font-weight: 800; }
 html.sgo-app .gx-wi small.up { color: var(--u-done, #4ade80); background: color-mix(in srgb, var(--u-done, #4ade80) 16%, transparent); }
@@ -180,13 +175,9 @@ html.sgo-app .gx-wi small.down { color: var(--bad, #f87171); background: color-m
 html.sgo-app .gx-note { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--t2); }
 html.sgo-app .gx-note svg { flex: none; margin-top: 2px; }
 
-html.sgo-app .gx-sec { margin-top: 32px; }
-html.sgo-app .gx-sec-h { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 32px; margin: 0 0 12px; }
-html.sgo-app .gx-sec-h h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--t1); }
 html.sgo-app .gx-total { padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; }
 html.sgo-app .gx-total.ok { color: var(--u-done, #4ade80); background: color-mix(in srgb, var(--u-done, #4ade80) 14%, transparent); }
 html.sgo-app .gx-total.warn { color: var(--u-today, #fbbf24); background: color-mix(in srgb, var(--u-today, #fbbf24) 14%, transparent); }
-html.sgo-app .gx-wt { font-size: 13px; color: var(--t2); }
 html.sgo-app .gx-in { display: inline-flex; align-items: center; gap: 6px; }
 html.sgo-app .gx-in i { font-style: normal; font-size: 14px; font-weight: 700; color: var(--t2); }
 html.sgo-app .gx .gx-in .sgo-input, html.sgo-app .gx .gx-r-s .sgo-input, html.sgo-app .gx .ov-num { box-sizing: border-box; width: 76px; min-width: 0; height: 40px; min-height: 40px; padding: 0 10px; text-align: right; font-variant-numeric: tabular-nums; }
@@ -194,8 +185,6 @@ html.sgo-app .gx .gx-cname { width: 100%; text-align: left; height: 36px; min-he
 html.sgo-app .gx-x { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; color: var(--t2); cursor: pointer; transition: background .15s, color .15s; }
 html.sgo-app .gx-x:hover { color: var(--bad, #f87171); background: color-mix(in srgb, var(--bad, #f87171) 14%, transparent); }
 html.sgo-app .gx-x svg { stroke-width: 2.4; }
-html.sgo-app .gx-addcat { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
-html.sgo-app .gx-addcat .sgo-input:first-child { flex: 1 1 220px; }
 
 html.sgo-app .gx-add { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); cursor: pointer; }
 html.sgo-app .gx-add:hover { background: var(--accent); color: var(--on-accent); }
@@ -229,7 +218,6 @@ html.sgo-app .gx-mode button { display: inline-flex; align-items: center; gap: 6
   html.sgo-app .gx-r { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
   html.sgo-app .gx-r-p { grid-column: 1; text-align: left; }
   html.sgo-app .gx-r .gr2-st, html.sgo-app .gx-r .gx-x { grid-column: 2; grid-row: 2; }
-  html.sgo-app .gx-big b { font-size: 44px; }
 }
 @media (prefers-reduced-motion: reduce) { html.sgo-app .gx-detail.swap, html.sgo-app .gx-bar i { animation: none; } }
 
@@ -242,8 +230,6 @@ html.sgo-app .gx-sum { position: sticky; top: 0; z-index: 6; display: flex; flex
 html.sgo-app .gx-sum-n { flex: 1 1 220px; min-width: 0; }
 html.sgo-app .gx-sum-n h2 { margin: 0; font-size: 26px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html.sgo-app .gx-sum-n p { margin: 6px 0 0; font-size: 14px; color: var(--t2); }
-html.sgo-app .gx-sum .gx-big b { font-size: 40px; }
-html.sgo-app .gx-sum .gx-big em { padding: 3px 10px; font-size: 15px; }
 html.sgo-app .gx-sum .gx-lbl { margin-bottom: 2px; }
 html.sgo-app .gx-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
 html.sgo-app .gx-chip { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--s1); color: var(--t2); font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s var(--ease-out), color .15s; }
@@ -266,9 +252,6 @@ html.sgo-app .gx-w-n { flex: 1; min-width: 0; font-size: 14px; font-weight: 600;
 html.sgo-app .gx-w-n em { margin-left: 8px; padding: 2px 8px; border-radius: 6px; font-style: normal; font-size: 13px; font-weight: 800; color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
 html.sgo-app .gx-w .gx-cname { flex: 1; }
 html.sgo-app .gx-xs { width: 36px; flex: none; }
-html.sgo-app .gx-sec { margin-top: 8px; }
-html.sgo-app .gx-sec-h b { font-size: 14px; font-weight: 400; color: var(--t3); }
-html.sgo-app .gx-sec-h .gx-add { margin-left: auto; }
 html.sgo-app .gx-r { min-height: 52px; padding: 6px 12px; }
 html.sgo-app .gx .gx-tname { width: 100%; height: 36px; min-height: 36px; }
 html.sgo-app .gx .gx-catsel { width: auto; max-width: 100%; height: 32px; min-height: 32px; margin-top: 4px; padding: 0 28px 0 10px; font-size: 14px; }
@@ -297,8 +280,6 @@ html.sgo-app .gx .gx-r.mine .gx-tname { flex: 1 1 auto; min-width: 0; width: aut
 html.sgo-app .gx .gx-r.mine .gx-catsel { flex: 0 0 auto; margin-top: 0; max-width: 40%; }
 
 
-html.sgo-app .gx-sec-h .gx-q { width: 200px !important; margin-left: auto; height: 36px !important; min-height: 36px !important; }
-html.sgo-app .gx-sec-h .gx-q + .gx-add { margin-left: 0; }
 
 
 /* ---- Grades, third pass: one banner, softer surfaces, month accordions, compact course list ---- */
@@ -323,14 +304,6 @@ html.sgo-app .gx-tools .gx-q { width: 180px !important; margin: 0; height: 40px 
 html.sgo-app .gx-tools .gx-add { margin: 0; height: 40px; }
 html.sgo-app .gx-share { font-size: 13px; color: var(--t3); font-variant-numeric: tabular-nums; }
 html.sgo-app .gx-groups { display: flex; flex-direction: column; gap: 10px; }
-html.sgo-app .gx-grp { border-radius: 14px; background: var(--s1); }
-html.sgo-app .gx-grp > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px; list-style: none; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--t1); }
-html.sgo-app .gx-grp > summary::-webkit-details-marker { display: none; }
-html.sgo-app .gx-grp > summary span { flex: 1; }
-html.sgo-app .gx-grp > summary b { font-size: 14px; font-weight: 400; color: var(--t3); }
-html.sgo-app .gx-grp > summary svg { color: var(--t2); transition: transform .2s var(--ease-out); }
-html.sgo-app .gx-grp[open] > summary svg { transform: rotate(180deg); }
-html.sgo-app .gx-grp .gx-rows { margin: 0; padding: 0 6px 8px; border: 0; background: none; border-radius: 0; }
 html.sgo-app .gx-blank { margin-top: 6px; border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
 html.sgo-app .gx-blank > summary { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; list-style: none; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--t2); }
 html.sgo-app .gx-blank > summary::-webkit-details-marker { display: none; }

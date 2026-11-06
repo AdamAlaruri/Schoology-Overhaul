@@ -1,8 +1,10 @@
-<p align="center"><img src="icons/icon512.png" alt="Schoology Overhaul icon" width="96"></p>
+<p align="center"><img src="icons/icon512.png" alt="Schoology Overhaul logo: a coloured topographic map" width="120"></p>
 
 <h1 align="center">Schoology Overhaul</h1>
 
-A Chrome extension that gives Schoology a calmer, faster, better-looking interface: a dashboard that says what is due, course pages, an assignment list, a gradebook with a hypothetical mode, a calendar, messages and search.
+<p align="center">A calmer, faster, better-looking Schoology. Runs entirely in your browser.</p>
+
+A Chrome extension that redesigns Schoology: a dashboard that says what is due, course pages, an assignment list, a gradebook with a hypothetical mode, a calendar, messages and search.
 
 It only changes how Schoology **looks** in your browser. It reads pages you can already see, using your own session. Nothing is sent to any server, and it can be switched back to the classic view in one click.
 
@@ -91,8 +93,10 @@ for f in tests/*-cases.js; do node "$f"; done
 
 ```
 manifest.json
+icons/                               extension icons (16, 48, 128) and the 512px logo
+docs/screenshots/                    images used in this README
 src/
-  color.js, topo.js, early.js        first-paint: contrast helpers, contour-map generator, theme and accessibility classes
+  color.js, topo.js, early.js        first paint: contrast helpers, contour-map generator, theme and accessibility classes
   core.js                            namespace, preferences store, DOM helper h(), icons, dates, grade maths
   data.js                            every Schoology selector (SEL), parsers, same-origin fetches, cache
   social.js, views-social.js         messages and groups
@@ -113,6 +117,10 @@ Schoology's markup differs a little between schools and versions, and the parser
 3. Reload the extension at `chrome://extensions`.
 
 Known limits: the calendar shows items Schoology exposes through its upcoming and overdue lists and ones cached from earlier visits, and assignment-level grades appear only if Schoology's grades page includes them. Use **Classic view** for anything the new design cannot show.
+
+## The logo
+
+The icon is a topographic map: contour lines over elevation colours, from deep blue valleys to a coral peak. It uses the same idea as the maps on your course tiles, and it is not tied to any one accent colour.
 
 ## Credits
 

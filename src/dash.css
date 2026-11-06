@@ -39,9 +39,6 @@ html.sgo-app .dh-sync.bad { color: var(--bad); }
 html.sgo-app .dash6 .dh-wk { flex: none; width: 320px; max-width: 40%; margin: 0; padding: 0; background: none; border: 0; display: flex; flex-direction: column; gap: 8px; }
 html.sgo-app .wk-n { margin: 0; text-align: right; font-size: 14px; color: var(--t2); }
 html.sgo-app .wk-n b { font-size: 15px; font-weight: 600; color: var(--t1); }
-html.sgo-app .wk-seg { display: flex; gap: 3px; height: 8px; }
-html.sgo-app .wk-seg i { flex: 1; min-width: 0; border-radius: 2px; background: color-mix(in srgb, var(--text) 16%, var(--app-background)); transition: background .3s var(--ease-out); transition-delay: calc(var(--k, 0) * 12ms); }
-html.sgo-app .wk-seg i.on { background: var(--accent); }
 @media (max-width: 720px) { html.sgo-app .dash6 > .dh { flex-direction: column; align-items: stretch; gap: 16px; } html.sgo-app .dash6 .dh-wk { width: auto; max-width: none; } }
 
 /* ---------- section headings ---------- */
@@ -50,7 +47,6 @@ html.sgo-app .dash6 .ag-gh, html.sgo-app .dash6 .side-h h3 { margin: 0; display:
 html.sgo-app .dash6 .ag-gh b { font-size: 14px; font-weight: 400; color: var(--t3); }
 html.sgo-app .dash6 .g-overdue .ag-gh, html.sgo-app .dash6 .g-overdue .ag-gh b { color: var(--bad); }
 html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 12px; min-height: 32px; }
-html.sgo-app .dash6 .ag-hrow .ag-gh { margin: 0; }
 html.sgo-app .dash6 .link { font-size: 14px; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 4px 0; text-decoration: none; cursor: pointer; }
 html.sgo-app .dash6 .link:hover { text-decoration: underline; text-underline-offset: 3px; }
 
@@ -131,18 +127,13 @@ html.sgo-app .dash6 .cl-r { position: relative; display: flex; align-items: cent
 html.sgo-app .dash6 .cl-r:hover, html.sgo-app .dash6 .cl-r:focus-within { background: color-mix(in srgb, var(--text) 6%, transparent); }
 html.sgo-app .dash6 .cl-a { flex: 1; min-width: 0; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 10px 12px; border: 0; border-radius: 10px; background: none; text-decoration: none; color: inherit; }
 html.sgo-app .dash6 .cl-a:hover { background: none; }
-html.sgo-app .dash6 .cl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); align-self: start; margin-top: 7px; }
 html.sgo-app .dash6 .cl-m { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 html.sgo-app .dash6 .cl-m b { font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html.sgo-app .dash6 .cl-m small { min-height: 0; font-size: 14px; line-height: 1.3; font-weight: 400; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html.sgo-app .dash6 .cl-r.late .cl-m small { color: var(--bad); }
 html.sgo-app .dash6 .cl-r.idle .cl-m small { color: var(--t3); }
-html.sgo-app .dash6 .cl-r2 { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
 html.sgo-app .dash6 .cl-g { font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--t1); }
 html.sgo-app .dash6 .cl-g.up { color: var(--t1); }
-html.sgo-app .dash6 .cl-w { font-size: 14px; color: var(--t3); }
-html.sgo-app .dash6 .cl-n, html.sgo-app .dash6 .cl-menu { opacity: 0; transition: opacity .15s var(--ease-out); }
-html.sgo-app .dash6 .cl-r:hover .cl-n, html.sgo-app .dash6 .cl-r:focus-within .cl-n, html.sgo-app .dash6 .cl-r:hover .cl-menu, html.sgo-app .dash6 .cl-r:focus-within .cl-menu { opacity: 1; }
 html.sgo-app .dash6 .dc-hidden-note { margin: 12px 0 0; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--t3); }
 html.sgo-app .dash6 .dc-hidden-note .dc-hn-t { font-size: 14px; color: var(--t3); }
 
@@ -165,7 +156,6 @@ html.sgo-app .dash6 .dc-hidden-note .dc-hn-t { font-size: 14px; color: var(--t3)
 
 /* the week strip fills its column */
 html.sgo-app .dash6 .dh-wk { align-items: stretch; }
-html.sgo-app .wk-seg { align-self: stretch; width: 100%; }
 html.sgo-app .dash6 > .dh { height: auto !important; max-height: none; }
 html.sgo-app .dash6 .dh-t { display: block; }
 @media (max-width: 720px) { html.sgo-app .dh-t { font-size: 24px; } html.sgo-app .dash6 .dh-wk { align-self: stretch; } }
@@ -195,8 +185,6 @@ html.sgo-app .dash6 .dh-t { font-size: 44px; line-height: 1.06; font-weight: 600
 html.sgo-app .dash6 .dh-sync { margin: 0; }
 html.sgo-app .dash6 .dh-wk { width: 300px; gap: 12px; align-self: flex-end; }
 html.sgo-app .dash6 .wk-n { color: var(--t1); font-size: 14px; }
-html.sgo-app .wk-seg { height: 10px; gap: 3px; }
-html.sgo-app .wk-seg i { background: color-mix(in srgb, var(--text) 22%, var(--s1)); }
 @media (max-width: 1000px) { html.sgo-app .sgo-page.dash6 { padding: 24px 20px 56px; } html.sgo-app .dash6 > .dh { padding: 24px; min-height: 0; flex-direction: column; align-items: stretch; } html.sgo-app .dash6 .dh-t { font-size: 32px; } html.sgo-app .dash6 .dh-wk { width: auto; max-width: none; } }
 
 /* needs attention reads as heavier than the rest */
@@ -332,7 +320,6 @@ html.sgo-app .dash6 .dh-sub { gap: 8px 24px; margin-top: 4px; }
    ===================================================================== */
 html.sgo-app .dash6 > .dh { padding: 48px 56px; min-height: 0; }
 html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { min-height: 32px; margin: 0 0 16px; align-items: center; }
-html.sgo-app .dash6 .ag-hrow .ag-gh { margin: 0; min-height: 0; }
 html.sgo-app .dash6 .dp-fused > .side-card .side-h { margin-bottom: 16px; }
 
 /* =====================================================================
@@ -369,7 +356,6 @@ html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0; background-siz
 
 /* weekly progress: its own small panel, so it reads cleanly over the contours */
 html.sgo-app .dash6 .dh-wk { width: 300px; padding: 18px 20px; border-radius: 14px; gap: 12px; background: color-mix(in srgb, var(--app-background) 70%, var(--s1)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
-html.sgo-app .wk-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
 html.sgo-app .dash6 .wk-n { margin: 0; font-size: 14px; color: var(--t2); }
 html.sgo-app .dash6 .wk-n b { font-size: 18px; font-weight: 600; color: var(--t1); margin-right: 6px; }
 html.sgo-app .wk-pct { font-size: 14px; font-weight: 600; color: var(--accent); }
@@ -410,18 +396,8 @@ html.sgo-app .dash6 > .dh { align-items: center; }
 /* courses: name and next assignment on the left, when it is due and how much is coming on the right */
 html.sgo-app .dash6 .cl-g { display: none; }
 html.sgo-app .dash6 .cl-a { grid-template-columns: 8px minmax(0, 1fr) auto; padding: 12px 16px; column-gap: 12px; }
-html.sgo-app .dash6 .cl-r2 { align-items: flex-end; gap: 2px; min-width: 96px; }
-html.sgo-app .dash6 .cl-d { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--t2); }
-html.sgo-app .dash6 .cl-d.t-over { color: var(--u-overdue); }
-html.sgo-app .dash6 .cl-d.t-today { color: var(--u-today); }
-html.sgo-app .dash6 .cl-d.t-soon { color: var(--u-soon); }
-html.sgo-app .dash6 .cl-d.t-later { color: var(--t1); }
-html.sgo-app .dash6 .cl-w { font-size: 14px; line-height: 1.3; color: var(--t3); transition: opacity .15s var(--ease-out); }
 html.sgo-app .dash6 .cl-r.late .cl-m small { color: var(--t2); }
 /* the options buttons overlay the second line on hover, so the right edge keeps the same 16px as every other row */
-html.sgo-app .dash6 .cl-n, html.sgo-app .dash6 .cl-menu { position: absolute; right: 12px; bottom: 8px; margin: 0; }
-html.sgo-app .dash6 .cl-n { right: 44px; }
-html.sgo-app .dash6 .cl-r:hover .cl-w, html.sgo-app .dash6 .cl-r:focus-within .cl-w { opacity: 0; }
 
 html.sgo-app .dash6 > .dh { padding: 40px 56px; }
 html.sgo-app .dash6 .dh-l { gap: 14px; }
@@ -436,11 +412,6 @@ html.sgo-app .dash6 .cl-m { gap: 2px; }
 html.sgo-app .dash6 .cl-c { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 1.3; font-weight: 400; color: var(--t2); }
 html.sgo-app .dash6 .cl-c i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
 html.sgo-app .dash6 .cl-m b { font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html.sgo-app .dash6 .cl-r2 { min-width: 0; flex: none; align-items: flex-end; gap: 2px; }
-html.sgo-app .dash6 .cl-d { font-size: 14px; font-weight: 600; }
-html.sgo-app .dash6 .cl-w { font-size: 14px; color: var(--t3); }
-html.sgo-app .dash6 .cl-r:hover .cl-w, html.sgo-app .dash6 .cl-r:focus-within .cl-w { opacity: 0; }
-html.sgo-app .dash6 .cl-n, html.sgo-app .dash6 .cl-menu { position: absolute; right: 12px; bottom: 8px; margin: 0; }
 html.sgo-app .dash6 .cl-dot, html.sgo-app .dash6 .cl-m small { display: none; }
 /* courses with nothing due: said once */
 html.sgo-app .dash6 .cl-idle { margin-top: 16px; padding: 0 4px; }
@@ -477,7 +448,6 @@ html.sgo-app .dash6 .cl-t svg { width: 14px; height: 14px; stroke-width: 2.2; }
 html.sgo-app .dash6 .d-up .cl-t { color: var(--u-done); font-weight: 600; }
 html.sgo-app .dash6 .d-down .cl-t { color: var(--u-overdue); font-weight: 600; }
 html.sgo-app .dash6 .d-flat .cl-t { color: var(--t2); }
-html.sgo-app .dash6 .cl-menu { position: absolute; right: 8px; top: 8px; bottom: auto; }
 html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { opacity: 0; }
 html.sgo-app .dash6 .cl-g { transition: opacity .15s var(--ease-out); }
 
@@ -692,8 +662,6 @@ html.sgo-app .dash6 .d-up .cl-t { background: color-mix(in srgb, var(--u-done) 1
 html.sgo-app .dash6 .d-down .cl-t { background: color-mix(in srgb, var(--u-overdue) 17%, transparent); color: var(--u-overdue); }
 html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { opacity: 1; transform: translateX(-40px); }
 html.sgo-app .dash6 .cl-g { transition: transform .22s var(--ease-out); }
-html.sgo-app .dash6 .cl-menu { top: 50%; right: 10px; bottom: auto; transform: translateY(-50%); opacity: 0; transition: opacity .18s var(--ease-out); }
-html.sgo-app .dash6 .cl-r:hover .cl-menu, html.sgo-app .dash6 .cl-r:focus-within .cl-menu { opacity: 1; }
 html.sgo-app .dash6 .cl-r:hover { transform: none; }
 @media (hover: none) { html.sgo-app .dash6 .cl-r .cl-g { transform: none; } html.sgo-app .dash6 .cl-menu { display: none; } }
 
@@ -903,8 +871,6 @@ html.sgo-app .sgo-item-meta { display: block; }
 html.sgo-app .sgo-item-meta .sgo-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
 
 @media (max-width: 720px) {
-  html.sgo-app .gr2-id b, html.sgo-app .gr2-id small, html.sgo-app .gr2-id span { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
-  html.sgo-app .gr2-h { align-items: start; }
 }
 
 /* =====================================================================
@@ -925,8 +891,6 @@ html.sgo-app .dash6 .cl-c { font-size: 20px; line-height: 1.25; font-weight: 600
 html.sgo-app .dash6 .cl-m { padding-right: 40px; }
 html.sgo-app .dash6 .cl-g { min-width: 6.2ch; text-align: right; font-size: 28px; transition: none; font-variant-numeric: tabular-nums; }
 html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { transform: none; opacity: 1; }
-html.sgo-app .dash6 .cl-menu { top: 14px; bottom: auto; right: 132px; transform: none; opacity: 0; transition: opacity .2s var(--ease-out); }
-html.sgo-app .dash6 .cl-r:hover .cl-menu, html.sgo-app .dash6 .cl-r:focus-within .cl-menu { opacity: 1; }
 html.sgo-app .dash6 .cl-r { transition: background-color .25s var(--ease-out); }
 html.sgo-app .dash6 .cl-bar { transition: height .25s var(--ease-out); }
 html.sgo-app .dash6 .cl-r:hover .cl-bar { height: 7px; }
@@ -937,7 +901,6 @@ html.sgo-app .dash6 .cl-c i { display: none !important; }
 /* =====================================================================
    v24: lighter grade rows with even spacing, no options dots; hovering a course lights its row in the course colour and sends a sheen along its bar
    ===================================================================== */
-html.sgo-app .dash6 .cl-menu, html.sgo-app .dash6 .cl-n { display: none !important; }
 html.sgo-app .dash6 .cl-list { padding: 8px; gap: 4px; }
 html.sgo-app .dash6 .cl-r { position: relative; display: block; overflow: hidden; isolation: isolate; border-radius: 12px; transform: none; }
 html.sgo-app .dash6 .cl-a { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "m g" "b b"; align-items: center; column-gap: 16px; row-gap: 14px; padding: 16px; }
@@ -1110,7 +1073,6 @@ html.sgo-app .sgo-more > summary::-webkit-details-marker { display: none; }
 html.sgo-app .sgo-more > summary:hover { color: var(--t1); }
 html.sgo-app .sgo-more > summary svg { width: 16px; height: 16px; stroke-width: 2.6; transition: transform .2s var(--ease-out); }
 html.sgo-app .sgo-more[open] > summary svg { transform: rotate(180deg); }
-html.sgo-app .sgo-more-b { display: flex; flex-direction: column; gap: 20px; padding-top: 8px; }
 html.sgo-app .sgo-task .sgo-mfoot { margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 html.sgo-app .sgo-task .sgo-mfoot .sgo-btn { height: 40px; min-height: 40px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 600; }
 html.sgo-app .sgo-fine { margin: -8px 0 0; font-size: 13px; line-height: 1.4; color: var(--t3); }
@@ -1209,21 +1171,6 @@ html.sgo-app .ap-modal .sgo-seg { padding: 2px; }
 html.sgo-app .ap-modal .sgo-seg button { min-height: 32px; padding: 0 12px; font-size: 14px; }
 html.sgo-app .ap-presets { display: flex; flex-wrap: wrap; gap: 8px; }
 html.sgo-app .ap-preset { height: 36px; padding: 0 12px 0 8px; gap: 8px; border-radius: 10px; font-size: 14px; }
-html.sgo-app .ap-swrow { display: flex; flex-wrap: wrap; gap: 10px; }
-html.sgo-app .ap-swb { position: relative; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #fff; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18); transition: box-shadow .15s var(--ease-out); }
-html.sgo-app .ap-swb svg { width: 14px; height: 14px; stroke-width: 3; color: #fff; filter: drop-shadow(0 0 2px rgb(0 0 0 / .6)); }
-html.sgo-app .ap-swb:hover { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .4), 0 0 0 2px color-mix(in srgb, var(--text) 25%, transparent); }
-html.sgo-app .ap-swb.on { box-shadow: 0 0 0 2px var(--app-background), 0 0 0 4px var(--text); }
-html.sgo-app .ap-swb:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
-html.sgo-app .ap-swc { background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #38bdf8, #8b5cf6, #f43f5e); overflow: hidden; }
-html.sgo-app .ap-swc input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
-html.sgo-app .ap-fine > summary { display: flex; align-items: center; justify-content: space-between; min-height: 40px; font-size: 14px; font-weight: 600; color: var(--t2); cursor: pointer; list-style: none; }
-html.sgo-app .ap-fine > summary::-webkit-details-marker { display: none; }
-html.sgo-app .ap-fine > summary:hover { color: var(--t1); }
-html.sgo-app .ap-fine > summary svg { width: 16px; height: 16px; stroke-width: 2.6; transition: transform .2s var(--ease-out); }
-html.sgo-app .ap-fine[open] > summary svg { transform: rotate(180deg); }
-html.sgo-app .ap-fine-b { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
-html.sgo-app .ap-fine-b small { display: none; }
 @media (max-width: 760px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } }
 
 /* the old banner rule gave the picture a fixed width (min(720px, 70%)), which overrode "right" and left a blank strip at the end; the box is now sized by its edges only */
@@ -1244,22 +1191,12 @@ html.sgo-app .ap-modal .sgo-seg { height: 36px; box-sizing: border-box; }
 html.sgo-app .ap-map .sgo-btn { height: 36px; min-height: 36px; padding: 0 14px; font-size: 14px; }
 html.sgo-app .ap-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 html.sgo-app .ap-preset { width: 100%; justify-content: flex-start; height: 36px; }
-html.sgo-app .ap-swrow { gap: 12px; }
-html.sgo-app .ap-fine > summary { min-height: 36px; }
-html.sgo-app .ap-fine-b { gap: 8px; padding-top: 8px; }
 html.sgo-app .ap-modal .sgo-mfoot { margin-top: 24px; }
 html.sgo-app .ap-modal .sgo-mfoot .sgo-btn { height: 40px; min-height: 40px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 600; }
 
-html.sgo-app .ap-swrow { display: grid; grid-template-columns: repeat(10, 28px); justify-content: space-between; gap: 12px 0; }
 html.sgo-app .ap-preset:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* Appearance without themes: colours you change yourself. One scale: 32px between columns, 24px between sections, 12px title to content, 36px rows, 8px between rows. */
-html.sgo-app .ap-colours { display: flex; flex-direction: column; gap: 8px; }
-html.sgo-app .ap-colours > * { min-height: 36px; margin: 0; padding: 0; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-html.sgo-app .ap-colours small { display: none; }
-html.sgo-app .ap-colours b, html.sgo-app .ap-colours label > span { font-size: 15px; font-weight: 400; color: var(--t1); }
-html.sgo-app .ap-colours .sgo-input.hex { width: 104px; height: 36px; min-height: 36px; padding: 0 12px; font-size: 14px; }
-html.sgo-app .ap-colours .sgo-swatch-in { width: 36px; height: 36px; border-radius: 10px; }
 
 /* sidebar icons: the same heavy stroke, with rounded ends and corners so no line looks cut off, and room for the stroke at the icon's edges */
 @media (min-width: 901px) {
@@ -1319,9 +1256,6 @@ html.sgo-app .ap-colours > *, html.sgo-app .ap-map .ap-row { min-height: 40px; h
 html.sgo-app .ap-modal .sgo-seg { height: 40px; }
 html.sgo-app .ap-modal .sgo-seg button { min-height: 36px; padding: 0 14px; }
 html.sgo-app .ap-map .sgo-btn { height: 40px; min-height: 40px; padding: 0 16px; }
-html.sgo-app .ap-colours .sgo-input.hex { height: 40px; min-height: 40px; width: 112px; }
-html.sgo-app .ap-colours .sgo-swatch-in { width: 40px; height: 40px; }
-html.sgo-app .ap-swrow { grid-template-columns: repeat(10, 28px); gap: 16px 0; }
 html.sgo-app .ap-modal .sgo-mfoot { margin-top: 32px; }
 @media (max-width: 800px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } html.sgo-app .ap-left { position: static; } }
 
@@ -1333,7 +1267,6 @@ html.sgo-app .ap-layout { grid-template-columns: minmax(0, 420px) minmax(0, 1fr)
 
 /* balanced columns: preview and accent on the left, colours and contour map on the right, so neither column leaves empty space */
 html.sgo-app .ap-left { gap: 32px; position: static; }
-html.sgo-app .ap-left .ap-accent .ap-swrow { grid-template-columns: repeat(10, 1fr); justify-items: start; }
 
 /* closer column heights: a wider preview on the left, slightly tighter rows on the right */
 html.sgo-app .ap-modal { width: min(960px, calc(100vw - 32px)); }
@@ -1372,23 +1305,11 @@ html.sgo-app .ap-modal .sgo-seg { gap: 6px; padding: 4px; height: auto; }
 html.sgo-app .ap-modal .sgo-seg button { min-height: 32px; padding: 0 14px; }
 html.sgo-app .ap-modal .sgo-mfoot { gap: 16px; }
 html.sgo-app .ap-modal .sgo-mfoot .sgo-head-a { gap: 12px; }
-html.sgo-app .ap-swrow { gap: 16px 0; }
 
 /* =====================================================================
    v38: Appearance offers sixteen colours per setting, as rectangles (no free picker)
    ===================================================================== */
-html.sgo-app .ap-colours { display: flex; flex-direction: column; gap: 24px; }
-html.sgo-app .ap-colours > .ap-pal { display: block; min-height: 0; height: auto; }
-html.sgo-app .ap-pal h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--t1); }
-html.sgo-app .ap-pal h3 small { font-size: 14px; font-weight: 400; color: var(--t3); }
-html.sgo-app .ap-swgrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
-html.sgo-app .ap-rect { position: relative; height: 30px; padding: 0; border: 0; border-radius: 8px; display: grid; place-items: center; cursor: pointer; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 20%, transparent); transition: transform .12s var(--ease-out), box-shadow .15s var(--ease-out); }
-html.sgo-app .ap-rect:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 45%, transparent); }
-html.sgo-app .ap-rect.on { box-shadow: 0 0 0 2px var(--s1, var(--app-background)), 0 0 0 4px var(--t1); }
-html.sgo-app .ap-rect svg { width: 14px; height: 14px; stroke-width: 3; color: #fff; filter: drop-shadow(0 0 2px rgb(0 0 0 / .7)); }
-html.sgo-app .ap-rect:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 html.sgo-app .ap-right { gap: 24px; }
-html.sgo-app .ap-accent { display: block; }
 @media (prefers-reduced-motion: reduce) { html.sgo-app .ap-rect { transition: none; } html.sgo-app .ap-rect:hover { transform: none; } }
 
 /* =====================================================================
@@ -1397,24 +1318,7 @@ html.sgo-app .ap-accent { display: block; }
 html.sgo-app .ap-modal { width: min(940px, calc(100vw - 32px)); padding: 28px 36px; }
 html.sgo-app .ap-layout { grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: 40px; align-items: start; }
 html.sgo-app .ap-left { display: flex; flex-direction: column; gap: 24px; position: static; }
-html.sgo-app .ap-actions { display: flex; align-items: center; gap: 12px; }
-html.sgo-app .ap-actions .sgo-btn { height: 40px; min-height: 40px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 600; }
-html.sgo-app .ap-actions .sgo-btn.primary { margin-left: auto; }
 html.sgo-app .ap-right { gap: 28px; }
-html.sgo-app .ap-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
-html.sgo-app .ap-tile { position: relative; }
-html.sgo-app .ap-tl { display: block; margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--t2); }
-html.sgo-app .ap-tilebtn { width: 100%; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); color: var(--t1); font-size: 15px; text-align: left; cursor: pointer; transition: box-shadow .15s var(--ease-out), background-color .15s var(--ease-out); }
-html.sgo-app .ap-tilebtn:hover { background: color-mix(in srgb, var(--text) 13%, var(--app-background)); }
-html.sgo-app .ap-tile.open .ap-tilebtn { box-shadow: inset 0 0 0 1.5px var(--accent); }
-html.sgo-app .ap-tilebtn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html.sgo-app .ap-tilebtn svg { flex: none; width: 16px; height: 16px; stroke-width: 2.6; color: var(--t3); transition: transform .2s var(--ease-out); }
-html.sgo-app .ap-tile.open .ap-tilebtn svg { transform: rotate(180deg); color: var(--accent); }
-html.sgo-app .ap-cur { flex: none; width: 28px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 28%, transparent); }
-html.sgo-app .ap-pop { position: absolute; z-index: 6; top: calc(100% + 8px); left: 0; width: 304px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--text) 12%, var(--app-background)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent), 0 18px 40px -8px rgb(0 0 0 / .55); animation: dash-pop .16s var(--ease-out) both; transform-origin: top left; }
-html.sgo-app .ap-tile:nth-child(even) .ap-pop { left: auto; right: 0; transform-origin: top right; }
-html.sgo-app .ap-pop .ap-rect { height: 26px; }
-html.sgo-app .ap-pop .ap-rect.on { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 12%, var(--app-background)), 0 0 0 4px var(--t1); }
 html.sgo-app .ap-map { gap: 12px; }
 @media (max-width: 800px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } }
 
@@ -1430,17 +1334,6 @@ html.sgo-app .ap-map { gap: 12px; }
 }
 
 /* colour choices: a bigger chip with its name under it, four across, so similar-looking colours are easy to tell apart */
-html.sgo-app .ap-pop { width: 320px; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; padding: 14px; }
-html.sgo-app .ap-opt { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 0; border: 0; background: none; color: var(--t2); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
-html.sgo-app .ap-chip { position: relative; display: grid; place-items: center; height: 32px; border-radius: 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 28%, transparent); transition: transform .12s var(--ease-out), box-shadow .15s var(--ease-out); }
-html.sgo-app .ap-chip svg { width: 14px; height: 14px; stroke-width: 3; color: #fff; filter: drop-shadow(0 0 2px rgb(0 0 0 / .8)); }
-html.sgo-app .ap-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-html.sgo-app .ap-opt:hover .ap-chip { transform: translateY(-1px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 55%, transparent); }
-html.sgo-app .ap-opt:hover { color: var(--t1); }
-html.sgo-app .ap-opt.on { color: var(--t1); }
-html.sgo-app .ap-opt.on .ap-chip { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 12%, var(--app-background)), 0 0 0 4px var(--t1); }
-html.sgo-app .ap-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
-html.sgo-app .ap-cur { width: 32px; height: 22px; }
 
 /* =====================================================================
    v40: Appearance with themes: preview and themes side by side, the contour map in one row underneath
@@ -1481,7 +1374,6 @@ html.sgo-app .ap-modal .sgo-mfoot { margin-top: 28px; }
 @media (max-width: 720px) {
   html.sgo-app .dash6 > .dh { padding: 24px 20px; min-height: 0; }
   html.sgo-app .dash6 .dh-t { font-size: 30px; }
-  html.sgo-app .dash6 .ag-hrow { flex-wrap: wrap; }
 }
 
 /* week progress: one compact bar and a plain counter */
@@ -1506,10 +1398,6 @@ html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .dp-side-col .side-h { min-hei
 @media (min-width: 1001px) {
   html.sgo-app .sgo-page:not(.dash6) { max-width: 1400px; padding: 40px 56px 80px; box-sizing: border-box; }
 }
-html.sgo-app .gr2-list { padding: 8px; gap: 2px; border: 0; border-radius: 16px; background: var(--s1); }
-html.sgo-app .gr2-course { border: 0; border-radius: 10px; }
-html.sgo-app .gr2-h { padding: 14px 16px; margin: 0; border-radius: 10px; }
-html.sgo-app .gr2-h:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 @media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
 @media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
 @media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
@@ -1595,14 +1483,6 @@ html.sgo-app.sgo-app, html.sgo-app.sgo-app.sgo-dark { --surface: var(--s1); --su
 html.sgo-app .sgo-page :is(.sgo-card, .sgo-course, .gp-card, .ib-list, .ib-read, .sgo-empty) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
 
 /* Grades: text sits well inside the card, and the heading, tags and table share one left and right edge */
-html.sgo-app .gr2-h { padding: 20px 28px; gap: 14px; }
-html.sgo-app .gr2-body { padding: 8px 28px 28px; }
-html.sgo-app .gr2-cats { padding: 14px 0 12px; gap: 8px; }
-html.sgo-app .gr2-ph { padding: 12px 0; }
-html.sgo-app .gr2-table th, html.sgo-app .gr2-table td { padding: 12px 10px; vertical-align: top; }
-html.sgo-app .gr2-table th:first-child, html.sgo-app .gr2-table td:first-child { padding-left: 0; }
-html.sgo-app .gr2-table th:last-child, html.sgo-app .gr2-table td:last-child { padding-right: 0; }
-html.sgo-app .gr2-none { padding: 20px 0; }
 @media (max-width: 600px) { html.sgo-app .gr2-h { padding: 16px 20px; } html.sgo-app .gr2-body { padding: 4px 20px 20px; } }
 
 /* =====================================================================
@@ -1630,8 +1510,6 @@ html.sgo-app .dash6 > .dh, html.sgo-app .sgo-page:not(.dash6) > .sgo-head { padd
 html.sgo-compact .dash6 .ag .pr { padding: 8px calc(var(--inset) - 8px); }
 html.sgo-compact .dash6 .an-list li > .an-main { padding-block: 12px; }
 /* grades and settings containers */
-html.sgo-app .gr2-h { padding: 20px var(--inset); }
-html.sgo-app .gr2-body { padding: 8px var(--inset) var(--inset); }
 html.sgo-app .sgo-card { padding: 24px var(--inset); margin-bottom: var(--panel-gap); }
 html.sgo-app .sgo-set { padding: var(--row-y) 0; }
 @media (max-width: 600px) { html.sgo-app { --inset: 20px; } }
@@ -1700,7 +1578,6 @@ html.sgo-app .crs-pane .an-cards > li.an { padding: 22px 24px; border: 0; border
 html.sgo-app .crs-pane .an-cards .an-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 html.sgo-app .crs-pane .an-cards .an-text p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--t1); }
 html.sgo-app .crs-pane .an-cards .an-time { margin-left: auto; font-size: 14px; color: var(--t3); }
-html.sgo-app .crs-pane .crs-gsum { display: flex; align-items: baseline; gap: 16px; padding: 22px 24px; }
 html.sgo-app .crs-pane .an-cards > li.an { background: var(--s1) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent) !important; }
 html.sgo-app .crs-pane .an-cards .an-head { padding: 0; background: none; border: 0; }
 html.sgo-app .crs-pane .an-cards .an-text { padding: 0; }
