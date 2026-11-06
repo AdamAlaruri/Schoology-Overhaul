@@ -200,18 +200,11 @@ html:not(.sgo-app):not(.sgo-native) #sgo-root { position: static; }
 /* ---------- course cards (Notion-style tiles) ---------- */
 .sgo-cgrid { grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
 .sgo-course { position: relative; min-height: 196px; border-radius: 12px; }
-.sgo-course-cover { height: 84px; flex: none; transition: filter .2s var(--ease); }
-.sgo-course.dash .sgo-course-cover { height: 56px; }
-.sgo-course:hover .sgo-course-cover { filter: saturate(1.15) brightness(1.04); }
 .sgo-course-body { padding: 16px 16px 16px; flex: 1; min-width: 0; }
 .sgo-course-t { font-size: var(--fs-body); line-height: var(--lh-body); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sgo-course-link { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
 .sgo-course-link:focus-visible { outline-offset: -3px; }
-.sgo-course-foot { position: relative; z-index: 2; }
-.sgo-course-actions { position: absolute; top: 10px; right: 10px; z-index: 3; display: flex; gap: 8px; opacity: 0; transform: translateY(-3px); transition: opacity .15s var(--ease), transform .15s var(--ease); }
-.sgo-course:hover .sgo-course-actions, .sgo-course:focus-within .sgo-course-actions { opacity: 1; transform: none; }
 @media (hover: none) { .sgo-course-actions { opacity: 1; transform: none; } }
-.sgo-chip-btn { width: 30px; height: 30px; display: grid; place-items: center; border: 0; border-radius: 8px; color: #fff; background: rgba(15, 18, 28, .45); backdrop-filter: blur(8px); transition: background .15s var(--ease), transform .1s var(--ease); }
 .sgo-chip-btn:hover { background: rgba(15, 18, 28, .72); } .sgo-chip-btn:active { transform: scale(.92); }
 .sgo-rename { position: relative; z-index: 3; width: 100%; font-weight: 500; font-size: var(--fs-body); line-height: var(--lh-body); padding: 4px 8px; margin: -4px -8px; width: calc(100% + 16px); background: var(--surface2); }
 .sgo-course.dragging { opacity: .4; transform: scale(.97); } .sgo-course.over { outline: 2px solid var(--accent); outline-offset: 3px; }
@@ -233,8 +226,6 @@ html:not(.sgo-app):not(.sgo-native) #sgo-root { position: static; }
 @keyframes sgo-fade { from { opacity: 0; } to { opacity: 1; } }
 
 /* full original Schoology name, shown under the clean name on every card */
-.sgo-course-raw { margin-top: 4px; font-size: var(--fs-caption); line-height: var(--lh-caption); line-height: 1.4; color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
-.sgo-course.dash .sgo-course-raw { font-size: var(--fs-caption); line-height: var(--lh-caption); }
 
 /* name fixes */
 .sgo-teach { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 8px; } .sgo-teach .sgo-input { flex: 1; min-width: 180px; }
@@ -345,18 +336,7 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 
 /* ---- banner picker ---- */
 .sgo-modal.wide { width: min(640px, 100%); }
-.bp-preview { aspect-ratio: 3 / 1; border-radius: 12px; border: 1px solid var(--line); background-color: var(--surface2); margin-top: 8px; }
-.bp-cap { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--muted); margin: 8px 4px 16px; min-height: 18px; }
-.bp-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
 @media (max-width: 520px) { .bp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.bp-tile { position: relative; display: flex; flex-direction: column; gap: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); text-align: left; transition: border-color .15s var(--ease), transform .15s var(--ease), box-shadow .15s var(--ease); }
-.bp-tile:hover:not(:disabled) { transform: translateY(-1px); border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
-.bp-tile.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.bp-tile:disabled { opacity: .45; cursor: default; }
-.bp-thumb { display: block; aspect-ratio: 3 / 1; border-radius: 8px; background-color: var(--surface2); }
-.bp-up { display: grid; place-items: center; color: var(--muted); }
-.bp-l { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 500; padding: 0 4px 4px; }
-.bp-sug { position: absolute; top: 10px; right: 10px; font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: 600; padding: 4px 8px; border-radius: 999px; background: rgba(15, 18, 28, .72); color: #fff; backdrop-filter: blur(6px); }
 
 .sgo-modal.wide { padding-bottom: 0; } .sgo-modal.wide .sgo-mfoot { position: sticky; bottom: 0; margin-top: 16px; padding: 16px 0 24px; background: var(--surface); }
 @media (max-width: 700px) { .bp-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
@@ -609,9 +589,6 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 .side-card.progress { border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--layer-3)), var(--layer-2) 70%); }
 .wp-note { margin: var(--space-2) 0 0; font-size: var(--fs-small); line-height: var(--lh-small); color: var(--muted); }
 /* typographic banner: the course name, set large, on a soft gradient */
-.dc-typo { position: absolute; inset: 0; display: flex; flex-direction: column; justify-content: flex-end; gap: var(--space-1); padding: var(--space-3) 56px var(--space-3) var(--space-4); background: radial-gradient(ellipse at 90% 0%, hsl(var(--h) 45% 42% / .38), transparent 60%), linear-gradient(135deg, hsl(var(--h) 22% 22%), hsl(var(--h) 18% 13%)); }
-.dc-typo span { font-size: var(--fs-caption); line-height: var(--lh-caption); font-weight: var(--fw-strong); letter-spacing: .04em; color: hsl(var(--h) 30% 78% / .85); }
-.dc-typo-t { font-size: var(--fs-h3); line-height: var(--lh-h3); font-weight: var(--fw-hero); letter-spacing: -.02em; color: hsl(var(--h) 25% 96%) !important; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .dc-banner.typo::after { display: none; }
 @media (max-width: 1279px) { .clk-t { font-size: 44px; } }
 @media (max-width: 767px) { .hero-r { padding: 0; } .clk { text-align: left; } .clk-row { justify-content: flex-start; } .clk-t { font-size: 40px; } }

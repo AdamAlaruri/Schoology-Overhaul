@@ -13,6 +13,15 @@
   /* The four colours that define the look. They are CSS variables on <html>: the contour map, its glow, the page surface and every
    * interactive element read them, so a change here recolours the real paths and controls at once. The theme (light or dark UI)
    * follows the background colour, so text always has the right contrast. Also called by the app whenever a colour changes. */
+  const rgbOf = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+  const mixTo = (hex, to, p) => { const A = rgbOf(hex), B = rgbOf(to); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * p).toString(16).padStart(2, '0')).join(''); };
+  /** The chosen accent, adjusted only as much as needed to reach 4.5:1 on the background: darker on light pages, lighter on dark ones. */
+  const fitAccent = (accent, bg) => {
+    if (C.contrast(accent, bg) >= 4.5) return accent;
+    const to = C.isDark(bg) ? '#ffffff' : '#000000';
+    for (let p = 0.04; p <= 1; p += 0.04) { const c = mixTo(accent, to, p); if (C.contrast(c, bg) >= 4.5) return c; }
+    return C.isDark(bg) ? DARK_ACCENT : '#1769d6';
+  };
   window.__sgoTheme = (prefs) => {
     const pick = (k) => C.normHex(prefs && prefs[k]) || DEFAULTS[k], st = html.style;
     // Theme mode: 'light', 'dark' or 'system' override the saved background's brightness; unset keeps whatever the student's colours imply.
@@ -20,7 +29,7 @@
     const wantDark = mode === 'dark' || (mode === 'system' && sysDark), wantLight = mode === 'light' || (mode === 'system' && !sysDark);
     let bg = pick('background'), accent = pick('accent');
     if (wantDark && !C.isDark(bg)) bg = DARK_BG; else if (wantLight && C.isDark(bg)) bg = '#f8fafc';
-    if (C.contrast(accent, bg) < 4.5) accent = C.isDark(bg) ? DARK_ACCENT : '#1769d6'; // an accent that cannot be read on this background is replaced, never shown
+    accent = fitAccent(accent, bg); // an accent that cannot be read on this background keeps its hue and is darkened or lightened until it can
     st.setProperty('--app-background', bg);
     st.setProperty('--contour-color', pick('contour'));
     st.setProperty('--contour-glow', pick('contourGlow'));
@@ -30,23 +39,33 @@
     // the map itself: shown or hidden, how dense and which seed (its blur is fixed in theme.css)
     html.classList.toggle('sgo-compact', !!(prefs && prefs.density === 'compact')); // spacing only; type size and layout stay the same
     html.dataset.sgoTopo = prefs && prefs.topoOn === false ? 'off' : 'on';
+    // accessibility: text size, high contrast and reduced motion are plain classes, so they apply before first paint
+    html.classList.toggle('sgo-contrast', !!(prefs && prefs.highContrast));
+    html.classList.toggle('sgo-reduce-motion', !!(prefs && prefs.reduceMotion));
+    html.classList.toggle('sgo-text-lg', !!(prefs && prefs.textSize === 'lg'));
+    html.classList.toggle('sgo-text-xl', !!(prefs && prefs.textSize === 'xl'));
     st.setProperty('--topo-w', String({ thin: .55, standard: 1, bold: 1.9 }[(prefs && prefs.topoWeight) || 'standard'] || 1)); // line weight scales both the index and the ordinary contours
     buildLayer((prefs && prefs.topoDensity) || 'standard', Number(prefs && prefs.topoSeed) || 20260);
-    buildArt(pick('contour'));
+    buildArt(pick('contour'), prefs);
   };
 
   /* Small contour pieces for the hero, featured and hovered course cards, section dividers, the navigation rail and empty states.
    * Each is generated once from the same contour engine as the background, written as a data-URI image (so the dashboard repeats
    * no SVG markup) and exposed as a CSS variable. CSS decides where it shows, how strongly and under which mask. */
-  const ART = { hero: [960, 360, 7311, 'light'], card: [560, 320, 4402, 'light'], divider: [1600, 90, 9121, 'light'], rail: [160, 220, 2207, 'light'], empty: [640, 240, 5530, 'light'] };
+  const ART = { hero: [960, 360, 7311], card: [560, 320, 4402], divider: [1600, 90, 9121], rail: [160, 220, 2207], empty: [640, 240, 5530] };
   let artKey = '';
-  function buildArt(color) {
-    if (artKey === color || !html.classList.contains('sgo-app')) return;
-    artKey = color;
-    for (const [name, [w, h, seed, density]] of Object.entries(ART)) {
-      const m = T.build(w, h, seed, density);
+  /** The small contour pieces follow the map settings: line density, line weight and which map (the seed), as well as the colour. */
+  function buildArt(color, prefs) {
+    if (!html.classList.contains('sgo-app')) return;
+    const dens = (prefs && prefs.topoDensity) || 'standard', wKey = (prefs && prefs.topoWeight) || 'standard', seedPref = Number(prefs && prefs.topoSeed) || 20260;
+    const key = [color, dens, wKey, seedPref].join('|');
+    if (artKey === key) return;
+    artKey = key;
+    const sw = { thin: 0.55, standard: 1, bold: 1.9 }[wKey] || 1, shift = seedPref - 20260;
+    for (const [name, [w, h, seed]] of Object.entries(ART)) {
+      const m = T.build(w, h, seed + shift, 'small-' + (['light', 'standard', 'dense'].includes(dens) ? dens : 'standard'));
       const paths = m.paths.map((x) => `<path d="${x.d}"${x.major ? '' : ' stroke-opacity="' + x.o + '"'}/>`).join('');
-      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" fill="none" stroke="${color}" stroke-width="1" stroke-linecap="round">${paths}</svg>`;
+      const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" fill="none" stroke="${color}" stroke-width="${sw}" stroke-linecap="round">${paths}</svg>`;
       html.style.setProperty('--topo-' + name, `url("data:image/svg+xml,${encodeURIComponent(svg)}")`);
     }
   }

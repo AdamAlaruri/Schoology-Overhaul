@@ -1,3 +1,6 @@
 Font bundled with the extension (latin subset, WOFF2, variable weight 100-900).
 Inter - Copyright 2020 The Inter Project Authors (https://github.com/rsms/inter), SIL Open Font License 1.1 (https://openfontlicense.org).
 Obtained from the @fontsource-variable/inter package on the npm registry.
+
+Geist - Copyright 2023 The Geist Project Authors (https://github.com/vercel/geist-font), SIL Open Font License 1.1 (https://openfontlicense.org).
+Obtained from the @fontsource-variable/geist package on the npm registry (latin subset, WOFF2, variable weight 100-900).

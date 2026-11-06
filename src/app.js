@@ -15,7 +15,7 @@
     ['dashboard', 'Dashboard', 'home', '/home'],
     ['courses', 'Courses', 'book', '/courses'],
     ['assignments', 'Assignments', 'notepad', '/home#/assignments'],
-    ['grades', 'Grades', 'sheet', '/grades/grades'],
+    ['grades', 'Grades', 'grades', '/grades/grades'],
     ['search', 'Search', 'search', ''],
     ['groups', 'Groups', 'groups', '/groups'],
     ['calendar', 'Calendar', 'calendar', '/calendar'],
@@ -74,9 +74,8 @@
     const initial = (who.trim()[0] || 'Me').toUpperCase(); // the first letter of the name; profile pictures are not shown anywhere
     const face = h('span', { class: 'sgo-face', 'aria-hidden': 'true' }, initial);
     const account = S.menu('Account' + (who ? ': ' + who : ''), [
-      ['Edit name…', () => S.openNameEditor()], ['Assignments', () => S.go('/home#/assignments')], ['Grades', () => S.go('/grades/grades')], ['Resources', () => S.go('/resources')],
-      ['Colour theme…', () => S.openAppearance()], [html.classList.contains('sgo-dark') ? 'Light mode' : 'Dark mode', themeToggle], ['Refresh data', () => S.hardRefresh()],
-      ['Extension settings', () => S.go('/home#/settings')], ['Schoology account', () => S.go('/settings/account')],
+      ['Edit name…', () => S.openNameEditor()], ['Colour theme…', () => S.openAppearance()], [html.classList.contains('sgo-dark') ? 'Light mode' : 'Dark mode', themeToggle],
+      ['Refresh data', () => S.hardRefresh()], ['Schoology account', () => S.go('/settings/account')],
       ['Classic view', () => { S.prefs.classic = true; S.savePrefs(); S.render(); }], ['Sign out', () => S.go('/logout')],
     ], h('button', { class: 'sgo-rail-i', type: 'button' }, face, h('span', null, 'Account')));
     const collapsed = !!S.prefs.collapsed;
@@ -105,34 +104,49 @@
   const recentFeedback = () => S.state.grades.flatMap((g) => (g.periods || []).flatMap((p) => p.categories.flatMap((c) => c.items.filter((x) => x.comment).map((x) => ({ x, g })))))
     .map((f) => Object.assign(f, { ts: (S.parseDue(f.x.dueText) || {}).ts || 0 })).sort((a, b) => b.ts - a.ts).slice(0, 4);
   function notifPanel(list) {
-    const row = (n) => h('li', { class: 'notif-i' + (n.read ? '' : ' unread') },
-      h('div', { class: 'notif-t' },
-        h('a', { href: '/grades/grades', onclick: () => { S.markGradeRead(n.id); S.ui.notifOpen = false; } }, n.title),
-        h('span', { class: 'notif-g' }, `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' · ' + pct(n) : ''}`)),
-      h('div', { class: 'notif-m' }, [S.cn(n.courseId, n.course) || n.course, n.due && 'Due ' + n.due.replace(/^Due:?\s*/i, ''), 'Seen ' + S.fmtDate(n.at)].filter(Boolean).join(' · ')),
-      n.comment ? h('p', { class: 'notif-c' }, n.comment.slice(0, 140)) : null,
-      n.read ? null : h('button', { class: 'sgo-icon-btn notif-r', type: 'button', title: 'Mark as read', 'aria-label': 'Mark ' + n.title + ' as read', onclick: () => { S.markGradeRead(n.id); S.render(true); } }, icon('check', 16)));
-    const fb = recentFeedback();
-    return h('div', { class: 'notif-p', role: 'dialog', 'aria-label': 'Updates' },
-      h('div', { class: 'notif-h' }, h('b', null, 'Updates'), list.some((n) => !n.read) ? h('button', { class: 'sgo-btn ghost', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all as read') : null),
-      h('h4', { class: 'notif-s' }, 'New grades'),
-      list.length ? h('ul', { class: 'notif-l' }, list.slice(0, 6).map(row)) : h('p', { class: 'sgo-muted notif-none' }, 'No new grades yet. When a teacher grades an assignment, it shows up here.'),
-      h('h4', { class: 'notif-s' }, 'Teacher feedback'),
-      fb.length ? h('ul', { class: 'notif-l' }, fb.map(({ x, g }) => h('li', { class: 'notif-i' },
-        h('div', { class: 'notif-t' }, h('a', { href: '/grades/grades', onclick: () => { S.ui.notifOpen = false; } }, x.title), x.earned != null ? h('span', { class: 'notif-g' }, `${x.earned}${x.possible != null ? ' / ' + x.possible : ''}`) : null),
-        h('div', { class: 'notif-m' }, S.cn(g.courseId, g.courseName)), h('p', { class: 'notif-c' }, x.comment.slice(0, 140)))))
-        : h('p', { class: 'sgo-muted notif-none' }, 'No teacher comments yet.'),
-      h('a', { class: 'link', href: '/grades/grades' }, 'All grades', icon('right', 14)));
+    // one short list: the four most recent things, new grades and teacher comments together
+    const seen = new Set();
+    const items = [
+      ...list.map((n) => ({ grade: true, id: n.id, read: !!n.read, title: n.title, course: S.cn(n.courseId, n.course) || n.course || '', ts: n.at || 0, comment: n.comment || '',
+        score: n.earned != null ? `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' \u00b7 ' + pct(n) : ''}` : '' })),
+      ...recentFeedback().map(({ x, g }) => ({ read: true, title: x.title, course: S.cn(g.courseId, g.courseName) || '', ts: x.ts || 0, comment: x.comment || '',
+        score: x.earned != null ? `${x.earned}${x.possible != null ? ' / ' + x.possible : ''}` : '' })),
+    ].filter((i) => { const k = i.title + '|' + i.course; if (seen.has(k)) return false; seen.add(k); return true; }).sort((x, y) => y.ts - x.ts).slice(0, 4);
+    const unread = list.filter((n) => !n.read).length;
+    const row = (i) => h('li', { class: 'up-i' + (i.read ? '' : ' unread') },
+      h('a', { class: 'up-a', href: '/grades/grades', onclick: () => { if (i.grade && !i.read) S.markGradeRead(i.id); S.ui.notifOpen = false; } },
+        h('span', { class: 'up-dot', 'aria-hidden': 'true' }),
+        h('span', { class: 'up-m' }, h('b', null, i.title), h('span', null, [i.course, i.ts ? S.fmtDate(i.ts) : ''].filter(Boolean).join(' \u00b7 ')), i.comment ? h('em', null, i.comment.slice(0, 90)) : null),
+        i.score ? h('span', { class: 'up-s' }, i.score) : null));
+    return h('div', { class: 'notif-p up-p', role: 'dialog', 'aria-label': 'Updates' },
+      h('div', { class: 'up-h' }, h('div', null, h('b', null, 'Updates'), h('span', null, unread ? `${unread} new` : 'You are up to date')),
+        unread ? h('button', { class: 'up-all', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all read') : null),
+      items.length ? h('ul', { class: 'up-l' }, items.map(row)) : h('p', { class: 'up-none' }, 'Nothing new yet. Grades and teacher comments show up here.'),
+      h('a', { class: 'up-f', href: '/grades/grades', onclick: () => { S.ui.notifOpen = false; } }, 'See all grades', icon('right', 14)));
   }
+  /* Only one popover is open at a time: opening one closes the others, so they never stack. */
+  S.closePopovers = (keep) => {
+    if (keep !== 'notif' && S.ui.notifOpen) { S.ui.notifOpen = false; const np = document.querySelector('.notif-p'); if (np) np.remove(); const bell = document.querySelector('.sgo-bell'); if (bell) bell.setAttribute('aria-expanded', 'false'); }
+    if (keep !== 'menu' && S.closeMenus) S.closeMenus();
+    if (S.ui.accentOpen && keep !== 'accent') { S.ui.accentOpen = false; const ap = document.querySelector('.acc-pop'); if (ap) ap.remove(); }
+  };
   function notifications() {
     const list = S.prefs.gradeNotifs || [], n = S.unreadGrades(), open = !!S.ui.notifOpen;
     return h('div', { class: 'sgo-notif sgo-rail-notif' },
       h('button', { class: 'sgo-rail-i sgo-bell', type: 'button', 'data-tip': 'Updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
-        'aria-label': n ? `Updates, ${n} unread` : 'Updates', onclick: (e) => { e.stopPropagation(); S.ui.notifOpen = !open; S.render(true); } },
+        'aria-label': n ? `Updates, ${n} unread` : 'Updates', onclick: (e) => { e.stopPropagation(); S.closePopovers('notif'); S.ui.notifOpen = !open; S.render(true); } },
         icon('bell', 21), h('span', null, 'Updates'), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
       open ? notifPanel(list) : null);
   }
-  document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen && !(e.target.closest && e.target.closest('.sgo-notif:not(.thm-wrap)'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
+  /* Ripple: a soft circle grows from the pointer on .sgo-btn. Motion is skipped when the user asked for less of it. */
+  document.addEventListener('pointerdown', (e) => {
+    const b = e.target.closest && e.target.closest('#sgo-root .sgo-btn:not(:disabled)');
+    if (!b || e.button !== 0 || html.classList.contains('sgo-reduce-motion') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
+    const r = b.getBoundingClientRect(), dot = document.createElement('span');
+    dot.className = 'mo-ripple'; dot.style.left = e.clientX - r.left + 'px'; dot.style.top = e.clientY - r.top + 'px';
+    b.append(dot); dot.addEventListener('animationend', () => dot.remove(), { once: true }); setTimeout(() => dot.remove(), 800); // fallback if the animation never ends (background tab)
+  }, { passive: true });
+  document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen &&!(e.target.closest && e.target.closest('.sgo-notif:not(.thm-wrap)'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.notifOpen) { S.ui.notifOpen = false; S.render(true); } });
   // the accent colour picker closes on a click elsewhere or Escape
   document.addEventListener('click', (e) => { if (S.ui && S.ui.accentOpen && !(e.target.closest && e.target.closest('.acc-wrap'))) { S.ui.accentOpen = false; S.render(true); } });
@@ -216,20 +230,19 @@
   S.hardRefresh = async () => {
     S.state.loading = true; S.render(true);
     const r = route() || 'native';
-    S.scrapeLive(document, hostIsHome);
+    S.scrapeLive(document);
     if (S.resetSocial) S.resetSocial();
     await S.refresh(r, { force: true });
     S.render(true);
   };
 
   // Client-side navigation changes the URL but not the document, so remember which Schoology page is really loaded.
-  const hostIsHome = location.pathname.replace(/\/+$/, '') === '/home';
 
   /* ---------- live observer (Schoology fills its page asynchronously) ---------- */
   let obs, obsStop;
   function observe() {
     if (obs) obs.disconnect();
-    const scrape = S.debounce(() => { if (S.scrapeLive(document, hostIsHome)) S.render(true); }, 700);
+    const scrape = S.debounce(() => { if (S.scrapeLive(document)) S.render(true); }, 700);
     obs = new MutationObserver((muts) => { if (muts.some((m) => !root.contains(m.target))) scrape(); });
     obs.observe(document.body, { childList: true, subtree: true });
     clearTimeout(obsStop); obsStop = setTimeout(() => obs && obs.disconnect(), 60000);
@@ -277,7 +290,7 @@
         if (JSON.stringify(next) !== JSON.stringify(S.prefs)) { S.prefs = next; redraw = true; }
       }
       if (changes.sgo_cache && changes.sgo_cache.newValue) redraw = S.adoptCache(changes.sgo_cache.newValue) || redraw;
-      if (redraw) { S.applyTheme(); S.render(true); }
+      if (redraw) { S.applyTheme(); S.render(true); if (S._apRepaint) S._apRepaint(); }
     });
   }
 

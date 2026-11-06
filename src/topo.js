@@ -102,7 +102,7 @@
 
   const memo = new Map();
   /** { width, height, paths: [{ d, o, major }] }. Cached per size and seed, so navigating never regenerates it. */
-  T.DENSITY = { light: 14, standard: 26, dense: 42 };
+  T.DENSITY = { light: 14, standard: 26, dense: 42, 'small-light': 9, 'small-standard': 14, 'small-dense': 24 }; // the small pieces (banner, panels) use fewer lines than the full-page map
   T.build = (width = 1600, height = 900, seed = 20260, density = 'standard') => {
     const LEVELS = T.DENSITY[density] || T.DENSITY.standard, key = `${width}x${height}:${seed}:${LEVELS}`;
     if (memo.has(key)) return memo.get(key);

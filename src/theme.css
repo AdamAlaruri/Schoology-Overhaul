@@ -6,14 +6,15 @@
  * Breakpoints used across the app: 1180 (side panels narrow), 900 (single column), 700 (phone gutters). */
 
 @font-face { font-family: "SGO Inter"; font-weight: 100 900; font-style: normal; font-display: swap; src: url("chrome-extension://__MSG_@@extension_id__/fonts/inter-latin-wght-normal.woff2") format("woff2"); }
+@font-face { font-family: "SGO Geist"; font-weight: 100 900; font-style: normal; font-display: swap; src: url("chrome-extension://__MSG_@@extension_id__/fonts/geist-latin-wght-normal.woff2") format("woff2"); }
 
 html {
   /* ---- the four colours people can change (see Settings -> Appearance) ---- */
   --app-background: #151311; --contour-color: #c9b79c; --contour-glow: #b97c3f; --accent: #8aa8ff; --on-accent: #05070a;
 
   /* ---- type: one family (Inter), one scale ---- */
-  --font: "SGO Inter", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --fs-hero: 36px; --fs-h1: 28px; --fs-h2: 24px; --fs-h3: 21px; --fs-h4: 17px; --fs-card: 15px; --fs-body: 14px; --fs-small: 13px; --fs-caption: 12px; --fs-micro: 11px;
+  --font: "SGO Geist", "SGO Inter", Inter, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --fs-hero: 36px; --fs-h1: 28px; --fs-h2: 24px; --fs-h3: 21px; --fs-h4: 17px; --fs-card: 16px; --fs-body: 15px; --fs-small: 14px; --fs-caption: 13px; --fs-micro: 12px;
   --fw-hero: 680; --fw-h1: 650; --fw-h2: 600; --fw-h3: 600; --fw-h4: 600; --fw-body: 400; --fw-strong: 550;
   --lh-hero: 1.15; --lh-h1: 1.25; --lh-h2: 1.25; --lh-h3: 1.25; --lh-h4: 1.25; --lh-body: 1.55; --lh-small: 1.45; --lh-caption: 1.4;
 
@@ -427,11 +428,9 @@ html.sgo-collapsed .sgo-rail-i.sgo-rail-tog { min-height: 56px; padding: var(--s
 .ap-modal .ap-live { box-shadow: 0 0 0 1px var(--line-strong), 0 12px 32px -16px rgb(0 0 0 / .6); }
 @media (max-width: 860px) { .ap-modal { padding: var(--space-4); } .ap-layout { gap: var(--space-4); } }
 /* typographic covers inside smaller covers and thumbnails */
-.sgo-course-cover.typo, .crs-banner.typo, .bp-preview.typo, .bp-thumb.typo { position: relative; overflow: hidden; }
 .bp-thumb.typo .dc-typo { padding: var(--space-1) var(--space-2); } .bp-thumb.typo .dc-typo span { font-size: var(--fs-micro); } .bp-thumb.typo .dc-typo-t { font-size: var(--fs-small); line-height: var(--lh-small); }
 .crs-banner.typo .dc-typo { padding: var(--space-3) var(--space-5); } .crs-banner.typo .dc-typo-t { font-size: var(--fs-h2); line-height: var(--lh-h2); }
 .sgo-course-cover.typo .dc-typo { padding: var(--space-2) var(--space-3); } .sgo-course-cover.typo .dc-typo-t { font-size: var(--fs-card); line-height: var(--lh-small); }
-.bp-preview.typo .dc-typo { padding: var(--space-3) var(--space-4); }
 /* rename on the course page; notification icon picker */
 .crs-rename { vertical-align: middle; margin-left: var(--space-2); color: var(--muted); } .crs-rename:hover { color: var(--text); }
 .crs-title h1 .sgo-rename { width: min(560px, 100%); font-size: var(--fs-h2); font-weight: var(--fw-h2); min-height: var(--control-h); }
@@ -483,8 +482,6 @@ html.sgo-collapsed .sgo-rail-i.sgo-rail-tog { min-height: 56px; padding: var(--s
 @media (hover: none) { .dc-dots, .dc-rename { opacity: 1; transform: none; pointer-events: auto; } } /* touch screens have no hover, so they stay visible */
 /* the bottom of every course card: one colour, with the word and icon carrying the meaning */
 .dc-nw .badge[class*="b-"] { --b: var(--accent-ink); }
-.sgo-course-pills .sgo-pill { background: var(--accent-soft) !important; color: var(--accent-ink) !important; }
-.sgo-course-foot a { color: var(--accent-ink) !important; }
 
 /* ================= course view ================= */
 /* the map and glow are a touch stronger here, so the page feels lit from behind its cards */
@@ -495,7 +492,6 @@ html[data-sgo-route="course"] #sgo-bg::before { background: radial-gradient(elli
 .crs-head { position: relative; margin-bottom: var(--space-4); }
 .crs-banner { position: relative; height: clamp(220px, 26vw, 320px); border-radius: var(--r-xl); overflow: hidden; background-color: var(--layer-3);
   -webkit-mask-image: linear-gradient(to bottom, #000 0%, #000 52%, rgb(0 0 0 / .55) 76%, transparent 100%); mask-image: linear-gradient(to bottom, #000 0%, #000 52%, rgb(0 0 0 / .55) 76%, transparent 100%); } /* the lower edge fades to nothing, so the page's own glow and contour lines show through it */
-.crs-banner::after { content: ''; position: absolute; inset: auto 0 0 0; height: 60%; pointer-events: none; background: linear-gradient(to bottom, transparent, rgb(0 0 0 / .38)); }
 .crs-banner .dc-typo { padding: 0; } .crs-banner .dc-typo > * { display: none; } /* the title below is the title; the typographic cover is just its gradient here */
 .crs-title { display: block; position: relative; z-index: 1; margin-top: -92px; padding: 0 var(--space-5); }
 .crs-title h1 { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: 0; font-size: var(--fs-hero); line-height: var(--lh-hero); font-weight: var(--fw-hero); letter-spacing: -.022em; text-shadow: 0 2px 18px rgb(0 0 0 / .45); overflow-wrap: anywhere; }
@@ -765,7 +761,7 @@ html:not(.sgo-dark) .sgo-util { box-shadow: inset 0 1px 0 rgb(255 255 255 / .7),
 .sgo-util .sgo-icon-btn svg { width: 20px; height: 20px; stroke-width: 1.9; }
 .sgo-util .sgo-icon-btn:hover, .sgo-util .sgo-icon-btn[aria-expanded="true"] { background: var(--accent-soft); color: var(--accent-ink); opacity: 1; }
 .sgo-util .sgo-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.sgo-util .sgo-bell-n { top: 1px; right: 1px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 11px; line-height: 17px; font-weight: 700; box-shadow: 0 0 0 2px var(--layer-2); }
+.sgo-util .sgo-bell-n { top: 1px; right: 1px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 9px; background: var(--accent); color: var(--on-accent); font-size: 13px; line-height: 17px; font-weight: 700; box-shadow: 0 0 0 2px var(--layer-2); }
 .sgo-util .sgo-notif + .sgo-notif::before { content: none; }
 
 /* ================= course announcements: one distinct card per post ================= */
@@ -850,7 +846,6 @@ html:not(.sgo-dark) .sgo-util { box-shadow: inset 0 1px 0 rgb(255 255 255 / .7),
 .sgo-page > h1, .sgo-head h1, .sgo-head p, .sec-h h2, .sec-h p, .crs-title h1, .crs-title p, .crs-title .crs-meta, .dc-hidden-note, .sgo-note, .sgo-muted { text-shadow: 0 0 10px var(--bg), 0 0 3px var(--bg); }
 .sgo-card .sgo-muted, .sgo-card .sgo-note, .side-card .sgo-muted, .dc .sgo-muted { text-shadow: none; }
 /* course banner: a firmer scrim where the title sits over the photograph */
-.crs-banner::after { height: 72%; background: linear-gradient(to bottom, transparent, rgb(0 0 0 / .58)); }
 .crs-title h1 { text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 70%, transparent), 0 0 14px var(--bg), 0 0 4px var(--bg); }
 /* reveals only fade: a moving line of text can no longer cross the one under it while the page redraws */
 @keyframes sgo-reveal { from { opacity: 0; } to { opacity: 1; } }

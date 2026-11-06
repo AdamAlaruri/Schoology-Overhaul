@@ -1,0 +1,92 @@
+/* =====================================================================
+   Motion layer: one place for hover, press, focus, ripple and page-load animation.
+   Everything uses one easing curve and short durations, animates transform and opacity
+   (plus a soft shadow on hover), and switches off for prefers-reduced-motion and the
+   app's own Reduce motion setting.
+
+   Apply it globally by listing selectors in the groups below, or to any element with a class:
+     .mo-press   tactile press (scale .97 while pressed)
+     .mo-hover   subtle lift on hover for buttons and links (scale 1.02 + soft shadow)
+     .mo-card    gentle elevation for cards (up 3px + deeper shadow)
+     .mo-media   put on a wrapper (overflow hidden) around an image: the image zooms 1.03
+   ===================================================================== */
+html.sgo-app {
+  --mo-ease: cubic-bezier(.4, 0, .2, 1);
+  --mo-fast: 160ms;
+  --mo-base: 220ms;
+  --mo-rise: 380ms;
+  --mo-shadow-1: 0 6px 16px -8px rgb(0 0 0 / .5);
+  --mo-shadow-2: 0 16px 32px -16px rgb(0 0 0 / .55);
+}
+
+/* ---- 1. hover: buttons and links ---- */
+html.sgo-app #sgo-root :is(.sgo-btn, .sgo-icon-btn, .sgo-chip, .gx-chip, .gx-add, .pri-filter, .cc2-go, .tp-more, .sgo-seg button, .mo-hover, .mo-press) {
+  transition: transform var(--mo-base) var(--mo-ease), background-color var(--mo-base) var(--mo-ease), color var(--mo-fast) var(--mo-ease), box-shadow var(--mo-base) var(--mo-ease), opacity var(--mo-fast) var(--mo-ease);
+  will-change: auto;
+}
+@media (hover: hover) {
+  html.sgo-app #sgo-root :is(.sgo-btn, .sgo-icon-btn, .pri-filter, .gx-add, .mo-hover):not(:disabled):not([aria-disabled="true"]):hover {
+    transform: scale(1.02);
+    box-shadow: var(--mo-shadow-1);
+  }
+  html.sgo-app #sgo-root :is(.sgo-chip, .gx-chip, .tp-more, .sgo-seg button):not(:disabled):hover { transform: scale(1.02); }
+  html.sgo-app #sgo-root .cc2-go:hover { transform: scale(1.06); }
+}
+
+/* ---- 2. press: quick and tactile ---- */
+html.sgo-app #sgo-root :is(.sgo-btn, .sgo-icon-btn, .sgo-chip, .gx-chip, .gx-add, .pri-filter, .cc2-go, .tp-more, .sgo-seg button, .mo-press):not(:disabled):active {
+  transform: scale(.97);
+  box-shadow: none;
+  transition-duration: 80ms;
+}
+
+/* ---- 3. cards: gentle elevation ---- */
+html.sgo-app #sgo-root :is(.cc2, .gp-card, .mo-card) {
+  transition: transform var(--mo-base) var(--mo-ease), box-shadow var(--mo-base) var(--mo-ease), background-color var(--mo-base) var(--mo-ease);
+}
+@media (hover: hover) {
+  html.sgo-app #sgo-root :is(.cc2, .gp-card, .mo-card):hover { transform: translateY(-4px); box-shadow: var(--mo-shadow-2); }
+}
+html.sgo-app #sgo-root :is(.cc2, .gp-card, .mo-card):active { transform: translateY(-1px); }
+
+/* ---- 4. media: zoom inside a clipped wrapper ---- */
+html.sgo-app .mo-media { overflow: hidden; }
+html.sgo-app .mo-media :is(img, video, svg.mo-zoom) { transition: transform 420ms var(--mo-ease); }
+@media (hover: hover) { html.sgo-app .mo-media:hover :is(img, video, svg.mo-zoom) { transform: scale(1.03); } }
+/* the course maps on tiles and the course page are media too */
+html.sgo-app #sgo-root .cc2-art, html.sgo-app #sgo-root .crs-art { transition: transform 420ms var(--mo-ease); }
+@media (hover: hover) { html.sgo-app #sgo-root .cc2:hover .cc2-art { transform: scale(1.03); } }
+
+/* ---- 5. keyboard focus: an outline that eases in ---- */
+html.sgo-app #sgo-root :is(a, button, summary, select, input, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  animation: mo-focus var(--mo-base) var(--mo-ease) both;
+}
+@keyframes mo-focus { from { outline-color: transparent; outline-offset: 6px; } to { outline-color: var(--accent); outline-offset: 2px; } }
+
+/* ---- 6. ripple from the click point (see the pointerdown handler in app.js) ---- */
+html.sgo-app #sgo-root .sgo-btn { position: relative; overflow: hidden; }
+html.sgo-app .mo-ripple { position: absolute; width: 20px; height: 20px; margin: -10px 0 0 -10px; border-radius: 50%; background: currentColor; opacity: .22; pointer-events: none; transform: scale(0); animation: mo-ripple 520ms var(--mo-ease) forwards; }
+@keyframes mo-ripple { to { transform: scale(14); opacity: 0; } }
+
+/* ---- 7. page load: structural blocks fade in and rise, one after another ---- */
+@keyframes mo-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+html.sgo-app .sgo-content.animate .sgo-page:not(.dash6):not(.cu) > * { animation: mo-rise var(--mo-rise) var(--mo-ease) both; }
+html.sgo-app .sgo-content.animate .sgo-page:not(.dash6):not(.cu) > :nth-child(2) { animation-delay: 60ms; }
+html.sgo-app .sgo-content.animate .sgo-page:not(.dash6):not(.cu) > :nth-child(3) { animation-delay: 120ms; }
+html.sgo-app .sgo-content.animate .sgo-page:not(.dash6):not(.cu) > :nth-child(n+4) { animation-delay: 180ms; }
+/* the page wrapper's own older fade would double up */
+html.sgo-app .sgo-content.animate .sgo-page:not(.dash6):not(.cu) { animation: none; }
+/* modals and menus */
+html.sgo-app .sgo-modal { animation: mo-rise var(--mo-base) var(--mo-ease) both; }
+
+/* ---- reduced motion: no movement, no zoom, no ripple, instant states ---- */
+@media (prefers-reduced-motion: reduce) {
+  html.sgo-app #sgo-root *, html.sgo-app #sgo-root *::before, html.sgo-app #sgo-root *::after { animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
+  html.sgo-app #sgo-root :is(.sgo-btn, .sgo-icon-btn, .sgo-chip, .gx-chip, .gx-add, .pri-filter, .cc2-go, .tp-more, .sgo-seg button, .cc2, .gp-card, .mo-hover, .mo-card, .mo-press):is(:hover, :active) { transform: none; }
+  html.sgo-app .mo-ripple { display: none; }
+}
+html.sgo-reduce-motion.sgo-app #sgo-root *, html.sgo-reduce-motion.sgo-app #sgo-root *::before, html.sgo-reduce-motion.sgo-app #sgo-root *::after { animation-duration: .001ms !important; animation-delay: 0s !important; transition-duration: .001ms !important; transition-delay: 0s !important; }
+html.sgo-reduce-motion.sgo-app #sgo-root :is(.sgo-btn, .sgo-icon-btn, .sgo-chip, .gx-chip, .gx-add, .pri-filter, .cc2-go, .tp-more, .sgo-seg button, .cc2, .gp-card, .mo-hover, .mo-card, .mo-press):is(:hover, :active) { transform: none; }
+html.sgo-reduce-motion .mo-ripple { display: none; }

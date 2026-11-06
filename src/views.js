@@ -4,7 +4,7 @@
   if (S.views) return;
   const { h, icon } = S;
   const V = (S.views = {});
-  S.ui = { edit: false, assign: { f: 'all', sort: 'due', q: '', course: '' }, cal: null, openGrade: {}, onlyDesc: {} };
+  S.ui = { edit: false, assign: { f: 'all', sort: 'due', q: '', course: '' }, cal: null, onlyDesc: {} };
 
   /* ---------- routing helpers ---------- */
   S.parseHash = (hash = location.hash) => {
@@ -22,6 +22,8 @@
   const dot = (c) => h('span', { class: 'sgo-dot', style: { background: c } });
   const btn = (label, onclick, cls, ic) => h('button', { class: 'sgo-btn ' + (cls || ''), onclick }, ic && icon(ic, 16), label);
   const toggleDone = (it) => { S.prefs.done[it.key] ? delete S.prefs.done[it.key] : (S.prefs.done[it.key] = Date.now()); S.savePrefs(); S.render(); };
+  /** True when the system asks for reduced motion, or the student turned it on in Settings → Accessibility. */
+  function reducedMotion() { return matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('sgo-reduce-motion'); }
   const iso = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
   const fromIso = (s) => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s || ''); return m ? new Date(+m[1], +m[2] - 1, +m[3]).getTime() : null; };
 
@@ -39,7 +41,7 @@
       else if (S.isStale(i)) return; // past its date, status unknown: not shown as overdue or upcoming
       else if (!i.due) c.none.push(i);
       else if (S.sameDay(i.due, now)) c.today.push(i);
-      else if (i.due < S.sod(now) + 8 * S.DAY) c.soon.push(i);
+      else if (i.due < S.sod(now) + 7 * S.DAY) c.soon.push(i);
       else c.later.push(i);
     });
     return c;
@@ -50,10 +52,10 @@
       ? h('button', { class: 'sgo-act', title: 'Edit', 'aria-label': 'Edit ' + it.title, onclick: (e) => { e.preventDefault(); S.openNewAssignment(it); } }, icon('edit', 15))
       : h('button', { class: 'sgo-act', title: 'Remove from my tracker', 'aria-label': 'Remove ' + it.title + ' from my tracker', onclick: (e) => { e.preventDefault(); askExclude(it); } }, icon('eyeoff', 15)));
     return h('article', { class: `sgo-item pr-${pr}${done ? ' is-done' : ''}${mine ? ' mine' : ''}`, style: { '--c': S.colorOf(it) } },
-      h('button', { class: 'sgo-check' + (done ? ' on' : ''), title: done ? 'Mark as not done' : 'Mark as done (saved only in this browser)', 'aria-pressed': String(done), onclick: () => toggleDone(it) }, icon('check', 14)),
+      h('button', { class: 'sgo-check' + (done ? ' on' : ''), title: done ? 'Mark as not done' : 'Mark as done (saved only in this browser)', 'aria-pressed': String(done), onclick: () => toggleDone(it) }, checkRing()),
       h('a', { class: 'sgo-item-main', href: detailHref(it) },
         h('div', { class: 'sgo-item-title' }, it.title),
-        h('div', { class: 'sgo-item-meta' }, dot(S.colorOf(it)), S.cn(it.courseId, it.courseName) || 'Course', ' · ', S.relDue(it.due), it.due && it.timed ? ' · ' + S.fmtTime(it.due) : '')),
+        h('div', { class: 'sgo-item-meta' }, S.cn(it.courseId, it.courseName) || 'Course', ' · ', S.relDue(it.due), it.due && it.timed ? ' · ' + S.fmtTime(it.due) : '')),
       !opts.compact && h('div', { class: 'sgo-item-side' }, mine && pill('Yours', 'mine'), done || st.id === 'done' ? pill(st.label, 'st-' + st.id) : pr !== 'low' ? pill(S.PRIORITY[pr], 'pr-' + pr) : st.id !== 'upcoming' ? pill(st.label, 'st-' + st.id) : null),
       act);
   }
@@ -63,6 +65,7 @@
   let openMenu = null;
   const closeMenu = (refocus) => { if (!openMenu) return; const m = openMenu; openMenu = null; m.panel.hidden = true; m.panel.remove(); m.btn.setAttribute('aria-expanded', 'false'); if (refocus) m.btn.focus(); };
   /** Open menus live on <html>, not inside the card: a card's hover lift (transform) or clipping can never move or cut them off. */
+  S.closeMenus = () => closeMenu();
   const menuHost = () => { let hst = document.getElementById('sgo-menus'); if (!hst) { hst = h('div', { id: 'sgo-menus', class: 'sgo' }); document.documentElement.append(hst); } return hst; };
   document.addEventListener('click', () => closeMenu());
   addEventListener('scroll', () => closeMenu(), true);
@@ -80,6 +83,7 @@
       items.filter(Boolean).map(([text, fn]) => h('button', { type: 'button', role: 'menuitem', onclick: () => { closeMenu(); fn(); } }, text)));
     btn.addEventListener('click', (e) => {
       e.preventDefault(); e.stopPropagation();
+      if (S.closePopovers) S.closePopovers('menu');
       const wasOpen = openMenu && openMenu.btn === btn;
       closeMenu();
       if (wasOpen) return;
@@ -102,6 +106,7 @@
   /* Dashboard title, greeting and course cards on the left, a Tasks panel on the right, all from the student's Schoology data. */
   const dui = () => (S.ui.dash = S.ui.dash || { week: 0, course: 'all', tab: 'assignments', expanded: false, ann: {} });
   const mon3 = (ts) => S.MONTHS[new Date(ts).getMonth()].slice(0, 3);
+  const clockText = (ts) => { const d = new Date(ts), h = d.getHours() % 12 || 12; return `${h}:${String(d.getMinutes()).padStart(2, '0')} ${d.getHours() < 12 ? 'AM' : 'PM'}`; };
   const shortDate = (ts) => `${mon3(ts)} ${new Date(ts).getDate()}`;
   const daysUntil = (ts, now) => Math.round((S.sod(ts) - S.sod(now)) / S.DAY);
   /** "today", "in 3d", "in 1w": computed from the real due date, in calendar days. */
@@ -135,13 +140,13 @@
     return n <= 0 ? 'Due today' + time : n === 1 ? 'Due tomorrow' + time : n < 7 ? `Due ${S.WEEKDAYS[new Date(it.due).getDay()]}, ${shortDate(it.due)}${time}` : `Due ${shortDate(it.due)}${time}`;
   }
   /** Counts a number up (or down) to its new value; the bar's own CSS transition handles the width. Timers, not frames, so it also runs in a background window. */
-  function countTo(el, from, to, suffix) {
+  function countTo(el, from, to, suffix, D = 700) {
     el.textContent = from + suffix;
     if (from === to) return;
     setTimeout(() => {
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to + suffix; return; }
-      const t0 = Date.now(), D = 700;
-      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 4); el.textContent = Math.round(from + (to - from) * e) + suffix; if (k < 1) setTimeout(step, 16); };
+      if (reducedMotion()) { el.textContent = to + suffix; return; }
+      const t0 = Date.now();
+      const step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 5); el.textContent = Math.round(from + (to - from) * e) + suffix; if (k < 1) setTimeout(step, 16); };
       step();
     });
   }
@@ -187,78 +192,67 @@
   };
 
   /* ---- Today's Priorities ---- */
-  function priorityRow(it, now) {
+  /** The exit shared by priorities and announcements: the item slides away to the right while it blurs and fades, then its space closes up. */
+  function leaveEl(el, then) {
+    if (!el || !el.animate) { then(); return; }
+    const reduced = reducedMotion(), ease = 'cubic-bezier(.22, 1, .36, 1)';
+    el.style.overflow = 'hidden'; el.style.pointerEvents = 'none';
+    const h0 = el.offsetHeight, gap = parseFloat(getComputedStyle(el.parentElement || el).rowGap) || 0;
+    const frames = reduced
+      ? [{ opacity: 1, height: h0 + 'px', marginBottom: '0px' }, { opacity: 0, height: '0px', marginBottom: -gap + 'px' }]
+      : [{ offset: 0, opacity: 1, transform: 'translateX(0)', filter: 'blur(0px)', height: h0 + 'px', marginBottom: '0px', easing: ease },
+        { offset: .5, opacity: 0, transform: 'translateX(44px)', filter: 'blur(4px)', height: h0 + 'px', marginBottom: '0px', easing: ease },
+        { offset: 1, opacity: 0, transform: 'translateX(44px)', filter: 'blur(4px)', height: '0px', marginBottom: -gap + 'px' }];
+    const anim = el.animate(frames, { duration: reduced ? 200 : 460, easing: 'linear', fill: 'forwards' });
+    let done = false; const fin = () => { if (!done) { done = true; then(); } };
+    anim.onfinish = fin; setTimeout(fin, 900); // never leave the item stuck if the animation is interrupted
+  }
+  /** The completion circle: a ring, a fill, a ripple and a tick, all drawn as vectors so no frame is ever resampled. CSS drives every state. */
+  const checkRing = () => {
+    const t = document.createElement('template');
+    t.innerHTML = '<svg class="pc" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><circle class="pc-ripple" cx="12" cy="12" r="10"/><circle class="pc-fill" cx="12" cy="12" r="10"/><circle class="pc-ring" cx="12" cy="12" r="10"/><path class="pc-tick" d="M7.4 12.6l3 3 6.2-6.6"/></svg>';
+    return t.content.firstChild;
+  };
+  function priorityRow(it, now, idx = 0) {
     const u = urgency(it, now), viaSchoology = S.isSubmitted(it), complete = S.isComplete(it), e = S.gradeEntry(it);
     const name = S.cn(it.courseId, it.courseName) || (it.manual ? 'Personal task' : 'Course');
-    const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reduced = reducedMotion();
     // Commit the change, then say so with an Undo that reverses it.
     const commit = () => {
       dui().last = { id: it.key, at: Date.now() };
       toggleDone(it);
-      S.toast(complete ? `“${it.title}” marked not complete.` : `“${it.title}” marked complete.`,
+      S.toast(complete ? 'Marked incomplete' : 'Marked complete',
         { label: 'Undo', run: () => { dui().last = null; toggleDone(S.allItems().find((i) => i.key === it.key) || it); } });
     };
+    // Ticking an item leaves it in place, done, for a moment: tick it again in that time and it simply goes back. Otherwise the row eases shut and the list is redrawn.
+    const HOLD = 1200;
+    const putBack = (btn, row) => { btn.classList.remove('on', 'just'); btn.setAttribute('aria-pressed', 'false'); btn.title = 'Mark complete'; row.classList.remove('u-done'); };
     const toggle = (e) => {
       if (viaSchoology) return;
-      const row = e.currentTarget.closest('.pr');
+      const btn = e.currentTarget, row = btn.closest('.pr');
+      if (btn._hold) { clearTimeout(btn._hold); btn._hold = null; putBack(btn, row); return; }
       if (complete || reduced || !row || row.classList.contains('folding')) { if (!row || !row.classList.contains('folding')) commit(); return; }
-      // Completing: the tick draws at once, the row eases shut, and only then the list is redrawn, so nothing jumps.
-      e.currentTarget.classList.add('on', 'just'); e.currentTarget.setAttribute('aria-pressed', 'true');
-      row.classList.add('u-done', 'folding'); row.style.maxHeight = row.offsetHeight + 'px';
-      void row.offsetHeight; // commit the starting height so the collapse is animated
-      setTimeout(() => row.classList.add('fold'), 260);
-      setTimeout(commit, 260 + 340);
+      btn.classList.add('on', 'just'); btn.setAttribute('aria-pressed', 'true'); btn.title = 'Mark as not complete'; row.classList.add('u-done');
+      btn._hold = setTimeout(() => {
+        btn._hold = null; if (!row.isConnected) { commit(); return; }
+        leaveEl(row, commit);
+      }, HOLD);
     };
     const tt = dui().last, just = !!tt && tt.id === it.key && Date.now() - tt.at < 1500; // only the item just ticked draws its check
-    return h('li', { class: `pr u-${u.id}`, style: { '--c': S.colorOf(it) } },
+    return h('li', { class: `pr u-${u.id}`, style: { '--c': S.courseColor(it.courseId, it.courseName), '--i': idx } },
       h('button', { class: 'pr-check' + (complete ? ' on' : '') + (just ? ' just' : ''), type: 'button', dataset: { fk: 'check-' + it.key }, 'aria-pressed': String(complete), 'aria-disabled': viaSchoology ? 'true' : null,
         title: viaSchoology ? 'Submitted in Schoology' : complete ? 'Mark as not complete' : 'Mark complete',
-        'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : complete ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: toggle }, icon('check', 14)),
+        'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : complete ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: toggle }, checkRing()),
       h('div', { class: 'pr-main' },
-        h('div', { class: 'pr-course' }, h('i'), name, e && e.possible != null ? h('span', { class: 'pr-pts' }, `${e.possible} pts`) : null),
-        h('a', { class: 'pr-title', href: itemHref(it) }, it.title)),
+        h('a', { class: 'pr-title', href: itemHref(it) }, it.title),
+        h('div', { class: 'pr-course' }, name, e && e.possible != null ? h('span', { class: 'pr-pts' }, `${e.possible} pts`) : null)),
       h('span', { class: 'pr-due' }, dueLabel(it, now)),
       h('span', { class: 'badge b-' + u.id }, icon(u.icon, 14), u.label),
-      h('a', { class: 'pr-open', href: itemHref(it), title: 'Open', 'aria-label': 'Open assignment: ' + it.title }, icon('right', 18)));
+      !it.manual && it.url ? h('a', { class: 'pr-open', href: it.url, target: '_blank', rel: 'noopener', title: 'Open in Schoology', 'aria-label': 'Open in Schoology: ' + it.title }, icon('external', 17))
+        : h('a', { class: 'pr-open', href: itemHref(it), title: 'Open', 'aria-label': 'Open: ' + it.title }, icon('right', 15)));
   }
 
 
-  /* Course covers on the dashboard. A cover the student chose always wins. Otherwise: a real photograph when one of the bundled
-   * photographs fits the subject, and a typographic banner (course name set large on a soft gradient) for everything else. Schoology's own
-   * generic pictures are only used when the student picks "Original". */
-  /* Dashboard-only subject matching, most specific first. Each id is a bundled photograph in banners/. Anything unmatched gets a typographic banner. */
-  const AUTO_PHOTO = [
-    [/econom|financ|market/i, 'economics'],
-    [/\bsports?\b|medic|\btsa\b|engineer|anatom|physiolog/i, 'anatomy'],
-    [/\bap\s?us\b|\bapush\b|us history|u\.s\. history|american history/i, 'apush'],
-    [/biolog|\bbio\b|cell/i, 'cells'],
-    [/calc|algebra|geometr|trig|statist|\bmath/i, 'calculus'],
-  ];
-  const PHOTO_OK = new Set(['history', 'english', 'languages', 'cs']); // the general-purpose photographs
-  /** What a course shows when nothing was chosen: a bundled photograph that fits the subject, else a typographic banner. */
-  function autoCover(c, name) {
-    const text = `${name} ${S.cleanName(c.name)}`, hit = AUTO_PHOTO.find(([re]) => re.test(text)), rec = S.recommendBanner(c.name);
-    const id = hit ? hit[1] : PHOTO_OK.has(rec) && !/advis|summer/i.test(text) ? rec : '';
-    return id && S.bannerUrl(id) ? { css: S.coverCssFor(c.id, c.name, 'b:' + id) } : { typo: true };
-  }
-  /** The saved choice: '' automatic, 'orig' Schoology's picture, 't' typographic, 'b:id' a bundled photo, or an uploaded image. */
-  function coverFor(c, name) {
-    const chosen = S.cmeta(c.id, c.name).cover || '';
-    if (chosen === 't') return { typo: true };
-    if (chosen) return { css: S.coverCss(c.id, c.name) };
-    return autoCover(c, name);
-  }
-  const hueOf = (hex) => { const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255), mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn; if (!d) return 215; const k = mx === r ? ((g - b) / d) % 6 : mx === g ? (b - r) / d + 2 : (r - g) / d + 4; return Math.round((k * 60 + 360) % 360); };
-  /** The course name set large on a soft gradient in the course's own colour. plain: no link (for use inside a button or an already-linked card). */
-  function typoBanner(c, name, meta, plain) {
-    const hue = hueOf(S.tint(c.id, c.name)), t = plain ? h('span', { class: 'dc-typo-t' }, name) : h('a', { class: 'dc-typo-t', href: `/course/${c.id}/materials`, tabindex: '-1', 'aria-hidden': 'true' }, name);
-    return h('div', { class: 'dc-typo', style: { '--h': hue } }, h('span', null, meta || 'Course'), t);
-  }
-  /** Fills a cover element from a resolved choice. */
-  function paintCover(el, c, name, cv, plain) {
-    el.style.background = cv.css || ''; el.classList.toggle('typo', !!cv.typo);
-    el.replaceChildren(...(cv.typo ? [typoBanner(c, name, S.courseCode(c.name) || 'Course', plain)] : []));
-  }
   /** Courses that are not part of the school year picture (summer work, advisory) stay off the dashboard. */
   const HIDDEN_COURSE = /summer|advisory/i;
   /** Hidden from the dashboard only; the Courses tab always lists everything. An explicit choice wins; otherwise summer work and advisory start hidden. */
@@ -266,9 +260,8 @@
   S.courseHidden = hiddenCourse;
   S.setCourseHidden = (c, hide, quiet) => {
     S.prefs.courseHidden = Object.assign({}, S.prefs.courseHidden, { [c.id]: !!hide }); S.savePrefs(); S.render(true);
-    if (!quiet) S.toast(hide ? `“${S.cn(c.id, c.name)}” is hidden from the dashboard. It is still in Courses.` : `“${S.cn(c.id, c.name)}” is back on the dashboard.`, { label: 'Undo', run: () => S.setCourseHidden(c, !hide, true) });
+    if (!quiet) S.toast(hide ? 'Course hidden' : 'Course shown', { label: 'Undo', run: () => S.setCourseHidden(c, !hide, true) });
   };
-  const resolveCover = (c, name, v) => (v === 't' ? { typo: true } : v === '' ? autoCover(c, name) : { css: S.coverCssFor(c.id, c.name, v) });
 
   /** The title turned into a text box, in place. Enter or clicking away saves, Escape cancels, and an empty box goes back to Schoology's name. */
   function renameField(c) {
@@ -288,64 +281,175 @@
   /* ---- courses ---- */
   const visibleCourse = (id) => { const c = S.state.courses.find((x) => x.id === id); return !!c && !hiddenCourse(c); };
 
+  /* Which announcements the student has already opened. The first time the list loads, everything present counts as seen, so only later arrivals show as new. */
+  const annKey = (a) => (a.courseId || '') + ':' + a.id;
+  /** When an announcement was posted, from Schoology's own wording ("12 minutes ago", "Today at 8:37 am", "Tue Nov 3, 2026 at 2:23 pm"). null when it cannot be read. */
+  function annTime(a, now = Date.now()) {
+    const t = String(a.time || '').trim().toLowerCase(); if (!t) return null;
+    if (/^(just now|now)$/.test(t)) return now;
+    let m = t.match(/(\d+)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|days?|weeks?|[smhdw])\s+ago/);
+    if (m) return now - Number(m[1]) * ({ s: 1e3, m: 6e4, h: 36e5, d: 864e5, w: 6048e5 }[m[2][0]]);
+    m = t.match(/(today|yesterday)(?:\s+at)?\s+(\d{1,2})(?::(\d{2}))?\s*(am|pm)?/);
+    if (m) { const h12 = Number(m[2]), hr = m[4] ? (h12 % 12) + (m[4] === 'pm' ? 12 : 0) : h12, d = new Date(now); if (m[1] === 'yesterday') d.setDate(d.getDate() - 1); d.setHours(hr, Number(m[3] || 0), 0, 0); return d.getTime(); }
+    const parsed = Date.parse(String(a.time).replace(/^\s*(mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+/i, '').replace(/\s+at\s+/i, ' ')); return Number.isFinite(parsed) ? parsed : null;
+  }
+  const isFreshAnn = (a, now = Date.now()) => { const ts = annTime(a, now); return ts != null && now - ts >= 0 && now - ts < 864e5; };
+  function annSeen() {
+    const all = S.state.announcements;
+    if (!Array.isArray(S.prefs.annSeen) && S.state.loaded && all.length) { S.prefs.annSeen = all.map(annKey); S.savePrefs(); }
+    return new Set(S.prefs.annSeen || []);
+  }
+  function markAnnSeen(a) {
+    const set = annSeen(), read = new Set(S.prefs.annRead || []);
+    if (set.has(annKey(a)) && read.has(annKey(a))) return;
+    set.add(annKey(a)); read.add(annKey(a)); S.prefs.annSeen = [...set].slice(-300); S.prefs.annRead = [...read].slice(-300); S.savePrefs();
+  }
+  /** New = not yet opened or marked read, and either posted in the last 24 hours or arrived since the student last looked. */
+  const annIsNew = (a, seen, read) => !read.has(annKey(a)) && (isFreshAnn(a) || !seen.has(annKey(a)));
+  /* Announcements the student has dismissed from the dashboard (kept locally; nothing is changed in Schoology). */
+  const annHiddenSet = () => new Set(S.prefs.annHidden || []);
+  const saveAnnHidden = (set) => { S.prefs.annHidden = [...set].slice(-300); S.savePrefs(); };
   function announcementsCard() {
-    const ui = dui(), all = S.state.announcements, shown = ui.annAll ? all : all.slice(0, 3);
-    return h('section', { class: 'side-card', 'aria-labelledby': 'an-h' },
-      h('div', { class: 'side-h' }, h('h3', { id: 'an-h' }, 'Announcements'), all.length > 3 ? h('button', { class: 'link', type: 'button', dataset: { fk: 'ann-all' }, onclick: () => { ui.annAll = !ui.annAll; S.render(); } }, ui.annAll ? 'Show fewer' : 'View all') : null),
+    const ui = dui(), hid = annHiddenSet(), everything = S.state.announcements, all = everything.filter((a) => !hid.has(annKey(a))), dismissed = everything.length - all.length;
+    const shown = ui.annAll ? all : all.slice(0, 3), seen = annSeen(), read = new Set(S.prefs.annRead || []), fresh = all.filter((a) => annIsNew(a, seen, read)).length;
+    const reduced = reducedMotion();
+    /** Opening or closing a card: redraw, then ease the card from its old height to its new one so the page never jumps. */
+    const toggleOpen = (e, id, a, isOpen) => {
+      const li = e.currentTarget.closest('li'), h0 = li ? li.offsetHeight : 0;
+      ui.ann[id] = !isOpen; if (!isOpen) markAnnSeen(a); S.render();
+      if (reduced || !h0) return;
+      const nl = [...document.querySelectorAll('.an-list li')].find((x) => x.dataset.key === id); if (!nl) return;
+      const h1 = nl.offsetHeight; if (Math.abs(h1 - h0) < 2) return;
+      nl.style.overflow = 'hidden'; nl.style.height = h0 + 'px'; void nl.offsetHeight;
+      nl.style.transition = 'height .3s cubic-bezier(.22, 1, .36, 1)'; nl.style.height = h1 + 'px';
+      setTimeout(() => { nl.style.height = ''; nl.style.transition = ''; nl.style.overflow = ''; }, 330);
+    };
+    /** The card leaves: it slides right and fades while its height closes, then the list is redrawn. With reduced motion it is a quick fade only. */
+    const settle = (e, cls, then) => {
+      const li = e && e.currentTarget && e.currentTarget.closest('li'); if (!li) { then(); return; }
+      if (cls === 'leaving') { leaveEl(li, then); return; }
+      if (!li.animate) { then(); return; }
+      li.classList.add(cls); li.style.pointerEvents = 'none';
+      const anim = li.animate([{ opacity: 1 }, { opacity: .55 }], { duration: 200, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards' });
+      let done = false; const fin = () => { if (!done) { done = true; then(); } };
+      anim.onfinish = fin; setTimeout(fin, 500);
+    };
+    const markRead = (a, e) => settle(e, 'settling', () => { markAnnSeen(a); S.render(); });
+    const markAllRead = () => { all.forEach(markAnnSeen); S.render(); };
+    const dismiss = (a, e) => settle(e, 'leaving', () => {
+      const set = annHiddenSet(); set.add(annKey(a)); saveAnnHidden(set); S.render();
+      S.toast('Announcement dismissed', { label: 'Undo', run: () => { const s2 = annHiddenSet(); s2.delete(annKey(a)); saveAnnHidden(s2); S.render(); } });
+    });
+    const annSwap = !!ui.annSwap; ui.annSwap = false;
+    return h('section', { class: 'side-card' + (annSwap ? ' swap' : ''), 'aria-labelledby': 'an-h' },
+      h('div', { class: 'side-h' }, h('h3', { id: 'an-h' }, 'Announcements', fresh ? h('span', { class: 'an-count' }, `${fresh} new`) : null),
+        h('div', { class: 'side-acts' },
+          fresh ? h('button', { class: 'link', type: 'button', dataset: { fk: 'ann-read-all' }, onclick: markAllRead }, 'Mark all read') : null,
+          all.length > 3 ? h('button', { class: 'link', type: 'button', dataset: { fk: 'ann-all' }, onclick: () => { ui.annAll = !ui.annAll; ui.annSwap = true; S.render(); } }, ui.annAll ? 'Show fewer' : 'View all') : null)),
       shown.length ? h('ul', { class: 'an-list' }, shown.map((a, idx) => {
-        const id = a.id + ':' + idx, isOpen = !!ui.ann[id];
-        return h('li', null, h('button', { type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpen), onclick: () => { ui.ann[id] = !isOpen; S.render(); } },
-          h('span', { class: 'an-c' }, S.cn(a.courseId, a.courseName) || 'Announcement'), h('b', null, a.body.split(/(?<=[.!?])\s/)[0].slice(0, 80).replace(/\.+$/, '')), h('span', { class: 'an-t' }, [a.author, a.time].filter(Boolean).join(' · '))),
-          isOpen ? h('p', null, a.body.replace(/\.+$/, '')) : null);
-      })) : h('p', { class: 'side-empty' }, 'No announcements right now.'));
+        const id = annKey(a), isOpen = !!ui.ann[id], isNew = annIsNew(a, seen, read);
+        return h('li', { class: (isNew ? 'new' : '') + (isOpen ? ' open' : '') + (idx === 0 ? ' lead' : ''), dataset: { key: id }, style: { '--c': S.courseColor(a.courseId, a.courseName), '--i': idx } },
+          h('button', { class: 'an-main', type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpen), onclick: (e) => toggleOpen(e, id, a, isOpen) },
+            h('span', { class: 'an-top' }, h('span', { class: 'an-top-l' }, h('span', { class: 'an-c' }, h('i'), S.cn(a.courseId, a.courseName) || 'Announcement'), isNew ? h('span', { class: 'an-pill', 'aria-hidden': 'true' }, 'New') : null)),
+            // Schoology posts have no separate subject line, so the text is shown once, whole; a subject gets its own line only when the post has one
+            a.subject ? h('b', { class: 'an-sub' }, isNew ? h('span', { class: 'an-new', title: 'New' }, h('i'), h('span', { class: 'sr-only' }, 'New: ')) : null, a.subject) : null,
+            h('span', { class: 'an-body' }, !a.subject && isNew ? h('span', { class: 'an-new', title: 'New' }, h('i'), h('span', { class: 'sr-only' }, 'New: ')) : null, a.body.replace(/\.+$/, '')),
+            a.author || a.time ? h('span', { class: 'an-t' }, a.author ? h('span', null, a.author) : null, a.author && a.time ? h('i', { class: 'an-sep', 'aria-hidden': 'true' }) : null, a.time ? h('time', { class: 'an-d' }, a.time) : null) : null),
+          h('div', { class: 'an-acts' },
+            isNew ? h('button', { class: 'an-act', type: 'button', title: 'Mark as read', 'aria-label': 'Mark as read', dataset: { fk: 'ann-read-' + id }, onclick: (e) => markRead(a, e) }, icon('check', 16)) : null,
+            h('button', { class: 'an-act', type: 'button', title: 'Dismiss', 'aria-label': 'Dismiss announcement', dataset: { fk: 'ann-hide-' + id }, onclick: (e) => dismiss(a, e) }, icon('eyeoff', 16))));
+      })) : h('div', { class: 'ag-clear an-clear' }, h('span', { class: 'ag-clear-i', 'aria-hidden': 'true' }, icon('check', 20)),
+        h('div', null, h('p', { class: 'ag-clear-t' }, dismissed ? 'You are all caught up' : 'No announcements yet'),
+          h('p', { class: 'ag-clear-s' }, dismissed ? 'Nothing new from your teachers' : 'Posts from your teachers show up here'))),
+      dismissed ? h('p', { class: 'an-restore' }, h('span', null, `${dismissed} dismissed`), h('button', { class: 'link', type: 'button', dataset: { fk: 'ann-restore' }, onclick: () => { saveAnnHidden(new Set()); S.render(); } }, 'Restore')) : null);
   }
   /* ---- dashboard v2: what needs doing, in order ---- */
-  const AGENDA = [['overdue', 'Overdue', 3], ['today', 'Due today', 4], ['soon', 'Next 7 days', 4], ['later', 'Later', 3], ['none', 'No due date', 2]];
+  const AGENDA = [['overdue', 'Overdue', 3], ['today', 'Due today', 4], ['soon', 'Next 7 days', 99], ['later', 'Later', 4], ['none', 'No due date', 2]];
+  /** The course filter: a button that opens the app's own menu, so it matches the theme (a native select cannot). */
+  function courseFilter(ui) {
+    const opts = [['all', 'All courses']].concat(S.orderedCourses().filter((c) => !hiddenCourse(c)).map((c) => [c.id, S.cn(c.id, c.name)]));
+    const cur = opts.find((o) => o[0] === ui.course) || opts[0];
+    const trigger = h('button', { class: 'pri-filter', type: 'button', dataset: { fk: 'course' } }, h('span', null, cur[1]), icon('down', 16));
+    return S.menu('Filter by course', opts.map(([id, label]) => [h('span', { class: 'mi' + (id === cur[0] ? ' on' : '') }, h('span', null, label), id === cur[0] ? icon('check', 14) : null), () => { ui.course = id; ui.swap = true; S.render(); }]), trigger, 'pri-filter-menu');
+  }
   function agenda(t, wk, now) {
-    const ui = dui(), byCourse = (i) => ui.course === 'all' || i.courseId === ui.course, groups = categorize(wk.open.filter(byCourse));
+    const ui = dui(), byCourse = (i) => ui.course === 'all' || i.courseId === ui.course;
+    // the week's open work, plus anything due a week or more from now (it is listed under Later but does not count toward the week's progress)
+    const horizon = S.sod(now) + 7 * S.DAY, seenKeys = new Set(wk.open.map((i) => i.key));
+    const beyond = t.filter((i) => !seenKeys.has(i.key) && !S.isComplete(i) && !S.isStale(i) && i.due && i.due >= horizon);
+    const groups = categorize(wk.open.concat(beyond).filter(byCourse));
     ui.open = ui.open || {};
     const done = wk.complete.filter(byCourse), total = AGENDA.reduce((n, [k]) => n + groups[k].length, 0);
     // the filter and Add task live on the first group's heading line, so they read as that list's controls
     const controls = h('div', { class: 'ag-ctl' },
-      h('select', { class: 'sgo-input pri-filter', 'aria-label': 'Filter by course', dataset: { fk: 'course' }, onchange: (e) => { ui.course = e.target.value; S.render(); } },
-        h('option', { value: 'all' }, 'All courses'), S.orderedCourses().filter((c) => !hiddenCourse(c)).map((c) => h('option', { value: c.id, selected: ui.course === c.id ? 'selected' : null }, S.cn(c.id, c.name)))),
+      courseFilter(ui),
       h('button', { class: 'sgo-btn primary', type: 'button', onclick: () => S.openNewAssignment(null) }, icon('plus', 16), 'Add task'));
-    let budget = 5; // rows shown across all groups before "Show more", so the page below the list stays within reach
+    let budget = 4; // rows shown across all groups before "Show more", so the page below the list stays within reach
     const sections = AGENDA.filter(([k]) => groups[k].length).map(([k, label, cap], idx) => {
-      const take = Math.max(1, Math.min(cap, budget)); budget = Math.max(0, budget - take);
+      // the next 7 days and Later keep their own sizes; the urgent groups and "No due date" share a small row budget
+      const own = k === 'soon' || k === 'later', take = k === 'soon' ? groups[k].length : own ? cap : Math.max(1, Math.min(cap, budget)); if (!own) budget = Math.max(0, budget - take);
       const list = groups[k], open = !!ui.open[k], shown = open ? list : list.slice(0, take);
       const head = h('h3', { class: 'ag-gh' }, h('span', null, label), h('b', null, list.length));
       return h('section', { class: 'ag-g g-' + k, 'aria-label': label },
-        idx === 0 ? h('div', { class: 'ag-hrow' }, head, controls) : head,
-        h('ul', { class: 'pr-list' }, shown.map((i) => priorityRow(i, now))),
-        list.length > take ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more-' + k }, onclick: () => { ui.open[k] = !open; S.render(true); } }, open ? 'Show fewer' : `Show ${list.length - take} more`) : null);
+        head,
+        h('ul', { class: 'pr-list' }, shown.map((i, n) => priorityRow(i, now, n))),
+        list.length > take ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more-' + k }, onclick: () => { ui.open[k] = !open; ui.swap = true; S.render(true); } }, open ? 'Show fewer' : `Show ${list.length - take} more`) : null);
     });
-    return h('section', { class: 'ag', 'aria-labelledby': 'ag-h' },
-      h('h2', { id: 'ag-h', class: 'sr-only' }, 'To do'),
-      total ? sections : [h('div', { class: 'ag-hrow' }, h('span'), controls), h('div', { class: 'sgo-empty topo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Nothing to do'),
-        h('div', { class: 'sgo-empty-s' }, done.length ? `Everything on your list is finished. ${plural(done.length, 'item')} completed this week.` : 'New work appears here when your teachers post it.'))],
-      done.length && total ? h('details', { class: 'pr-done', open: ui.showDone ? 'open' : null, ontoggle: (e) => { ui.showDone = e.target.open; } },
-        h('summary', null, icon('check', 14), `${plural(done.length, 'completed item')} this week`), h('ul', { class: 'pr-list' }, done.map((i) => priorityRow(i, now)))) : null);
+    const swap = !!ui.swap; ui.swap = false;
+    return h('section', { class: 'ag' + (swap ? ' swap' : ''), 'aria-labelledby': 'ag-h' },
+      h('div', { class: 'sec-h' }, h('h2', { id: 'ag-h', class: 'sec-t' }, 'Priorities'), controls),
+      total ? sections : h('div', { class: 'ag-clear' }, h('span', { class: 'ag-clear-i', 'aria-hidden': 'true' }, icon('check', 20)),
+        h('div', null, h('p', { class: 'ag-clear-t' }, done.length ? 'You are all caught up' : 'Nothing to do'),
+          h('p', { class: 'ag-clear-s' }, 'New work shows up here when your teachers post it'))),
+      done.length ? h('details', { class: 'pr-done', open: ui.showDone ? 'open' : null, ontoggle: (e) => { ui.showDone = e.target.open; } },
+        h('summary', null, h('span', null, 'Completed this week'), h('b', null, done.length), icon('down', 16)), h('ul', { class: 'pr-list' }, done.map((i) => priorityRow(i, now)))) : null);
   }
 
-  /** The course list: one compact row per course (cover chip, name, grade, next due) with the options menu the cards had. */
-  function courseRow(c, tasks, now) {
-    const name = S.cn(c.id, c.name), g = S.gradeFor(c.id), hasGrade = g && g.percent != null;
-    const next = tasks.filter((i) => i.courseId === c.id && !S.isComplete(i) && (S.isOverdue(i) || (i.due && i.due >= S.sod(now)))).sort((a, b) => (S.isOverdue(b) - S.isOverdue(a)) || (a.due ?? 9e15) - (b.due ?? 9e15))[0];
-    const news = S.state.announcements.filter((a) => a.courseId === c.id).length;
-    const sub = next ? (S.isOverdue(next) ? 'Overdue: ' : 'Next: ') + next.title : 'No upcoming work';
-    return h('li', { class: 'cl-r' + (next && S.isOverdue(next) ? ' late' : '') + (next ? '' : ' idle'), dataset: { id: c.id } },
-      h('a', { class: 'cl-a', href: `/course/${c.id}/materials`, 'aria-label': `${name}${hasGrade ? ', grade ' + pctText(g.percent) : ''}` },
-        h('span', { class: 'cl-m' }, h('b', null, name), sub ? h('small', null, sub) : null),
-        hasGrade ? h('span', { class: 'cl-g' + (next ? ' up' : '') }, pctText(g.percent)) : null),
-      news ? h('a', { class: 'cl-n', href: `/course/${c.id}/updates`, title: 'Announcements', 'aria-label': `${news} announcements for ${name}` }, icon(S.notifIcon(c), 15), news) : null,
-      S.menu('Options for ' + name, [['Rename or recolour…', () => S.openCourseEditor(c)], ['Change banner', () => S.openBannerPicker(c)], ['Notification icon…', () => S.openIconPicker(c)], ['Move earlier', () => { S.moveCourse(c.id, -1, visibleCourse); S.render(true); }], ['Move later', () => { S.moveCourse(c.id, 1, visibleCourse); S.render(true); }], ['Hide from dashboard', () => S.setCourseHidden(c, true)], ['View assignments', () => S.go(assignmentsHref('course=' + c.id))]], h('button', { class: 'sgo-icon-btn cl-dots', type: 'button' }, icon('dots', 16)), 'cl-menu'));
+  /** Direction of a course grade, from the gradebook only: the last three graded assignments taken together, against the course percentage.
+   *  Returns null until there are two graded assignments to compare. */
+  function gradeTrend(c) {
+    const g = S.gradeFor(c.id); if (!g || g.percent == null) return null;
+    const graded = [];
+    for (const p of g.periods || []) for (const cat of p.categories || []) for (const it of cat.items || []) {
+      const e = Number(it.earned), m = Number(it.possible);
+      if (it.earned == null || !Number.isFinite(e) || !Number.isFinite(m) || m <= 0) continue;
+      const d = it.dueText && S.parseDue(it.dueText); graded.push({ e, m, ts: d ? d.ts : 0 });
+    }
+    if (graded.length < 2) return { percent: g.percent, dir: 'none' };
+    const last = graded.sort((x, y) => y.ts - x.ts).slice(0, 3), recent = (last.reduce((n, x) => n + x.e, 0) / last.reduce((n, x) => n + x.m, 0)) * 100, diff = Math.round((recent - g.percent) * 10) / 10;
+    return { percent: g.percent, recent: Math.round(recent * 10) / 10, diff, count: last.length, dir: Math.abs(diff) < 1 ? 'flat' : diff > 0 ? 'up' : 'down' };
   }
+  const TREND_WORD = { up: 'Rising', down: 'Slipping', flat: 'Steady', none: 'No trend yet' };
+  /** One course: its grade, which way it is heading, and a thin bar for the percentage. */
+  /** Counts a percentage up from zero with the same curve the bar uses (two decimals, like the number it ends on). */
+  function countGrade(el, to, delay = 250, D = 600) {
+    const reduced = reducedMotion(); el.textContent = pctText(0);
+    if (reduced) { el.textContent = pctText(to); return; }
+    setTimeout(() => {
+      const t0 = Date.now(), step = () => { const k = Math.min(1, (Date.now() - t0) / D), e = 1 - Math.pow(1 - k, 5); el.textContent = pctText(Math.round(to * e * 100) / 100); if (k < 1) setTimeout(step, 16); else el.textContent = pctText(to); };
+      step();
+    }, delay);
+  }
+  function courseRow(c, tr) {
+    const name = S.cn(c.id, c.name), pct = Math.max(0, Math.min(100, tr.percent)), dir = tr.dir;
+    const gradeEl = (v) => { const el = h('span', { class: 'cl-g' }, pctText(v)); if (dui().countGrades) countGrade(el, v); return el; };
+    const detail = dir === 'up' || dir === 'down' ? `${Math.abs(tr.diff)} pts ${dir === 'up' ? 'above' : 'below'} your average lately` : dir === 'flat' ? 'In line with your average lately' : 'Needs two graded assignments';
+    return h('li', { class: 'cl-r d-' + dir, dataset: { id: c.id }, style: { '--c': S.courseColor(c.id, c.name), '--p': pct + '%' } },
+      h('a', { class: 'cl-a', href: `/course/${c.id}/materials`, title: tr.recent != null ? `Last ${tr.count} graded assignments: ${tr.recent}%` : '', 'aria-label': `${name}, ${pctText(tr.percent)}, ${TREND_WORD[dir].toLowerCase()}. ${detail}` },
+        h('span', { class: 'cl-m' }, h('span', { class: 'cl-c' }, name),
+          h('span', { class: 'cl-t' }, dir === 'up' ? icon('trendUp', 12) : dir === 'down' ? icon('trendDown', 12) : null, h('span', null, dir === 'up' || dir === 'down' ? `${TREND_WORD[dir]} · ${Math.abs(tr.diff)} pts` : TREND_WORD[dir]))),
+        gradeEl(tr.percent),
+        h('span', { class: 'cl-bar', 'aria-hidden': 'true' }, h('i'))));
+  }
+  /** Grades and where each is heading. Courses without a grade yet are said once, as links. */
   function courseList(courses, tasks, now, hidden) {
+    const rows = courses.map((c) => [c, gradeTrend(c)]), graded = rows.filter(([, t]) => t), plain = rows.filter(([, t]) => !t);
     return h('section', { class: 'side-card cl', 'aria-labelledby': 'cl-h' },
-      h('div', { class: 'side-h' }, h('h3', { id: 'cl-h' }, 'Courses'), h('a', { class: 'link', href: '/courses' }, 'All courses')),
-      courses.length ? h('ul', { class: 'cl-list' }, courses.map((c) => courseRow(c, tasks, now)))
-        : !S.state.loaded ? h('div', { class: 'sk-row' }) : h('p', { class: 'side-empty' }, 'No courses found. Settings → Diagnostics shows what was read from Schoology.'),
+      h('div', { class: 'side-h' }, h('h3', { id: 'cl-h' }, 'Grades'), h('a', { class: 'link', href: '/grades/grades' }, 'All grades')),
+      !courses.length ? (!S.state.loaded ? h('div', { class: 'sk-row' }) : h('p', { class: 'side-empty' }, 'No courses found. Settings → Diagnostics shows what was read from Schoology.'))
+        : [graded.length ? h('ul', { class: 'cl-list' }, graded.map(([c, t]) => courseRow(c, t))) : h('p', { class: 'side-empty' }, 'No grades have been posted yet.'),
+          plain.length ? h('div', { class: 'cl-idle' }, h('p', null, graded.length ? 'No grade yet' : 'Your courses'),
+            h('ul', null, plain.map(([c]) => h('li', { style: { '--c': S.courseColor(c.id, c.name) } }, h('a', { href: `/course/${c.id}/materials` }, h('i'), S.cn(c.id, c.name)))))) : null],
       hidden ? h('p', { class: 'dc-hidden-note' }, h('span', { class: 'dc-hn-t' }, `${plural(hidden, 'course')} hidden`), h('a', { class: 'link', href: '/courses' }, 'Show')) : null);
   }
 
@@ -361,24 +465,57 @@
   }
 
   /** Page header: the greeting, one sentence about the day, and the week's progress as a single line. */
+  /** The week's progress: the bar eases from where it was, the percentage counts up (or down), and the counter pops when it changes. */
+  function weekBlock(wk, total, pct) {
+    const ui = dui(), from = ui.weekPct == null ? pct : ui.weekPct, changed = from !== pct; ui.weekPct = pct;
+    const fill = h('i', { style: { width: from + '%' } }), pctEl = h('span', { class: 'wk-pct' }, from + '%');
+    if (changed) { setTimeout(() => { fill.getBoundingClientRect(); fill.style.width = pct + '%'; }, 30); countTo(pctEl, from, pct, '%', 500); }
+    return h('div', { class: 'dh-wk', role: 'img', 'aria-label': `${wk.complete.length} of ${total} completed this week` },
+      h('div', { class: 'wk-bar' + (changed ? ' moving' : ''), 'aria-hidden': 'true' }, fill),
+      h('p', { class: 'wk-n' }, h('b', { class: changed ? 'bump' : null }, `${wk.complete.length}/${total}`), ' completed this week', pctEl));
+  }
   function dashHead(wk, now, review) {
     const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0];
     const msg = wk.overdue ? `${plural(wk.overdue, 'assignment')} overdue${wk.today ? `, ${wk.today} due today` : ''}.`
       : wk.today ? `${plural(wk.today, 'assignment')} due today.` : 'Nothing is due today.';
-    const ui = dui(), from = ui.weekPct == null ? wk.pct : ui.weekPct; ui.weekPct = wk.pct;
-    return h('div', { class: 'dh' },
+    const total = wk.inView.length, pct = total ? Math.round((wk.complete.length / total) * 100) : 0;
+    // the clock keeps itself current while the dashboard is open
+    if (!S._clockT) S._clockT = setInterval(() => { const e = document.querySelector('.dh-clock'), tx = clockText(Date.now()); if (e && e.textContent !== tx) { e.textContent = tx; e.classList.remove('tick'); void e.offsetWidth; e.classList.add('tick'); } }, 15000);
+    return h('header', { class: 'dh' },
       h('div', { class: 'dh-l' },
-        h('p', { class: 'dh-date' }, longDate(now)),
-        h('div', { class: 'dh-t' }, h('h1', null, `${S.greeting()}${first ? ', ' + first : ''}`)),
-        h('p', { class: 'dh-msg', role: 'status' }, msg.replace(/\.$/, '')),
-        syncLine(),
-        wk.inView.length ? h('div', { class: 'dh-wk' }, meter(from, wk.pct, 'sm'), h('span', null, `${wk.complete.length} of ${wk.inView.length} done this week`)) : null));
+        h('p', { class: 'dh-hi' }, h('time', { class: 'dh-date' }, longDate(now)), h('span', { class: 'dh-dot', 'aria-hidden': 'true' }, '·'), h('time', { class: 'dh-clock' }, clockText(now))),
+        h('h1', { class: 'dh-t' }, `${S.greeting()}${first ? ', ' + first : ''}`),
+        h('div', { class: 'dh-sub' }, h('p', { class: 'dh-msg', role: 'status' }, msg.replace(/\.$/, '')), syncLine()),
+        total ? weekBlock(wk, total, pct) : null));
+  }
+
+  /** The page shown when no work is left: a calm full-screen state, the week's count, and where to go next. */
+  function caughtUp(wk, now, t) {
+    const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0], n = wk.complete.length;
+    const link = (href, label, ic) => h('a', { class: 'sgo-btn ghost cu-link', href }, icon(ic, 16), label);
+    return h('div', { class: 'sgo-page cu' },
+      h('div', { class: 'cu-card', role: 'status' },
+        h('span', { class: 'cu-i', 'aria-hidden': 'true' }, icon('check', 36)),
+        h('p', { class: 'cu-eyebrow' }, longDate(now)),
+        h('h1', { class: 'cu-t' }, first ? `You're all caught up, ${first}` : `You're all caught up`),
+        h('p', { class: 'cu-s' }, n ? `${plural(n, 'task')} finished this week and nothing left to do.` : 'Nothing is waiting for you right now.'),
+        h('div', { class: 'cu-acts' }, link('/grades/grades', 'Check grades', 'grades'), link('/courses', 'Your courses', 'book'), link('/calendar', 'Calendar', 'calendar')),
+        h('div', { class: 'cu-more' },
+          h('button', { class: 'link', type: 'button', dataset: { fk: 'cu-full' }, onclick: () => { dui().showFull = true; S.render(true); } }, 'Show full dashboard'),
+          h('button', { class: 'link', type: 'button', onclick: () => S.openNewAssignment(null) }, 'Add a task'))));
   }
 
   V.dashboard = () => {
     const now = Date.now(), skip = new Set(S.state.courses.filter(hiddenCourse).map((c) => c.id)), t = tasksOnly().filter((i) => !skip.has(i.courseId)), courses = S.orderedCourses().filter((c) => !skip.has(c.id)), review = S.unreviewedItems().length, wk = weekOf(t, now);
     S._dashStamp = S.dashStamp();
-    return h('div', { class: 'sgo-page dash6' }, dashHead(wk, now, review),
+    // the sections ease in once, the first time the dashboard is drawn with data; later redraws (ticking a task, opening a menu) never replay it
+    const intro = S.state.loaded && !S._dashIntro; if (intro) S._dashIntro = true;
+    dui().countGrades = intro;
+    // everything is finished: a page of its own instead of the usual dashboard with an empty list (the student can still open the full dashboard)
+    const horizon = S.sod(now) + 7 * S.DAY, seenKeys = new Set(wk.open.map((i) => i.key));
+    const openLeft = wk.open.length + t.filter((i) => !seenKeys.has(i.key) && !S.isComplete(i) && !S.isStale(i) && i.due && i.due >= horizon).length;
+    if (S.state.loaded && t.length && !openLeft && !dui().showFull) return caughtUp(wk, now, t);
+    return h('div', { class: 'sgo-page dash6' + (intro ? ' intro' : '') }, dashHead(wk, now, review),
       h('div', { class: 'dp-main' }, h('div', { class: 'dp-fused' }, agenda(t, wk, now), announcementsCard())),
       h('aside', { class: 'dp-side-col', 'aria-label': 'Courses' }, courseList(courses, t, now, skip.size)));
   };
@@ -403,46 +540,51 @@
       S.prefs.courseOrder = ids; S.savePrefs(); S.render(true);
     });
   }
+  /** The course's own topographic map, seeded from its id, as an <svg>. Shared by the Courses tiles and the course page banner so a course looks the same in both. */
+  function topoSvg(id) {
+    const T = window.SGO_TOPO; if (!T || !T.build) return '';
+    let seed = 0; for (const ch of String(id)) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    const m = T.build(560, 240, seed % 90000 + 1000, 'small-dense');
+    return `<svg viewBox="0 0 ${m.width} ${m.height}" preserveAspectRatio="xMidYMid slice" focusable="false">${m.paths.map((x) => `<path d="${x.d}"${x.major ? ' class="mj"' : ` stroke-opacity="${x.o}"`}/>`).join('')}</svg>`;
+  }
+  const inkOn = (hex) => (window.SGO_COLOR && window.SGO_COLOR.onAccent ? window.SGO_COLOR.onAccent(hex) : '#fff');
+  /** A course tile: its colour, its own map, its name, code and term. preview: the static copy shown in the customize window (no link, not draggable). */
   function courseCard(c, opts = {}) {
-    const color = S.tint(c.id, c.name), name = S.cn(c.id, c.name), custom = !!S.cmeta(c.id, c.name).name;
-    const items = tasksOnly().filter((i) => i.courseId === c.id);
-    const od = items.filter(S.isOverdue).length, soon = items.filter((i) => !S.isDone(i) && i.due && i.due >= Date.now() && i.due < Date.now() + 7 * S.DAY).length;
-    const editing = S.ui.renaming === c.id, canDrag = !opts.dash && !editing;
-    const stop = (e) => e.stopPropagation();
+    const color = S.tint(c.id, c.name), name = S.cn(c.id, c.name), code = S.courseCode(c.name), term = S.courseTerm(c);
+    const editing = !opts.preview && S.ui.renaming === c.id, canDrag = !opts.preview && !editing;
     let title;
     if (editing) {
       let done = false;
+      const stop = (e) => e.stopPropagation();
       const finish = (save, v) => { if (done) return; done = true; if (save) S.setCourseMeta(c.id, { name: v.trim() && v.trim() !== S.autoName(c.name) ? v.trim() : '' }); S.ui.renaming = null; S.render(); };
       title = h('input', { class: 'sgo-input sgo-rename', value: name, placeholder: S.autoName(c.name), maxlength: '80', 'aria-label': 'Course name', onclick: stop, ondblclick: stop,
         onkeydown: (e) => { e.stopPropagation(); if (e.key === 'Enter') finish(true, e.target.value); else if (e.key === 'Escape') finish(false); },
         onblur: (e) => finish(true, e.target.value) });
       setTimeout(() => { title.focus(); title.select(); }, 30);
     } else title = h('div', { class: 'sgo-course-t', title: name }, name);
-    const card = h('article', { class: 'sgo-course' + (opts.dash ? ' dash' : ''), style: { '--c': color }, draggable: canDrag ? 'true' : null, dataset: { id: c.id } },
-      !editing && h('a', { class: 'sgo-course-link', href: `/course/${c.id}/materials`, draggable: 'false', 'aria-label': 'Open ' + name }),
-      h('div', { class: 'sgo-course-cover' }),
-      h('div', { class: 'sgo-course-actions' },
-        h('button', { class: 'sgo-chip-btn', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: (e) => { stop(e); S.ui.renaming = c.id; S.render(); } }, icon('edit', 15)),
-        h('button', { class: 'sgo-chip-btn', title: S.courseHidden(c) ? 'Show on dashboard' : 'Hide from dashboard', 'aria-label': (S.courseHidden(c) ? 'Show on dashboard: ' : 'Hide from dashboard: ') + name, onclick: (e) => { stop(e); S.setCourseHidden(c, !S.courseHidden(c)); } }, icon('eyeoff', 15)),
-        h('button', { class: 'sgo-chip-btn', title: 'Customize name & colour', 'aria-label': 'Customize ' + name, onclick: (e) => { stop(e); S.openCourseEditor(c); } }, icon('palette', 15)),
-        h('button', { class: 'sgo-chip-btn', title: 'Change banner', 'aria-label': 'Change banner for ' + name, onclick: (e) => { stop(e); S.openBannerPicker(c); } }, icon('image', 15))),
-      h('div', { class: 'sgo-course-body' }, title,
-        c.name !== name ? h('div', { class: 'sgo-course-raw' }, c.name) : null,
-        h('div', { class: 'sgo-course-pills' }, od > 0 && pill(od + ' overdue', 'pr-critical'), soon > 0 && pill(soon + ' this week', 'pr-medium'), !od && !soon && pill('All clear', 'st-done'))),
-      !opts.dash && h('div', { class: 'sgo-course-foot' }, h('a', { href: assignmentsHref('course=' + c.id) }, 'Assignments'), h('a', { href: `/course/${c.id}/materials` }, 'Materials')));
-    { const cov = card.querySelector('.sgo-course-cover'); paintCover(cov, c, name, coverFor(c, name), true); if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cov, c.id, c.name); }
-    if (canDrag) bindCourseDrag(card, c);
-    return card;
+    const href = `/course/${c.id}/materials`, linked = !opts.preview && !editing;
+    const tile = h('article', { class: 'sgo-course cc2', style: { '--c': color, '--ink': inkOn(color) }, draggable: canDrag ? 'true' : null, dataset: { id: c.id } },
+      linked && h('a', { class: 'sgo-course-link', href, draggable: 'false', 'aria-label': 'Open ' + name }),
+      h('span', { class: 'cc2-art', 'aria-hidden': 'true' }),
+      h('div', { class: 'cc2-head' }, h('span', { class: 'cc2-label' }, 'Course')),
+      h('div', { class: 'cc2-body' }, title),
+      h('div', { class: 'cc2-foot' },
+        h('div', { class: 'cc2-chips' }, code ? h('span', { class: 'cc2-code' }, code) : null, term ? h('span', { class: 'cc2-term' }, term) : null),
+        linked ? h('a', { class: 'cc2-go', href, draggable: 'false', 'aria-label': 'Open ' + name, title: 'Open ' + name }, icon('arrowRight', 22)) : null));
+    tile.querySelector('.cc2-art').innerHTML = topoSvg(c.id);
+    if (canDrag) bindCourseDrag(tile, c);
+    return tile;
   }
 
-  /* Customize modal: name, colour, cover. Edits apply live and persist immediately. */
+  /* Customize modal: name and colour. Edits apply live and persist immediately. */
   /* Removes the open modal and its Escape listener. Called on close and on every navigation. */
   S.closeModal = (soft) => {
     const host = S.modalHost, bg = host && host.firstElementChild;
-    if (soft && bg && !matchMedia('(prefers-reduced-motion: reduce)').matches) { // fade out, then remove; a modal opened meanwhile is left alone
+    if (soft && bg && !reducedMotion()) { // fade out, then remove; a modal opened meanwhile is left alone
       bg.classList.add('leaving'); setTimeout(() => { if (bg.parentNode === host && bg.classList.contains('leaving')) bg.remove(); }, 150);
     } else if (host) host.replaceChildren();
     if (S._modalKey) { document.removeEventListener('keydown', S._modalKey, true); S._modalKey = null; }
+    S._apRepaint = null;
   };
   S.openCourseEditor = (c) => {
     const host = S.modalHost; if (!host) return;
@@ -452,7 +594,7 @@
     S._modalKey = onKey;
     document.addEventListener('keydown', onKey, true);
     const prev = h('div', { class: 'sgo-cgrid sgo-prev' });
-    const fresh = () => { const card = courseCard(c, { dash: true }); const l = card.querySelector('.sgo-course-link'); if (l) l.remove(); card.querySelector('.sgo-course-actions').remove(); prev.replaceChildren(card); };
+    const fresh = () => prev.replaceChildren(courseCard(c, { preview: true }));
     const nameIn = h('input', { class: 'sgo-input', value: S.cmeta(c.id, c.name).name || '', placeholder: S.autoName(c.name), maxlength: '80', style: { width: '100%' },
       oninput: (e) => { S.setCourseMeta(c.id, { name: e.target.value.trim() }); fresh(); } });
     const sw = h('div', { class: 'sgo-swatches' });
@@ -464,13 +606,12 @@
     host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
       h('div', { class: 'sgo-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Customize course' },
         h('h2', null, 'Customize course'), h('p', { class: 'sgo-muted' }, 'This only changes how the course looks here. Links and Schoology itself stay exactly the same.'),
-        prev, row('Display name', nameIn), row('Colour', sw), row('Banner', btn('Choose banner…', () => S.openBannerPicker(c), 'ghost', 'image')),
+        prev, row('Display name', nameIn), row('Colour', sw),
         h('div', { class: 'sgo-head-a sgo-mfoot' },
           btn('Reset to original', () => { S.resetCourse(c.id); close(); }, 'ghost', 'reload'), btn('Done', close, 'primary', 'check')))));
     setTimeout(() => nameIn.focus(), 30);
   };
 
-  /* Banner picker: stage a choice, preview it, then Apply. The choice is stored per course id and never touches Schoology. */
   /** Colours in small labelled families rather than one long row. items are [name, hex]. */
   function groupedSwatches(groups, cur, onPick, shape) {
     return h('div', { class: 'sw-groups' + (shape ? ' ' + shape : ''), role: 'group' }, groups.map(([label, items]) => h('div', { class: 'sw-group' }, h('span', { class: 'sw-gl' }, label),
@@ -501,54 +642,11 @@
         prev, grid, h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Done', close, 'primary', 'check')))));
   };
 
-  S.openBannerPicker = (c) => {
-    const host = S.modalHost; if (!host) return;
-    S.closeModal();
-    const close = () => { S.closeModal(true); S.render(true); };
-    const onKey = (e) => { if (e.key === 'Escape') close(); };
-    S._modalKey = onKey; document.addEventListener('keydown', onKey, true);
-    const saved = S.cmeta(c.id, c.name).cover || '', original = S.originalBanner(c.id, c.name), suggested = S.recommendBanner(c.name);
-    let staged = saved;
-    const preview = h('div', { class: 'bp-preview', role: 'img', 'aria-label': 'Banner preview' }), caption = h('div', { class: 'bp-cap', 'aria-live': 'polite' });
-    const grid = h('div', { class: 'bp-grid', role: 'group', 'aria-label': 'Banner choices' });
-    const file = h('input', { type: 'file', accept: 'image/*', style: { display: 'none' }, onchange: async (e) => { const f = e.target.files[0]; if (!f) return; try { staged = await S.imageToDataUrl(f); draw(); } catch (x) { alert('That image could not be read.'); } } });
-    const cname = S.cn(c.id, c.name);
-    const labelOf = (v) => v === '' ? 'Automatic (a photo that fits the subject, otherwise typographic)' : v === 'orig' ? (original ? 'Original Schoology banner' : 'Original (not found, so a colour is shown)') : v === 't' ? 'Typographic, in this course\'s colour'
-      : v.startsWith('b:') ? (S.SUBJECT_BANNERS.find((x) => 'b:' + x[0] === v) || [, 'Banner'])[1] : 'Your image';
-    const thumbOf = (v) => { const cv = resolveCover(c, cname, v), t = h('span', { class: 'bp-thumb' + (cv.typo ? ' typo' : ''), style: cv.css ? { background: cv.css } : null }); if (cv.typo) t.append(typoBanner(c, cname, S.courseCode(c.name) || 'Course', true)); return t; };
-    function draw() {
-      const isUp = staged.startsWith('data:');
-      paintCover(preview, c, cname, resolveCover(c, cname, staged), true);
-      if (staged === 'orig') S.guardImage(preview, original, S.autoGradient(c.id, c.name));
-      caption.textContent = labelOf(staged) + (staged === saved ? '' : '  ·  not applied yet');
-      const tile = (value, label, extra) => h('button', { type: 'button', class: 'bp-tile' + (staged === value ? ' on' : ''), 'aria-pressed': String(staged === value), title: label,
-        disabled: extra && extra.disabled ? true : null, onclick: () => { staged = value; draw(); } },
-        thumbOf(value), h('span', { class: 'bp-l' }, label), extra && extra.suggested ? h('span', { class: 'bp-sug' }, 'Suggested') : null);
-      grid.replaceChildren(
-        tile('', 'Automatic'), tile('t', 'Typographic'), tile('orig', 'Original', { disabled: !original }),
-        ...S.SUBJECT_BANNERS.map(([id, n]) => tile('b:' + id, n, { suggested: suggested === id })),
-        h('button', { type: 'button', class: 'bp-tile' + (isUp ? ' on' : ''), title: 'Upload an image (stays on this device)', onclick: () => file.click() },
-          h('span', { class: 'bp-thumb bp-up', style: isUp ? { background: S.coverCssFor(c.id, c.name, staged) } : null }, isUp ? null : icon('plus', 18)), h('span', { class: 'bp-l' }, 'Upload image')),
-        file);
-    }
-    draw();
-    host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
-      h('div', { class: 'sgo-modal wide', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Choose a course banner' },
-        h('h2', null, 'Course banner'), h('p', { class: 'sgo-muted' }, `${S.cn(c.id, c.name)} · only changes how this class looks here.`),
-        preview, caption, grid,
-        h('div', { class: 'sgo-head-a sgo-mfoot' },
-          btn('Reset to automatic', () => { S.setCourseMeta(c.id, { cover: '' }); close(); }, 'ghost', 'reload'),
-          h('div', { class: 'sgo-head-a' }, btn('Cancel', close, 'ghost'), btn('Apply', () => { S.setCourseMeta(c.id, { cover: staged }); close(); }, 'primary', 'check'))))));
-  };
-  /** Settings actions: 'orig' points every class at its original Schoology banner; '' clears every choice (the default is the original too). */
-  function setAllBanners(mode) {
-    new Set([...Object.keys(S.prefs.courseMeta), ...S.state.courses.map((x) => x.id)]).forEach((id) => S.setCourseMeta(id, { cover: mode }));
-  }
 
   V.courses = () => {
     const list = S.orderedCourses();
-    return h('div', { class: 'sgo-page' }, pageHead('Courses', `${list.length} ${list.length === 1 ? 'course' : 'courses'} · drag cards to rearrange`,
-      [S.prefs.courseOrder.length ? btn('Reset order', () => { S.prefs.courseOrder = []; S.savePrefs(); S.render(); }, 'ghost', 'reload') : null]),
+    return h('div', { class: 'sgo-page cl-page' }, h('div', { class: 'cl-top' }, h('div', null, h('span', { class: 'cl-eyebrow' }, 'Courses'), h('h1', null, 'Courses'), h('p', null, `${list.length} ${list.length === 1 ? 'course' : 'courses'} \u00b7 drag tiles to rearrange`)),
+      S.prefs.courseOrder.length ? h('button', { class: 'sgo-btn primary cl-reset', type: 'button', onclick: () => { S.prefs.courseOrder = []; S.savePrefs(); S.render(); } }, icon('resetOrder', 18), 'Reset order') : null),
       list.length ? h('div', { class: 'sgo-cgrid' }, list.map((c) => courseCard(c))) : empty('No courses found', 'Courses are read from your Schoology account. Open Settings → Diagnostics to see what was detected, or use Classic view.'));
   };
 
@@ -617,7 +715,7 @@
     if (ctx.q.f) u.f = ctx.q.f; if (ctx.q.course !== undefined) u.course = ctx.q.course;
     const now = Date.now();
     const filters = {
-      all: () => true, upcoming: (i) => !S.isDone(i) && i.due && i.due >= now, missing: (i) => !S.isDone(i) && (i.fromOverdue || i.gbMissing),
+      all: (i) => !S.isStale(i) || S.isDone(i) || S.isOverdue(i), upcoming: (i) => !S.isDone(i) && i.due && i.due >= now, missing: (i) => !S.isDone(i) && (i.fromOverdue || i.gbMissing),
       overdue: S.isOverdue, done: S.isDone,
     };
     const byCourse = (i) => !u.course || i.courseId === u.course;
@@ -638,20 +736,41 @@
     }
     const pristine = u.f === 'all' && !u.course && !u.q;
     const review = S.unreviewedItems(), excluded = S.excludedItems().filter(byCourse).filter(byText);
+    const ui = dui(); ui.open = ui.open || {};
+    const swapTo = (fn) => () => { fn(); u.swap = true; S.render(); };
     const chips = [['all', 'All'], ['upcoming', 'Upcoming'], ['missing', 'Missing'], ['overdue', 'Overdue'], ['done', 'Completed']].map(([k, l]) =>
-      h('button', { class: 'sgo-chip' + (u.f === k ? ' on' : ''), onclick: () => { u.f = k; S.render(); } }, l, h('span', null, tasksOnly().filter(filters[k]).filter(byCourse).length)));
-    const qChip = u.q ? h('button', { class: 'sgo-chip on q-chip', type: 'button', title: 'Clear this search', 'aria-label': `Clear search ${u.q}`, onclick: () => { u.q = ''; S.render(); } }, `“${u.q}”`, icon('plus', 14)) : null;
-    const courseSel = h('select', { class: 'sgo-input', onchange: (e) => { u.course = e.target.value; S.render(); } }, h('option', { value: '' }, 'All classes'),
-      S.orderedCourses().map((c) => h('option', { value: c.id, selected: u.course === c.id ? 'selected' : null }, S.cn(c.id, c.name))));
-    const sortSel = h('select', { class: 'sgo-input', onchange: (e) => { u.sort = e.target.value; S.render(); } },
-      [['due', 'Sort: Due date'], ['class', 'Sort: Class'], ['status', 'Sort: Status']].map(([v, l]) => h('option', { value: v, selected: u.sort === v ? 'selected' : null }, l)));
-    return h('div', { class: 'sgo-page' },
-      pageHead('Assignments', 'Everything you need to do, and when', [btn('New assignment', () => S.openNewAssignment(null), 'primary', 'plus'), btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
-      pristine && review.length ? reviewCard(review) : null,
-      h('div', { class: 'sgo-toolbar' }, h('div', { class: 'sgo-chips' }, chips), h('div', { class: 'sgo-filters' }, qChip, courseSel, sortSel)),
-      groups.length ? groups.map(([name, arr]) => h('section', { class: 'sgo-sec' }, h('h3', null, name, h('span', null, arr.length)), list(arr)))
-        : empty('Nothing here', S.allItems().length ? 'Try a different filter.' : 'No assignments have been read from Schoology yet. Open Settings → Diagnostics to see what was found.'),
-      pristine && excluded.length ? excludedSection(excluded) : null);
+      h('button', { class: 'sgo-chip' + (u.f === k ? ' on' : ''), type: 'button', onclick: swapTo(() => { u.f = k; }) }, l, h('span', null, tasksOnly().filter(filters[k]).filter(byCourse).length)));
+    const qChip = u.q ? h('button', { class: 'sgo-chip on q-chip', type: 'button', title: 'Clear this search', 'aria-label': `Clear search ${u.q}`, onclick: swapTo(() => { u.q = ''; }) }, `“${u.q}”`, icon('plus', 14)) : null;
+    // the filters are the dashboard's own menu buttons, not native selects
+    const pick = (label, opts, cur, on) => {
+      const c = opts.find((o) => o[0] === cur) || opts[0];
+      return S.menu(label, opts.map(([id, l]) => [h('span', { class: 'mi' + (id === c[0] ? ' on' : '') }, h('span', null, l), id === c[0] ? icon('check', 14) : null), swapTo(() => on(id))]),
+        h('button', { class: 'pri-filter', type: 'button', dataset: { fk: 'asg-' + label } }, h('span', null, c[1]), icon('down', 16)), 'pri-filter-menu');
+    };
+    const courseSel = pick('Filter by course', [['', 'All classes']].concat(S.orderedCourses().map((c) => [c.id, S.cn(c.id, c.name)])), u.course || '', (id) => { u.course = id; });
+    const sortSel = pick('Sort assignments', [['due', 'Sort: Due date'], ['class', 'Sort: Class'], ['status', 'Sort: Status']], u.sort || 'due', (id) => { u.sort = id; });
+    const intro = S.state.loaded && !S._asgIntro; if (intro) S._asgIntro = true;
+    const swap = !!u.swap; u.swap = false;
+    const CAP = { 'Completed': 6, 'Due later': 8, 'No due date': 8 };
+    let n = 0;
+    const sections = groups.map(([name, arr]) => {
+      const cap = CAP[name] || 9999, open = !!ui.open['asg-' + name], shown = open ? arr : arr.slice(0, cap);
+      return h('section', { class: 'ag-g' + (name === 'Overdue' ? ' g-overdue' : ''), 'aria-label': name },
+        h('h3', { class: 'ag-gh' }, h('span', null, name), h('b', null, arr.length)),
+        h('ul', { class: 'pr-list' }, shown.map((i) => priorityRow(i, now, n++))),
+        arr.length > cap ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more-asg-' + name }, onclick: () => { ui.open['asg-' + name] = !open; u.swap = true; S.render(true); } }, open ? 'Show fewer' : `Show ${arr.length - cap} more`) : null);
+    });
+    return h('div', { class: 'sgo-page dash6 asg6' + (intro ? ' intro' : '') },
+      h('header', { class: 'dh asg-h' },
+        h('div', { class: 'dh-l' }, h('h1', { class: 'asg-title' }, 'Assignments'), h('p', { class: 'asg-sub' }, 'Everything you need to do, and when')),
+        h('div', { class: 'asg-act' }, btn('Refresh', () => S.hardRefresh(), 'ghost', 'resetOrder'), btn('New assignment', () => S.openNewAssignment(null), 'primary', 'plus'))),
+      h('div', { class: 'dp-main' },
+        pristine && review.length ? reviewCard(review) : null,
+        h('div', { class: 'asg-bar' }, h('div', { class: 'sgo-chips' }, chips), h('div', { class: 'asg-filters' }, qChip, courseSel, sortSel)),
+        h('section', { class: 'ag' + (swap ? ' swap' : ''), 'aria-label': 'Assignments' },
+          sections.length ? sections : h('div', { class: 'ag-clear' }, h('span', { class: 'ag-clear-i', 'aria-hidden': 'true' }, icon('check', 20)),
+            h('div', null, h('p', { class: 'ag-clear-t' }, 'Nothing here'), h('p', { class: 'ag-clear-s' }, S.allItems().length ? 'Try a different filter.' : 'No assignments have been read from Schoology yet. Open Settings → Diagnostics to see what was found.')))),
+        pristine && excluded.length ? excludedSection(excluded) : null));
   };
 
   V.assignment = (ctx) => {
@@ -688,7 +807,8 @@
   }
   function monthGrid(y, m, mini) {
     const first = new Date(y, m, 1), today = S.sod(Date.now());
-    const cells = [...Array(42)].map((_, i) => {
+    const weeks = mini ? 6 : Math.ceil((first.getDay() + new Date(y, m + 1, 0).getDate()) / 7); // only the weeks the month needs
+    const cells = [...Array(weeks * 7)].map((_, i) => {
       const ts = new Date(y, m, 1 - first.getDay() + i, 12); const t = ts.getTime(), its = itemsOn(t), other = ts.getMonth() !== m;
       const cls = 'sgo-cell' + (other ? ' other' : '') + (S.sod(t) === today ? ' today' : '');
       if (mini) return h('a', { class: cls, href: '/calendar#?m=day&d=' + iso(t) }, h('span', null, ts.getDate()), its.length ? h('i', { style: { background: S.colorOf(its[0]) } }) : null);
@@ -749,183 +869,185 @@
   const ovKey = (g) => g.courseId || g.gradebookId || g.courseName;
   const ovGet = (g, create) => { const all = S.prefs.hypo || (S.prefs.hypo = {}), k = ovKey(g); if (!all[k] && create) all[k] = { cats: [], items: [], edits: {}, weights: {} }; const o = all[k] || { cats: [], items: [], edits: {}, weights: {} }; o.edits = o.edits || {}; o.weights = o.weights || {}; o.cats = o.cats || []; o.items = o.items || []; return o; };
   const ovEditing = () => !!S.prefs.gradesEdit;
-  const ovSave = () => { S.savePrefs(); S.render(true); };
+  const ovSave = () => { S.savePrefs(); setTimeout(() => S.render(true), 0); }; // after the focus change has settled, so Tab lands on the next field
   const ovPrune = (g) => { const all = S.prefs.hypo || {}, o = all[ovKey(g)]; if (o && !o.cats.length && !o.items.length && !Object.keys(o.edits || {}).length && !Object.keys(o.weights || {}).length) delete all[ovKey(g)]; };
   const numInput = (value, label, fk, onCommit, onLive) => h('input', { class: 'sgo-input ov-num', type: 'number', inputmode: 'decimal', min: '0', step: 'any', value: value == null ? '' : value, 'aria-label': label, dataset: { fk },
     oninput: onLive ? (e) => onLive(hyNum(e.target.value)) : null, onchange: (e) => onCommit(hyNum(e.target.value)) });
 
-  /** Set (or clear) a what-if score for an item Schoology already lists. A value equal to the real one removes the edit. */
-  function setEdit(g, cat, it, field, value) {
+  /** Set (or clear) a hypothetical score for an item Schoology already lists. A value equal to the real one removes the edit. */
+  function setEdit(g, cat, it, field, value, after) {
     const key = S.gradeKey(cat, it), o = ovGet(g, true), e = o.edits[key] || (o.edits[key] = {});
     if (value === (it[field] == null ? null : it[field])) delete e[field]; else e[field] = value;
     if (!Object.keys(e).length) delete o.edits[key];
-    ovPrune(g); ovSave();
+    ovPrune(g); (after || ovSave)();
   }
   const clearEdit = (g, cat, it) => { const o = ovGet(g, true); delete o.edits[S.gradeKey(cat, it)]; ovPrune(g); ovSave(); };
 
-  /** The two grades side by side, and a plain note when the weights or scores need attention. */
-  function ovSummary(g, calc) {
+  /* ---------- Grades: a course list on the left, one course at a time on the right ----------
+   * "Actual" shows the gradebook exactly as Schoology reports it. "Hypothetical" turns the same page into a sandbox: scores become
+   * editable, weights can be changed, your own scores and categories can be added, and a goal tool says what a score needs to be. */
+  const signed = (n) => (n > 0 ? '+' : '') + n;
+  const gradeNotes = (g, calc) => {
     const total = hyR2(calc.totalWeight), notes = [];
-    if (calc.percent == null) notes.push('Add a score to a category to see a running total.');
-    else {
-      if (calc.weighted && Math.abs(total - 100) > 0.01) notes.push(`Weights add up to ${total}%. The total uses the weights you see, scaled to 100%.`);
-      if (calc.weighted && calc.usedWeight < calc.totalWeight) notes.push('Categories with no scores yet are left out and the others are scaled up.');
-      if (calc.missingWeights) notes.push('Some Schoology categories have no weight, so they are not counted. Set a weight for them below.');
-      if (!calc.weighted) notes.push('Schoology did not report category weights, so every point counts equally. Set weights below to weight by category.');
-    }
-    // the change is measured from the unchanged gradebook worked out the same way, so rounding or weights Schoology does not show never look like the student's doing
-    const base = S.overlayGrade(g, {}).percent, from = base != null ? base : g.percent, delta = calc.percent != null && from != null ? hyR2(calc.percent - from) : null;
-    if (calc.changed && calc.percent != null && base != null && g.percent != null && Math.abs(base - g.percent) > 0.1) notes.push(`Schoology shows ${gPct(g.percent)}. With the weights above, your unchanged gradebook works out to ${gPct(hyR2(base))}, so the change is measured from that.`);
-    return h('div', { class: 'ov-sum', 'aria-live': 'polite' },
-      h('div', { class: 'ov-pair' },
-        h('div', null, h('span', null, 'Schoology'), h('b', null, g.percent != null ? gPct(g.percent) : '—')),
-        h('div', { class: 'ov-hyp' }, h('span', null, 'With your changes'), h('b', null, calc.percent == null ? '—' : gPct(hyR2(calc.percent))),
-          delta != null && delta !== 0 ? h('small', { class: delta > 0 ? 'up' : 'down' }, (delta > 0 ? '+' : '') + delta + ' points') : null)),
-      notes.map((n) => h('p', { class: 'ov-note' }, icon('help', 14), n)));
-  }
-
-  /** Category weights (Schoology's own, editable when unlocked, and the student's) with a running total of the weights. */
-  function ovWeights(g, calc, edit) {
-    const o = ovGet(g), total = hyR2(calc.cats.reduce((a, k) => a + (Number(k.weight) || 0), 0)), ok = Math.abs(total - 100) < 0.01;
-    const setW = (k, v) => { const x = ovGet(g, true); if (k.custom) { const c = x.cats.find((q) => q.id === k.id); if (c) c.weight = v == null ? 0 : v; } else if (v == null || v === (k.official && g.periods ? reported(g, k.name) : null)) delete x.weights[k.name]; else x.weights[k.name] = v; ovPrune(g); ovSave(); };
-    const reported = (gb, name) => { for (const p of gb.periods || []) for (const c of p.categories) if (c.name === name && c.weight != null) return Number(c.weight); return null; };
-    const row = (k) => h('div', { class: 'ov-w' + (k.custom ? ' custom' : ''), role: 'group', 'aria-label': 'Category ' + k.name },
-      h('span', { class: 'ov-wn' }, edit && k.custom ? h('input', { class: 'sgo-input', type: 'text', value: k.name, maxlength: '40', 'aria-label': 'Category name', dataset: { fk: 'oc-n-' + k.id }, onchange: (e) => { const x = ovGet(g, true), c = x.cats.find((q) => q.id === k.id); if (c) c.name = e.target.value.trim() || 'Untitled'; ovSave(); } }) : k.name,
-        k.custom ? h('em', null, 'Yours') : k.set ? h('em', null, 'Edited') : null),
-      edit ? h('span', { class: 'ov-wi' }, numInput(k.weight, 'Weight of ' + k.name + ' in percent', 'oc-w-' + k.id, (v) => setW(k, v)), h('i', null, '%')) : h('span', { class: 'ov-wv' }, k.weight != null && Number(k.weight) > 0 ? hyR2(Number(k.weight)) + '%' : 'No weight'),
-      edit && k.custom ? h('button', { class: 'sgo-icon-btn ov-del', type: 'button', title: 'Delete category', 'aria-label': 'Delete category ' + k.name, onclick: () => {
-        const n = o.items.filter((i) => i.cat === k.id).length;
-        const go = () => { const x = ovGet(g, true); x.cats = x.cats.filter((q) => q.id !== k.id); x.items = x.items.filter((i) => i.cat !== k.id); ovPrune(g); ovSave(); };
-        if (n) S.openConfirm({ title: 'Delete this category?', body: `Its ${n} ${n === 1 ? 'score' : 'scores'} will be deleted too. Nothing changes in Schoology.`, ok: 'Delete', danger: true, onOk: go }); else go();
-      } }, icon('trash', 16)) : h('span', { class: 'ov-wx' }));
-    const addName = h('input', { class: 'sgo-input', type: 'text', maxlength: '40', placeholder: 'New category, e.g. Participation', 'aria-label': 'New category name' });
-    const addW = h('input', { class: 'sgo-input ov-num', type: 'number', min: '0', max: '100', step: 'any', placeholder: '0', 'aria-label': 'New category weight in percent' });
-    const addCat = () => { const name = addName.value.trim(); if (!name) { addName.focus(); return; } const x = ovGet(g, true); x.cats.push({ id: hyId(), name, weight: hyNum(addW.value) ?? 0 }); ovSave(); };
-    return h('div', { class: 'ov-weights' },
-      h('div', { class: 'ov-wh' }, h('b', null, 'Category weights'), h('span', { class: 'ov-total ' + (ok ? 'ok' : 'warn') }, ok ? 'Total 100%' : `Total ${total}%`)),
-      h('div', { class: 'ov-wl' }, calc.cats.map(row)),
-      edit ? h('form', { class: 'ov-addcat', onsubmit: (e) => { e.preventDefault(); addCat(); } },
-        addName, h('span', { class: 'ov-wi' }, addW, h('i', null, '%')),
-        h('button', { class: 'sgo-btn ghost', type: 'submit' }, icon('plus', 16), 'Add category')) : null);
-  }
-
-  /** Everything the student added to this course: a table of their own scores. */
-  function ovCustom(g, calc, edit) {
-    const o = ovGet(g);
-    if (!o.items.length) return edit ? h('p', { class: 'ov-empty' }, 'Scores you add with the Add grade button appear here.') : null;
-    const catName = (id) => (calc.cats.find((k) => k.id === id) || {}).name || 'Uncategorised';
-    const rows = o.items.map((it) => {
-      const pc = it.earned != null && it.possible ? hyR2((it.earned / it.possible) * 100) : null;
-      return h('tr', { class: 'ov-row' },
-        h('td', { class: 'gr2-t' }, edit ? h('input', { class: 'sgo-input', type: 'text', value: it.title, maxlength: '80', 'aria-label': 'Assignment name', dataset: { fk: 'oi-t-' + it.id }, onchange: (e) => { it.title = e.target.value.trim() || 'Untitled'; ovSave(); } }) : it.title),
-        h('td', { class: 'gr2-c' }, edit ? h('select', { class: 'sgo-input', 'aria-label': 'Category', dataset: { fk: 'oi-c-' + it.id }, onchange: (e) => { it.cat = e.target.value; ovSave(); } }, calc.cats.map((k) => h('option', { value: k.id, selected: it.cat === k.id ? 'selected' : null }, k.name))) : catName(it.cat)),
-        h('td', { class: 'gr2-d' }, 'Hypothetical'),
-        h('td', { class: 'n' }, edit ? numInput(it.earned, 'Earned', 'oi-e-' + it.id, (v) => { it.earned = v; ovSave(); }) : gNum(it.earned)),
-        h('td', { class: 'n' }, edit ? numInput(it.possible, 'Possible', 'oi-p-' + it.id, (v) => { it.possible = v; ovSave(); }) : gNum(it.possible)),
-        h('td', { class: 'n' }, pc == null ? '—' : pc + '%'),
-        h('td', null, edit ? h('button', { class: 'sgo-icon-btn ov-del', type: 'button', title: 'Delete score', 'aria-label': 'Delete ' + it.title, onclick: () => { const x = ovGet(g, true); x.items = x.items.filter((q) => q.id !== it.id); ovPrune(g); ovSave(); } }, icon('trash', 16)) : h('span', { class: 'gr2-st st-hyp' }, 'Your score')));
-    });
-    return h('div', { class: 'gr2-period ov-custom' }, h('div', { class: 'gr2-ph' }, h('b', null, 'Your hypothetical grades'), h('span', null, 'Not in Schoology')),
-      h('div', { class: 'gr2-scroll' }, h('table', { class: 'gr2-table ov-table' },
-        h('thead', null, h('tr', null, ['Assignment', 'Category', 'Source', 'Earned', 'Possible', '%', ''].map((t, i) => h('th', { class: i >= 3 && i <= 5 ? 'n' : '' }, t)))), h('tbody', null, rows))));
-  }
-
-  /** Lock / Edit toggle, the Add grade button and a one-line hint. Used at the top of the Grades page and of a course's Grades tab. */
-  function gradeControls(preferKey) {
-    const editing = ovEditing();
-    return [
-      h('button', { class: 'sgo-btn primary gr-add', type: 'button', disabled: editing ? null : true, title: editing ? 'Add a hypothetical grade' : 'Unlock to add grades', dataset: { fk: 'gr-add' }, onclick: () => S.openAddGrade(preferKey) }, icon('plus', 16), 'Add grade'),
-      h('button', { class: 'sgo-btn ghost gr-lock' + (editing ? ' on' : ''), type: 'button', 'aria-pressed': String(editing), dataset: { fk: 'gr-lock' },
-        title: editing ? 'Editing is on. Lock to secure your grades' : 'Locked. Unlock to add or change hypothetical grades', onclick: () => { S.prefs.gradesEdit = !editing; S.savePrefs(); S.render(true); } },
-        icon(editing ? 'unlock' : 'lock', 16), editing ? 'Editing' : 'Locked')];
-  }
-  const gradeHint = () => (ovEditing() ? 'Editing is on. Added grades and changes are hypothetical: saved only in this browser, never sent to Schoology.' : 'Locked. Your hypothetical grades are secured. Unlock to add or change them.');
-
-  /** Add a grade: pick a course, a category (or make a new one with a weight) and a score. */
-  S.openAddGrade = (preferKey) => {
-    const host = S.modalHost; if (!host || !ovEditing()) return;
-    const books = S.state.grades; if (!books.length) return;
-    S.closeModal();
-    const close = () => { S.closeModal(); S.render(true); };
-    S._modalKey = (e) => { if (e.key === 'Escape') close(); }; document.addEventListener('keydown', S._modalKey, true);
-    let g = books.find((b) => ovKey(b) === preferKey) || books[0];
-    const f = {}, err = h('p', { class: 'sgo-err', role: 'alert' }), newBox = h('div', { class: 'ov-new', hidden: true });
-    const courseSel = h('select', { class: 'sgo-input', 'aria-label': 'Course', onchange: (e) => { g = books.find((b) => ovKey(b) === e.target.value) || g; fillCats(); } }, books.map((b) => h('option', { value: ovKey(b), selected: b === g ? 'selected' : null }, S.cn(b.courseId, b.courseName))));
-    const catSel = h('select', { class: 'sgo-input', 'aria-label': 'Category', onchange: () => { newBox.hidden = catSel.value !== '__new'; } });
-    function fillCats() { const calc = S.overlayGrade(g, ovGet(g)); catSel.replaceChildren(...calc.cats.map((k) => h('option', { value: k.id }, k.name + (k.weight != null && Number(k.weight) > 0 ? ` (${hyR2(Number(k.weight))}%)` : ''))), h('option', { value: '__new' }, '+ New category…')); newBox.hidden = catSel.value !== '__new'; }
-    fillCats();
-    const name = h('input', { class: 'sgo-input', type: 'text', maxlength: '80', placeholder: 'e.g. Unit 4 test', 'aria-label': 'Assignment name' });
-    const earned = h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', 'aria-label': 'Points earned' }), possible = h('input', { class: 'sgo-input', type: 'number', inputmode: 'decimal', min: '0', step: 'any', 'aria-label': 'Points possible' });
-    const newName = h('input', { class: 'sgo-input', type: 'text', maxlength: '40', placeholder: 'Category name', 'aria-label': 'New category name' }), newW = h('input', { class: 'sgo-input', type: 'number', min: '0', max: '100', step: 'any', placeholder: 'Weight %', 'aria-label': 'New category weight in percent' });
-    newBox.append(newName, newW);
-    const submit = (e) => {
-      if (e) e.preventDefault();
-      const title = name.value.trim(), e1 = hyNum(earned.value), p1 = hyNum(possible.value);
-      if (!title) { err.textContent = 'Name the assignment.'; name.focus(); return; }
-      if (e1 == null || p1 == null || p1 <= 0) { err.textContent = 'Enter the points earned and the points possible (more than 0).'; (e1 == null ? earned : possible).focus(); return; }
-      const x = ovGet(g, true); let cat = catSel.value;
-      if (cat === '__new') { const n = newName.value.trim(); if (!n) { err.textContent = 'Name the new category.'; newName.focus(); return; } cat = hyId(); x.cats.push({ id: cat, name: n, weight: hyNum(newW.value) ?? 0 }); }
-      x.items.push({ id: hyId(), title, cat, earned: e1, possible: p1 });
-      S.ui.openGrade[g.gradebookId || g.courseName] = true; S.savePrefs(); close();
-    };
-    host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (ev) => { if (ev.target === ev.currentTarget) close(); } },
-      h('form', { class: 'sgo-modal ov-dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Add a hypothetical grade', onsubmit: submit },
-        h('h2', null, 'Add grade'), h('p', { class: 'sgo-muted' }, 'This is only for planning. It is added to your Schoology grades here and is never sent to Schoology.'),
-        h('label', { class: 'sgo-mrow' }, h('span', null, 'Course'), courseSel), h('label', { class: 'sgo-mrow' }, h('span', null, 'Assignment'), name),
-        h('label', { class: 'sgo-mrow' }, h('span', null, 'Category'), catSel), newBox,
-        h('div', { class: 'ov-pts' }, h('label', { class: 'sgo-mrow' }, h('span', null, 'Earned'), earned), h('label', { class: 'sgo-mrow' }, h('span', null, 'Possible'), possible)),
-        err, h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Cancel', close, 'ghost'), h('button', { class: 'sgo-btn primary', type: 'submit' }, icon('plus', 16), 'Add grade')))));
-    setTimeout(() => name.focus(), 30);
+    if (calc.percent == null) return ['Add a score to a category to see a running total.'];
+    if (calc.weighted && Math.abs(total - 100) > 0.01) notes.push(`Weights add up to ${total}%, so the total scales them to 100%.`);
+    if (calc.weighted && calc.usedWeight < calc.totalWeight) notes.push('Categories with no scores yet are left out and the others scaled up.');
+    if (calc.missingWeights) notes.push('Some Schoology categories have no weight, so they are not counted. Give them one below.');
+    if (!calc.weighted) notes.push('Schoology did not report weights, so every point counts equally. Set weights to count by category.');
+    const base = S.overlayGrade(g, {}).percent;
+    if (calc.changed && base != null && g.percent != null && Math.abs(base - g.percent) > 0.1) notes.push(`Schoology shows ${gPct(g.percent)}. With these weights the unchanged gradebook works out to ${gPct(hyR2(base))}, so changes are measured from that.`);
+    return notes;
   };
-
-  /** Category chips and the assignment table for one course's gradebook, with the student's hypothetical layer on top.
-   * Shared by the Grades page and the course Grades tab. */
-  function gradeBody(c, shown) {
-    const edit = ovEditing(), ov = ovGet(c), calc = S.overlayGrade(c, ov);
-    const blocks = shown.map((p) => {
-      const items = p.categories.flatMap((cat) => cat.items.map((it) => ({ it, cat })));
-      return h('div', { class: 'gr2-period' },
-        shown.length > 1 ? h('div', { class: 'gr2-ph' }, h('b', null, p.name || 'Grading period'), h('span', null, `${p.letter || ''} ${gPct(p.percent)}`.trim())) : null,
-        p.categories.length ? h('div', { class: 'gr2-cats' }, p.categories.filter((cat) => cat.items.length && (cat.weight != null || cat.grade)).map((cat) => h('span', { class: 'gr2-cat' },
-          h('b', null, cat.name), cat.weight != null ? h('i', null, cat.weight + '% of grade') : null, h('span', null, cat.letter ? `${cat.letter} ${gPct(cat.percent)}` : '\u2014')))) : null,
-        items.length ? h('div', { class: 'gr2-scroll' }, h('table', { class: 'gr2-table' },
-          h('thead', null, h('tr', null, ['Assignment', 'Category', 'Date', 'Earned', 'Possible', '%', 'Status'].map((t, i) => h('th', { class: i >= 3 && i <= 5 ? 'n' : '' }, t)))),
-          h('tbody', null, items.map(({ it, cat }) => {
-            const key = S.gradeKey(cat, it), e = ov.edits[key] || {}, earned = 'earned' in e ? e.earned : it.earned, possible = 'possible' in e ? e.possible : it.possible, edited = !!ov.edits[key];
-            const pc = earned != null && possible ? Math.round((earned / possible) * 1000) / 10 : null;
-            const cell = (field, val, label) => (edit ? numInput(val, label + ' for ' + it.title, 'oe-' + field[0] + '-' + key, (v) => setEdit(c, cat, it, field, v)) : field in e ? h('span', { class: 'ov-eval', title: 'Your what-if score' }, gNum(val)) : gNum(val));
-            return h('tr', { class: edited ? 'ov-edited' : '' },
-              h('td', { class: 'gr2-t' }, it.title), h('td', { class: 'gr2-c' }, cat.name), h('td', { class: 'gr2-d', title: it.dueText }, gWhen(it.dueText)),
-              h('td', { class: 'n' }, cell('earned', earned, 'Earned')), h('td', { class: 'n' }, cell('possible', possible, 'Possible')), h('td', { class: 'n' }, pc == null ? '\u2014' : pc + '%'),
-              h('td', null, edited ? h('span', { class: 'gr2-st st-hyp' }, 'What-if', edit ? h('button', { class: 'ov-reset', type: 'button', title: 'Back to the Schoology score', 'aria-label': 'Reset ' + it.title + ' to the Schoology score', onclick: () => clearEdit(c, cat, it) }, icon('reload', 13)) : null)
-                : h('span', { class: 'gr2-st st-' + it.status }, it.statusLabel)));
-          })))) : h('div', { class: 'gr2-none' }, 'No graded items yet.'));
-    });
-    const reset = edit && calc.changed ? h('div', { class: 'ov-foot' }, btn('Reset my changes', () => S.openConfirm({ title: 'Reset your changes?', body: 'This removes the grades, categories, weights and what-if scores you added to this course. Your Schoology grades are not affected.', ok: 'Reset', danger: true, onOk: () => { delete (S.prefs.hypo || {})[ovKey(c)]; S.savePrefs(); S.render(true); } }), 'ghost', 'reload')) : null;
-    return h('div', { class: 'gr2-body' }, edit || calc.changed ? [ovSummary(c, calc), ovWeights(c, calc, edit)] : null,
-      blocks.length ? blocks : h('div', { class: 'gr2-none' }, 'Schoology has not published grades for this course yet.'), ovCustom(c, calc, edit), reset);
+  const addScoreFor = (key) => { const g = S.state.grades.find((b) => ovKey(b) === key) || S.state.grades[0]; if (g) addScore(g, S.ui.gxCat || null); };
+  /** Actual / Hypothetical switch. Shared by the Grades page and a course's Grades tab. */
+  function gradeControls(preferKey) {
+    const wi = ovEditing(), set = (v) => () => { if (v !== wi) { S.prefs.gradesEdit = v; S.savePrefs(); S.render(true); } };
+    const seg = h('div', { class: 'sgo-seg gx-mode', role: 'group', 'aria-label': 'Grade view' },
+      h('button', { type: 'button', class: wi ? '' : 'on', 'aria-pressed': String(!wi), dataset: { fk: 'gx-actual' }, onclick: set(false) }, 'Actual'),
+      h('button', { type: 'button', class: wi ? 'on' : '', 'aria-pressed': String(wi), dataset: { fk: 'gx-whatif' }, onclick: set(true) }, 'Hypothetical'));
+    return wi ? [seg, h('button', { class: 'sgo-btn primary gr-add', type: 'button', dataset: { fk: 'gr-add' }, onclick: () => addScoreFor(preferKey) }, icon('plus', 16), 'Add grade')] : [seg];
   }
-  function officialGrades() {
-    const g = S.state.grades;
-    const courseBlock = (c, idx) => {
-      const key = c.gradebookId || c.courseName, color = S.tint(c.courseId, c.courseName);
-      const open = key in S.ui.openGrade ? S.ui.openGrade[key] : false; // every course starts collapsed
-      // Schoology also lists an empty "(no grading period)" group; only show periods that actually contain graded entries.
-      const shown = gradePeriods(c);
-      const periodNames = shown.map((p) => p.name).filter(Boolean);
-      const sub = [periodNames.join(', '), c.teacher].filter(Boolean).join(' · ');
-      const head = h('button', { class: 'gr2-h', 'aria-expanded': String(open), onclick: () => { S.ui.openGrade[key] = !open; S.render(true); } },
-        h('span', { class: 'gr2-dot', style: { background: color } }),
-        h('span', { class: 'gr2-id' }, h('span', { class: 'gr2-name' }, S.cn(c.courseId, c.courseName)), sub ? h('span', { class: 'gr2-sub' }, sub) : null),
-        h('span', { class: 'gr2-letter' }, c.letter || '—'), h('span', { class: 'gr2-pct' }, gPct(c.percent), (() => { const k = S.overlayGrade(c, ovGet(c)); return k.changed && k.percent != null ? h('small', { class: 'gr2-hyp', title: 'With your hypothetical changes' }, '\u2192 ' + gPct(hyR2(k.percent))) : null; })()),
-        h('span', { class: 'gr2-chev' + (open ? ' open' : '') }, icon('right', 14)));
-      const body = open ? gradeBody(c, shown) : null;
-      return h('section', { class: 'gr2-course' + (open ? ' open' : '') }, head, body);
+  const gradeHint = () => (ovEditing() ? 'Hypothetical mode is on. Everything you change here is a plan, saved only in this browser and never sent to Schoology.' : 'Your grades exactly as Schoology reports them. Switch to Hypothetical to plan.');
+
+  /** Adds a hypothetical score straight into the list, ready to type into. No dialog. */
+  function addScore(c, catId) {
+    const x = ovGet(c, true), calc = S.overlayGrade(c, x);
+    let cat = catId || (calc.cats[0] || {}).id;
+    if (!cat) { cat = hyId(); x.cats.push({ id: cat, name: 'Scores', weight: 0 }); }
+    const id = hyId();
+    x.items.unshift({ id, title: 'New score', cat, earned: null, possible: 100 });
+    S.ui.gxQ = ''; S.ui.gxMore = false;
+    ovSave();
+    setTimeout(() => { const el = document.querySelector(`[data-fk="oi-e-${id}"]`); if (el) { el.focus(); el.select(); } }, 60);
+  }
+
+  /** One course: a sticky banner (grade, hypothetical grade, filters, search) over a newest-first list. */
+  function gradeDetail(c, shown) {
+    const wi = ovEditing(), ov = ovGet(c), key = ovKey(c), ui = S.ui, O = () => ovGet(c);
+    let calc, changed, delta, rowOf;
+    const derive = () => { calc = S.overlayGrade(c, O()); changed = calc.changed && calc.percent != null; const base = S.overlayGrade(c, {}).percent, from = base != null ? base : c.percent; delta = changed && from != null ? hyR2(calc.percent - from) : null; rowOf = new Map(calc.rows.map((r) => [r.id, r])); };
+    derive();
+    const reported = new Map(); shown.forEach((p) => p.categories.forEach((k) => { if (k.percent != null && !reported.has(k.name)) reported.set(k.name, k.percent); }));
+    const reportedW = (name) => { for (const p of c.periods || []) for (const k of p.categories) if (k.name === name && k.weight != null) return Number(k.weight); return null; };
+    const setW = (k, v) => { const x = ovGet(c, true); if (k.custom) { const q = x.cats.find((z) => z.id === k.id); if (q) q.weight = v == null ? 0 : v; } else if (v == null || v === reportedW(k.name)) delete x.weights[k.name]; else x.weights[k.name] = v; ovPrune(c); ovSave(); };
+    const total = hyR2(calc.cats.reduce((a, k) => a + (Number(k.weight) || 0), 0)), okTotal = Math.abs(total - 100) < 0.01;
+    // when the weights do not add to 100 (several grading periods, or weights left unset) each category counts for its share of the total
+    const share = (k) => (total > 0 ? hyR2((Number(k.weight) / total) * 100) : 0);
+    if (ui.gxCat && !calc.cats.some((k) => k.id === ui.gxCat)) ui.gxCat = '';
+    const filter = ui.gxCat || '', q = (ui.gxQ || '').trim().toLowerCase(), narrowed = !!(filter || q);
+
+    // one banner: the grade, where it would go, and by how much
+    const gradeBlock = (label, pct, letter, cls) => h('div', { class: 'gx-g' + (cls ? ' ' + cls : '') }, h('span', { class: 'gx-lbl' }, label), h('b', null, pct), letter ? h('em', null, letter) : null);
+    const mkBanner = () => h('div', { class: 'gx-sum' },
+      h('div', { class: 'gx-sum-n' }, h('h2', null, S.cn(c.courseId, c.courseName)), h('p', null, [gradePeriods(c).map((p) => p.name).filter(Boolean).join(', '), c.teacher].filter(Boolean).join(' · '))),
+      h('div', { class: 'gx-sum-g' }, gradeBlock(wi ? 'Schoology' : 'Grade', gPct(c.percent), c.letter),
+        wi ? [h('i', { class: 'gx-arrow', 'aria-hidden': 'true' }, icon('arrowRight', 18)), gradeBlock('Hypothetical', changed ? gPct(hyR2(calc.percent)) : '—', '', 'gx-wi'), delta ? h('small', { class: 'gx-delta ' + (delta > 0 ? 'up' : 'down') }, signed(delta)) : null] : null));
+
+    // filters (categories) and search stay with the banner while the list scrolls
+    const chip = (id, label, pct, w) => h('button', { class: 'gx-chip' + (filter === id ? ' on' : ''), type: 'button', 'aria-pressed': String(filter === id), onclick: () => { ui.gxCat = filter === id ? '' : id; S.render(true); } },
+      h('span', null, label), pct != null ? h('b', null, gPct(pct)) : null, w ? h('i', null, w) : null);
+    const mkChips = () => h('div', { class: 'gx-chips', role: 'group', 'aria-label': 'Filter by category' }, chip('', 'All', null, null),
+      calc.cats.map((k) => { const r = rowOf.get(k.id), pct = wi || !reported.has(k.name) ? (r && r.percent != null ? hyR2(r.percent) : null) : hyR2(reported.get(k.name)); return chip(k.id, k.name, pct, ''); }));
+    let banner = mkBanner(), chips = mkChips();
+    const tools = h('div', { class: 'gx-tools' }, chips,
+      h('input', { class: 'sgo-input gx-q', type: 'search', placeholder: 'Search', value: ui.gxQ || '', 'aria-label': 'Search assignments', dataset: { fk: 'gx-q' }, oninput: (e) => { ui.gxQ = e.target.value; S.render(true); } }),
+      wi ? h('button', { class: 'gx-add', type: 'button', onclick: () => addScore(c, filter || null) }, icon('plus', 14), 'Add a score') : null);
+
+    // weights and the goal tool stay tucked away
+    const weightRow = (k) => h('li', { class: 'gx-w' },
+      wi && k.custom ? h('input', { class: 'sgo-input gx-cname', type: 'text', value: k.name, maxlength: '40', 'aria-label': 'Category name', dataset: { fk: 'oc-n-' + k.id }, onchange: (e) => { const q2 = ovGet(c, true).cats.find((z) => z.id === k.id); if (q2) q2.name = e.target.value.trim() || 'Untitled'; ovSave(); } }) : h('span', { class: 'gx-w-n' }, k.name, k.custom ? h('em', null, 'Yours') : k.set ? h('em', null, 'Edited') : null),
+      !okTotal && Number(k.weight) > 0 ? h('span', { class: 'gx-share', title: 'Its share of the total, since the weights do not add to 100' }, '= ' + share(k) + '%') : null,
+      h('span', { class: 'gx-in' }, numInput(k.weight, 'Weight of ' + k.name + ' in percent', 'oc-w-' + k.id, (v) => setW(k, v)), h('i', null, '%')),
+      k.custom ? h('button', { class: 'gx-x', type: 'button', title: 'Delete category', 'aria-label': 'Delete category ' + k.name, onclick: () => {
+        const n = ov.items.filter((i) => i.cat === k.id).length;
+        const go = () => { const x = ovGet(c, true); x.cats = x.cats.filter((z) => z.id !== k.id); x.items = x.items.filter((i) => i.cat !== k.id); ovPrune(c); ovSave(); };
+        if (n) S.openConfirm({ title: 'Delete this category?', body: `Its ${n} ${n === 1 ? 'score' : 'scores'} will be deleted too. Nothing changes in Schoology.`, ok: 'Delete', danger: true, onOk: go }); else go();
+      } }, icon('trash', 16)) : h('span', { class: 'gx-xs' }));
+    const notes = changed || calc.percent != null ? gradeNotes(c, calc) : [];
+    const weights = wi ? h('details', { class: 'gx-weights', open: ui.gxW ? 'open' : null, ontoggle: (e) => { ui.gxW = e.target.open; } },
+      h('summary', null, h('span', null, 'Category weights'), h('b', { class: 'gx-total ' + (okTotal ? 'ok' : 'warn') }, okTotal ? 'Total 100%' : `Total ${total}% · scaled to 100%`), icon('down', 16)),
+      h('ul', { class: 'gx-wl' }, calc.cats.map(weightRow)),
+      notes.map((n) => h('p', { class: 'gx-note' }, icon('help', 14), n))) : null;
+
+    // rows: yours first, then Schoology's grouped by month (the newest month open, the rest folded)
+    const catName = (id) => (calc.cats.find((k) => k.id === id) || {}).name || '';
+    const hit = (t) => !q || String(t).toLowerCase().includes(q);
+    const own = ov.items.filter((it) => (!filter || it.cat === filter) && hit(it.title));
+    const all = [];
+    shown.forEach((p) => p.categories.forEach((cat) => cat.items.forEach((it) => {
+      if ((filter && filter !== 'o:' + cat.name) || !hit(it.title)) return;
+      const d = it.dueText && S.parseDue(it.dueText);
+      all.push({ it, cat, ts: d ? d.ts : 0 });
+    })));
+    all.sort((x, y) => y.ts - x.ts); // the most recent assignment first, undated ones last
+
+    const refs = [], after = () => { S.savePrefs(); live(); };
+    const statusNode = (it, cat, edited) => (edited ? h('span', { class: 'gr2-st st-hyp' }, 'Hypothetical', wi ? h('button', { class: 'ov-reset', type: 'button', title: 'Back to the Schoology score', 'aria-label': 'Reset ' + it.title + ' to the Schoology score', onclick: () => clearEdit(c, cat, it) }, icon('resetOrder', 13)) : null)
+      : h('span', { class: 'gr2-st st-' + it.status }, it.statusLabel));
+    const officialRow = ({ it, cat }) => {
+      const kk = S.gradeKey(cat, it);
+      const read = () => { const e = O().edits[kk] || {}, earned = 'earned' in e ? e.earned : it.earned, possible = 'possible' in e ? e.possible : it.possible; return { e, earned, possible, edited: !!O().edits[kk], pc: earned != null && possible ? Math.round((earned / possible) * 1000) / 10 : null }; };
+      const v = read(), cell = (field, val, label) => (wi ? numInput(val, label + ' for ' + it.title, 'oe-' + field[0] + '-' + kk, (nv) => setEdit(c, cat, it, field, nv, after)) : h('span', { class: field in v.e ? 'ov-eval' : '' }, gNum(val)));
+      const pcEl = h('span', { class: 'gx-r-p' }, v.pc == null ? '\u2014' : v.pc + '%'); let stEl = statusNode(it, cat, v.edited);
+      const li = h('li', { class: 'gx-r' + (v.edited ? ' ed' : '') },
+        h('div', { class: 'gx-r-m' }, h('b', null, it.title), h('span', { title: it.dueText }, [cat.name, gWhen(it.dueText)].filter(Boolean).join(' \u00b7 '))),
+        h('div', { class: 'gx-r-s' }, cell('earned', v.earned, 'Earned'), h('i', null, '/'), cell('possible', v.possible, 'Possible')), pcEl, stEl);
+      refs.push(() => { const n = read(); li.classList.toggle('ed', n.edited); pcEl.textContent = n.pc == null ? '\u2014' : n.pc + '%'; const ns = statusNode(it, cat, n.edited); stEl.replaceWith(ns); stEl = ns; });
+      return li;
     };
-    return h('div', { class: 'sgo-page' }, pageHead('Grades', g.length ? gradeHint() : 'Shown as Schoology reports them', g.length ? [...gradeControls(ovKey(g.find((c) => S.ui.openGrade[c.gradebookId || c.courseName]) || g[0])), btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')] : [btn('Refresh', () => S.hardRefresh(), 'ghost', 'reload')]),
-      g.length ? h('div', { class: 'gr2-list' }, g.map(courseBlock))
+    const ownRow = (it) => {
+      const pcOf = () => (it.earned != null && it.possible ? hyR2((it.earned / it.possible) * 100) + '%' : '\u2014'), pcEl = h('span', { class: 'gx-r-p' }, pcOf());
+      const catSel = wi ? h('select', { class: 'sgo-input gx-catsel', 'aria-label': 'Category', dataset: { fk: 'oi-c-' + it.id }, onchange: (e) => { it.cat = e.target.value; ovSave(); } }, calc.cats.map((k) => h('option', { value: k.id, selected: it.cat === k.id ? 'selected' : null }, k.name))) : null;
+      refs.push(() => { pcEl.textContent = pcOf(); });
+      return h('li', { class: 'gx-r mine' },
+        h('div', { class: 'gx-r-m' }, wi ? h('input', { class: 'sgo-input gx-tname', type: 'text', value: it.title, maxlength: '80', 'aria-label': 'Assignment name', dataset: { fk: 'oi-t-' + it.id }, onchange: (e) => { it.title = e.target.value.trim() || 'Untitled'; S.savePrefs(); } }) : h('b', null, it.title), wi ? catSel : h('span', null, 'Yours \u00b7 ' + catName(it.cat))),
+        h('div', { class: 'gx-r-s' }, wi ? numInput(it.earned, 'Earned', 'oi-e-' + it.id, (v) => { it.earned = v; after(); }) : h('span', null, gNum(it.earned)), h('i', null, '/'), wi ? numInput(it.possible, 'Possible', 'oi-p-' + it.id, (v) => { it.possible = v; after(); }) : h('span', null, gNum(it.possible))),
+        pcEl,
+        wi ? h('button', { class: 'gx-x', type: 'button', title: 'Delete score', 'aria-label': 'Delete ' + it.title, onclick: () => { const x = ovGet(c, true); x.items = x.items.filter((z) => z.id !== it.id); ovPrune(c); ovSave(); } }, icon('trash', 16)) : h('span', { class: 'gr2-st st-hyp' }, 'Your score'));
+    };
+    const CAP = 15, open = !!ui.gxMore, flat = [...own.map((it) => ({ own: true, it })), ...all], vis = narrowed || open ? flat : flat.slice(0, CAP);
+    const list = flat.length ? h('div', { class: 'gx-groups' },
+      h('ul', { class: 'gx-rows gx-flat' }, vis.map((r) => (r.own ? ownRow(r.it) : officialRow(r)))),
+      flat.length > CAP && !narrowed ? h('button', { class: 'tp-more', type: 'button', onclick: () => { ui.gxMore = !open; S.render(true); } }, open ? 'Show fewer' : `Show ${flat.length - CAP} more`) : null)
+      : h('p', { class: 'gx-none' }, narrowed ? 'No assignments match.' : 'Schoology has not published graded items for this course yet.');
+    const mkReset = () => (wi && calc.changed ? btn('Reset my changes', () => S.openConfirm({ title: 'Reset your changes?', body: 'This removes the scores and weights you changed in this course. Your Schoology grades are not affected.', ok: 'Reset', danger: true, onOk: () => { delete (S.prefs.hypo || {})[key]; S.savePrefs(); S.render(true); } }), 'ghost', 'resetOrder') : null);
+    const foot = h('div', { class: 'gx-foot' }, mkReset());
+    // a score was edited: refresh only what depends on it, so typing, Tab and clicking never lose the field you are in
+    function live() {
+      derive();
+      const nb = mkBanner(); banner.replaceWith(nb); banner = nb;
+      const nc = mkChips(); chips.replaceWith(nc); chips = nc;
+      refs.forEach((f) => f());
+      foot.replaceChildren(...[mkReset()].filter(Boolean));
+      const lc = document.querySelector('.gx-c.on .gx-c-g');
+      if (lc) { const old = lc.querySelector('small'); if (old) old.remove(); if (wi && changed) lc.prepend(h('small', null, '\u2192 ' + gPct(hyR2(calc.percent)))); }
+    }
+    return h('div', { class: 'gx-body' }, h('div', { class: 'gx-sticky' }, banner, tools), weights,
+      list, foot);
+  }
+
+  function officialGrades() {
+    const g = S.state.grades, graded = g.filter((c) => c.percent != null), blank = g.filter((c) => c.percent == null);
+    const sel = g.find((c) => ovKey(c) === S.ui.gradeSel) || graded[0] || g[0], swap = !!S.ui.gradeSwap; S.ui.gradeSwap = false;
+    const row = (c) => {
+      const k = S.overlayGrade(c, ovGet(c)), pct = c.percent, on = c === sel, none = pct == null;
+      return h('button', { class: 'gx-c' + (on ? ' on' : '') + (none ? ' empty' : ''), type: 'button', 'aria-pressed': String(on), dataset: { fk: 'gx-c-' + ovKey(c) }, style: { '--c': S.tint(c.courseId, c.courseName), '--p': Math.max(0, Math.min(100, pct || 0)) + '%' },
+        onclick: () => { if (!on) { S.ui.gradeSel = ovKey(c); S.ui.gxCat = ''; S.ui.gxQ = ''; S.ui.gradeSwap = true; S.render(true); } } },
+        h('span', { class: 'gx-c-n' }, S.cn(c.courseId, c.courseName)),
+        none ? null : h('span', { class: 'gx-c-g' }, k.changed && k.percent != null && ovEditing() ? h('small', null, '→ ' + gPct(hyR2(k.percent))) : null, h('b', null, gPct(pct)), c.letter ? h('em', null, c.letter) : null),
+        none ? null : h('span', { class: 'gx-bar', 'aria-hidden': 'true' }, h('i')));
+    };
+    const acts = [...(g.length ? gradeControls(sel && ovKey(sel)) : []), btn('Refresh', () => S.hardRefresh(), 'ghost', 'resetOrder')];
+    const blankOpen = blank.includes(sel) || !!S.ui.gxBlank;
+    return h('div', { class: 'sgo-page gx' },
+      pageHead('Grades', g.length ? gradeHint() : 'Shown as Schoology reports them', acts),
+      g.length ? h('div', { class: 'gx-layout' },
+        h('nav', { class: 'gx-list', 'aria-label': 'Courses' }, graded.map(row),
+          blank.length ? h('details', { class: 'gx-blank', open: blankOpen ? 'open' : null, ontoggle: (e) => { S.ui.gxBlank = e.target.open; } }, h('summary', null, h('span', null, 'No grade yet'), h('b', null, blank.length), icon('down', 14)), blank.map(row)) : null),
+        h('section', { class: 'gx-detail' + (swap ? ' swap' : ''), 'aria-label': S.cn(sel.courseId, sel.courseName) }, gradeDetail(sel, gradePeriods(sel)),
+          h('p', { class: 'gx-fine' }, 'The % beside each assignment is points earned divided by points possible.')))
         : empty('No grades loaded', S.state.loading ? 'Loading…' : 'Grades could not be read from Schoology’s page. Use Classic view to see your gradebook, and check Settings → Diagnostics.'),
-      g.length ? h('p', { class: 'sgo-note' }, 'The % column for each assignment is points earned divided by points possible. Nothing else is calculated here.') : null);
+      null);
   }
   V.grades = officialGrades;
 
@@ -1117,11 +1239,9 @@
   function gradesPane(c) {
     const g = S.gradeFor(c.id);
     if (!g) return h('section', { class: 'crs-pane' }, S.state.loaded && !S.state.loading ? h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'No grades yet'), h('div', { class: 'sgo-empty-s' }, 'Schoology has not published a gradebook for this course.')) : SKELETON(3));
-    const shown = gradePeriods(g);
-    return h('section', { class: 'crs-pane crs-grades', 'aria-label': 'Grades' },
-      h('div', { class: 'gr-bar' }, h('div', { class: 'sgo-head-a' }, gradeControls(ovKey(g))), h('p', { class: 'gr-hint' }, gradeHint())),
-      h('div', { class: 'crs-card crs-gsum' }, h('span', { class: 'gr2-letter' }, g.letter || '\u2014'), h('b', null, gPct(g.percent)), h('small', null, [shown.map((p) => p.name).filter(Boolean).join(', '), 'as Schoology reports it'].filter(Boolean).join(' \u00b7 '))),
-      h('div', { class: 'crs-card crs-gtable' }, gradeBody(g, shown)));
+    return h('section', { class: 'crs-pane crs-grades gx', 'aria-label': 'Grades' },
+      h('div', { class: 'gx-bar-top' }, h('p', { class: 'gx-hint' }, gradeHint()), h('div', { class: 'sgo-head-a' }, gradeControls(ovKey(g)))),
+      h('div', { class: 'gx-detail' }, gradeDetail(g, gradePeriods(g))));
   }
 
   /* ---- materials: search, quick filters, sort and grouped lists with divider pills ---- */
@@ -1161,7 +1281,7 @@
     const teacher = S.courseTeacher(c), g = S.gradeFor(c.id);
     const asg = courseAssignments(c), next = asg.filter((x) => x.st === 'open' || x.st === 'missing').sort((a, b) => (a.due ?? 9e15) - (b.due ?? 9e15)).slice(0, 5);
     const feed = S.feedState(c.id), root = S.folderState(c.id, ''), tops = root.data ? root.data.items.filter((i) => i.kind === 'folder').slice(0, 6) : null;
-    const card = (title, link, body, cls) => h('section', { class: 'crs-card' + (cls ? ' ' + cls : '') }, h('div', { class: 'crs-card-h' }, h('h2', null, title), link && h('a', { class: 'link', href: link[1] }, link[0], icon('right', 14))), body);
+    const card = (title, link, body, cls) => h('section', { class: 'crs-card' + (cls ? ' ' + cls : '') }, h('div', { class: 'crs-card-h' }, h('h2', null, title), link && h('a', { class: 'link', href: link[1] }, link[0], icon('right', 14))), h('div', { class: 'crs-panel' }, body));
     const none = (ic, text) => h('p', { class: 'crs-none' }, icon(ic, 16), text);
     const initials = (n) => (n || 'T').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase();
     const feedBody = feed.items ? (feed.items.length ? h('ul', { class: 'an-feed' }, feed.items.slice(0, 3).map((a) => h('li', null, h('span', { class: 'an-av', 'aria-hidden': 'true' }, initials(a.author)),
@@ -1187,16 +1307,23 @@
       : SKELETON(5));
     const name = S.cn(c.id, c.name); S._title = name;
     const teacher = S.courseTeacher(c), code = S.courseCode(c.name), term = S.courseTerm(c), feed = (state => (state.cd[c.id] || {}).feed)(S.state);
-    const cover = h('div', { class: 'crs-banner' });
-    paintCover(cover, c, name, coverFor(c, name), true);
-    if (S.cmeta(c.id, c.name).cover === 'orig') S.guardCover(cover, c.id, c.name);
+    const asgAll = courseAssignments(c), openN = asgAll.filter((x) => x.st === 'open').length, missN = asgAll.filter((x) => x.st === 'missing').length, gr = S.gradeFor(c.id);
     const meta = [code && h('span', { class: 'crs-code' }, code), teacher && h('span', null, teacher), term && h('span', null, term)].filter(Boolean);
-    const header = h('div', { class: 'crs-head', style: { '--c': S.tint(c.id, c.name) } }, cover,
-      h('div', { class: 'crs-actions' }, btn('Change banner', () => S.openBannerPicker(c), 'ghost', 'image'),
+    const stat = (v, l, cls) => h('div', { class: 'crs-stat' + (cls ? ' ' + cls : '') }, h('b', null, v), h('span', null, l));
+    const heroColor = S.tint(c.id, c.name);
+    const header = h('div', { class: 'crs-head', style: { '--c': heroColor, '--ink': inkOn(heroColor) } },
+      h('span', { class: 'cc2-art crs-art', 'aria-hidden': 'true' }),
+      h('div', { class: 'crs-actions' },
         S.menu('Course options', [['Rename and colour', () => S.openCourseEditor(c)], ['Notification icon…', () => S.openIconPicker(c)], [S.courseHidden(c) ? 'Show on dashboard' : 'Hide from dashboard', () => S.setCourseHidden(c, !S.courseHidden(c))], ['View as Schoology page', () => window.open(originalHref(`/course/${c.id}/materials`), '_blank', 'noopener')]])),
       h('div', { class: 'crs-title' },
+        h('p', { class: 'crs-kicker' }, h('i', { 'aria-hidden': 'true' }), 'Course'),
         h('h1', null, S.ui.renaming === c.id ? renameField(c) : [name, h('button', { class: 'crs-rename', type: 'button', title: 'Rename', 'aria-label': 'Rename ' + name, onclick: () => { S.ui.renaming = c.id; S.render(); } }, icon('edit', 18))]),
-        h('div', { class: 'crs-meta' }, meta.length ? meta.map((m, i) => [i ? h('i', { 'aria-hidden': 'true' }) : null, m]) : ' ')));
+        h('div', { class: 'crs-meta' }, meta.length ? meta.map((m, i) => [i ? h('i', { 'aria-hidden': 'true' }) : null, m]) : ' ')),
+      h('div', { class: 'crs-stats' },
+        stat(gr && gr.percent != null ? gPct(gr.percent) : '—', gr && gr.letter ? `Grade · ${gr.letter}` : 'Grade'),
+        stat(String(openN), 'Open'),
+        stat(String(missN), 'Missing', missN ? 'bad' : '')));
+    header.querySelector('.crs-art').innerHTML = topoSvg(c.id);
     const tabs = [['overview', 'Overview'], ['materials', 'Materials'], ['assignments', 'Assignments'], ['grades', 'Grades'], ['announcements', 'Announcements']];
     // A pill under the active tab. It starts where it was on the last course page, then slides to the new tab.
     const pill = h('span', { class: 'crs-tab-pill', 'aria-hidden': 'true' }), prevPos = S._tabPos && S._tabPos.id === c.id ? S._tabPos : null;
@@ -1290,14 +1417,15 @@
     const del = v.key ? btn('Delete', () => S.openConfirm({ title: 'Delete this assignment?', body: 'This removes it from your personal tracker only. Nothing changes in Schoology.',
       ok: 'Delete', danger: true, onOk: () => { delete S.prefs.manual[v.key]; S.savePrefs(); } }), 'ghost', 'eyeoff') : h('span');
     const row = (t, el) => h('div', { class: 'sgo-mrow' }, h('label', null, t), el);
+    const quick = h('div', { class: 'sgo-quick', role: 'group', 'aria-label': 'Quick dates' }, [['Today', 0], ['Tomorrow', 1], ['Next week', 7]].map(([l, n]) => h('button', { type: 'button', class: 'sgo-qchip', onclick: () => { dueDate.value = iso(S.sod(Date.now()) + n * S.DAY); } }, l)));
     host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
-      h('div', { class: 'sgo-modal', role: 'dialog', 'aria-modal': 'true', 'aria-label': v.key ? 'Edit assignment' : 'New assignment' },
-        h('h2', null, v.key ? 'Edit assignment' : 'New assignment'),
-        h('p', { class: 'sgo-muted' }, 'Added by you. It lives only in your tracker, never in Schoology.'),
-        row('Title', title), row('Class', course),
-        h('div', { class: 'sgo-grid2' }, row('Due date', dueDate), row('Time (optional)', dueTime)),
-        row('Priority', prio), row('Notes', notes), err,
-        h('div', { class: 'sgo-head-a sgo-mfoot' }, del, h('div', { class: 'sgo-head-a' }, btn('Cancel', close, 'ghost'), btn('Save', save, 'primary', 'check'))))));
+      h('div', { class: 'sgo-modal sgo-task', role: 'dialog', 'aria-modal': 'true', 'aria-label': v.key ? 'Edit task' : 'New task' },
+        h('h2', null, v.key ? 'Edit task' : 'New task'),
+        row('Title', title),
+        h('div', { class: 'sgo-grid2' }, row('Class', course), row('Due date', dueDate)),
+        quick, err,
+        h('div', { class: 'sgo-head-a sgo-mfoot' }, del, h('div', { class: 'sgo-head-a' }, btn('Cancel', close, 'ghost'), btn(v.key ? 'Save' : 'Add task', save, 'primary'))),
+        h('p', { class: 'sgo-fine' }, 'Saved only in this browser, never in Schoology'))));
     setTimeout(() => title.focus(), 30);
   };
 
@@ -1307,11 +1435,11 @@
   const LOOK_KEYS = ['contour', 'contourGlow', 'background'];
   const sameLook = (t) => LOOK_KEYS.every((k) => (S.prefs[k] || '').toLowerCase() === t[k]);
   S.sameLook = sameLook;
-  /** A themed look never touches the accent colour; that is chosen on its own. */
+  /** A theme sets all of its colours: the background, the contour lines and glow, and the accent. */
   S.applyLook = (t) => {
     const html = document.documentElement;
     html.classList.add('sgo-themeing'); // colours ease between looks instead of snapping
-    S.setAppearance({ contour: t.contour, contourGlow: t.contourGlow, background: t.background });
+    S.setAppearance(Object.assign({ contour: t.contour, contourGlow: t.contourGlow, background: t.background }, t.accent ? { accent: t.accent } : {}));
     clearTimeout(S.applyLook.t); S.applyLook.t = setTimeout(() => html.classList.remove('sgo-themeing'), 450);
   };
   /* The preview draws the real map: the same generator, seed, density and weight as the page, in the colours being edited, with the page's ambient
@@ -1322,32 +1450,50 @@
     if (!mapMarkup.has(key)) { if (mapMarkup.size > 6) mapMarkup.clear(); const T = window.SGO_TOPO.build(1600, 900, seed, d); mapMarkup.set(key, T.paths.map((x) => `<path d="${x.d}"${x.major ? ' class="mj"' : ` stroke-opacity="${x.o}"`}/>`).join('')); }
     return mapMarkup.get(key);
   }
-  /** A miniature dashboard in the given colours, over the actual background map. */
+  /** The preferences as they are right now. The app replaces S.prefs when storage changes (another tab, or an earlier save arriving late),
+   *  so anything that holds a copy goes stale; the Appearance panel reads through this instead. */
+  const livePrefs = new Proxy({}, { get: (_, k) => S.prefs[k], set: (_, k, v) => { S.prefs[k] = v; return true; } });
+  let thumbN = 0;
+  /** The banner's own contours (the same landscape and settings as the dashboard banner), for the miniature. */
+  const heroMarkup = new Map();
+  function heroPaths() {
+    const P = S.prefs, d = ['light', 'standard', 'dense'].includes(P.topoDensity) ? P.topoDensity : 'standard', shift = (Number(P.topoSeed) || 20260) - 20260, key = d + ':' + shift;
+    if (!heroMarkup.has(key)) { if (heroMarkup.size > 6) heroMarkup.clear(); const m = window.SGO_TOPO.build(960, 360, 7311 + shift, 'small-' + d); heroMarkup.set(key, m.paths.map((x) => `<path d="${x.d}"${x.major ? '' : ` stroke-opacity="${x.o}"`}/>`).join('')); }
+    return heroMarkup.get(key);
+  }
+  /** A miniature of the dashboard: profile and icon tiles on the left, a banner with its contours, priority panels, and the grades panel. */
   function themeThumb(t, accent) {
-    const P = S.prefs, bg = t.background, dark = window.SGO_COLOR.isDark(bg), uid = 'tg' + (t.id || 'x');
-    const L2 = mixHex(bg, t.contour, .1), L3 = mixHex(bg, t.contour, .15), L1 = mixHex(bg, t.contour, .05), line = mixHex(bg, t.contour, .26), ink = dark ? mixHex(bg, '#ffffff', .86) : '#1e293b', soft = dark ? mixHex(bg, '#ffffff', .45) : '#64748b';
-    const w = { thin: .55, standard: 1, bold: 1.9 }[P.topoWeight || 'standard'] || 1, mapOn = P.topoOn !== false;
+    const P = S.prefs, bg = t.background, dark = window.SGO_COLOR.isDark(bg), uid = 'tg' + (++thumbN);
+    const L2 = mixHex(bg, t.contour, .1), L3 = mixHex(bg, t.contour, .16), line = mixHex(bg, t.contour, .3), ink = dark ? mixHex(bg, '#ffffff', .88) : '#1e293b', soft = dark ? mixHex(bg, '#ffffff', .45) : '#64748b';
+    const w = { thin: .55, standard: 1, bold: 1.9 }[P.topoWeight || 'standard'] || 1, mapOn = P.topoOn !== false, bad = dark ? '#ef8a80' : '#c4352b';
+    const row = (x, y, wd, i, hot) => `<circle cx="${x + 4}" cy="${y + 3.2}" r="2.3" fill="none" stroke="${hot ? bad : accent}" stroke-width="1"/><rect x="${x + 9}" y="${y + 1.2}" width="${wd}" height="2.8" rx="1.4" fill="${ink}"/><rect x="${x + 9}" y="${y + 5.6}" width="${wd * .6}" height="1.8" rx=".9" fill="${soft}" fill-opacity=".7"/><rect x="${x + 66}" y="${y + 1.6}" width="${18 - i * 2}" height="4" rx="2" fill="${hot ? bad : soft}" fill-opacity=".3"/>`;
     const tpl = document.createElement('template');
+    // every setting shows here: the background, the contour colour and glow, the map's on/off, density, weight and shape, and the accent
     tpl.innerHTML = `<svg viewBox="0 0 160 100" aria-hidden="true" focusable="false"><defs>
-        <radialGradient id="${uid}p" cx="50%" cy="0%" r="75%"><stop offset="0" stop-color="${t.contourGlow}" stop-opacity=".38"/><stop offset="1" stop-color="${t.contourGlow}" stop-opacity="0"/></radialGradient>
-        <radialGradient id="${uid}h" cx="82%" cy="8%" r="70%"><stop offset="0" stop-color="${t.contourGlow}" stop-opacity=".5"/><stop offset="1" stop-color="${t.contourGlow}" stop-opacity="0"/></radialGradient></defs>
-      <rect width="160" height="100" fill="${bg}"/><rect width="160" height="100" fill="url(#${uid}p)"/>
-      ${mapOn ? `<svg x="0" y="0" width="160" height="100" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice"><g class="pv-lines" style="--pw:${w}" fill="none" stroke="${t.contour}" stroke-linecap="round" stroke-linejoin="round" opacity=".45">${mapPaths()}</g></svg>` : ''}
-      <rect width="17" height="100" fill="${L1}" fill-opacity=".92"/><rect x="17" width=".6" height="100" fill="${line}"/>
-      <circle cx="8.5" cy="9" r="3.4" fill="${accent}"/><rect x="3.5" y="19" width="10" height="9" rx="2.5" fill="${accent}" fill-opacity=".28"/><rect x="5.5" y="21.5" width="6" height="4" rx="1.5" fill="${accent}"/>
-      <rect x="4.5" y="33" width="8" height="5" rx="2" fill="${soft}" fill-opacity=".5"/><rect x="4.5" y="43" width="8" height="5" rx="2" fill="${soft}" fill-opacity=".5"/><rect x="4.5" y="53" width="8" height="5" rx="2" fill="${soft}" fill-opacity=".5"/>
-      <rect x="23" y="7" width="132" height="27" rx="6" fill="${L3}" stroke="${line}" stroke-width=".6"/><rect x="23" y="7" width="132" height="27" rx="6" fill="url(#${uid}h)"/>
-      <rect x="30" y="14" width="46" height="4.5" rx="2" fill="${ink}"/><rect x="30" y="22" width="32" height="3" rx="1.5" fill="${soft}"/><rect x="124" y="14" width="24" height="6" rx="2" fill="${ink}"/><rect x="128" y="23" width="20" height="2.5" rx="1.2" fill="${soft}"/>
-      ${[0, 1, 2].map((i) => `<rect x="23" y="${40 + i * 13}" width="88" height="11" rx="3.5" fill="${L2}" stroke="${line}" stroke-width=".5"/><rect x="23" y="${42 + i * 13}" width="1.6" height="7" rx=".8" fill="${i ? accent : '#ef8a80'}"/><rect x="29" y="${43 + i * 13}" width="${34 - i * 4}" height="3" rx="1.5" fill="${ink}"/><rect x="29" y="${48 + i * 13}" width="20" height="2" rx="1" fill="${soft}"/><rect x="92" y="${43.5 + i * 13}" width="14" height="4.5" rx="2" fill="${accent}" fill-opacity=".25"/>`).join('')}
-      <rect x="116" y="40" width="39" height="37" rx="5" fill="${L2}" stroke="${line}" stroke-width=".5"/><rect x="121" y="46" width="14" height="4" rx="2" fill="${ink}"/><rect x="121" y="55" width="29" height="3" rx="1.5" fill="${line}"/><rect x="121" y="55" width="13" height="3" rx="1.5" fill="${accent}"/><rect x="121" y="64" width="22" height="2.5" rx="1.2" fill="${soft}"/>
+        <radialGradient id="${uid}a" cx="50%" cy="0%" r="90%"><stop offset="0" stop-color="${t.contourGlow}" stop-opacity=".3"/><stop offset="1" stop-color="${t.contourGlow}" stop-opacity="0"/></radialGradient>
+        <linearGradient id="${uid}f" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="${L3}" stop-opacity="1"/><stop offset=".35" stop-color="${L3}" stop-opacity="1"/><stop offset="1" stop-color="${L3}" stop-opacity="0"/></linearGradient>
+        <radialGradient id="${uid}g" cx="80%" cy="45%" r="60%"><stop offset="0" stop-color="${t.contourGlow}" stop-opacity=".7"/><stop offset="1" stop-color="${t.contourGlow}" stop-opacity="0"/></radialGradient>
+        <clipPath id="${uid}c"><rect x="22" y="6" width="134" height="32" rx="6"/></clipPath></defs>
+      <rect width="160" height="100" fill="${bg}"/>${mapOn ? `<rect width="160" height="100" fill="url(#${uid}a)"/>` : ''}
+      <rect x="4" y="5" width="11" height="11" rx="3" fill="${accent}"/><rect x="4" y="19.5" width="11" height=".7" fill="${line}"/>
+      <rect x="4" y="25" width="11" height="9" rx="2.8" fill="${accent}" fill-opacity=".25"/><rect x="7.5" y="28" width="4" height="3" rx="1" fill="${accent}"/>
+      ${[0, 1, 2, 3].map((i) => `<rect x="4" y="${37 + i * 11}" width="11" height="9" rx="2.8" fill="${soft}" fill-opacity=".14"/><rect x="7.5" y="${40 + i * 11}" width="4" height="3" rx="1" fill="${soft}" fill-opacity=".7"/>`).join('')}
+      <rect x="22" y="6" width="134" height="32" rx="6" fill="${L3}"/>
+      ${mapOn ? `<g clip-path="url(#${uid}c)"><rect x="22" y="6" width="134" height="32" fill="url(#${uid}g)"/><svg x="56" y="6" width="104" height="32" viewBox="0 0 960 360" preserveAspectRatio="xMaxYMid slice"><g class="pv-lines" fill="none" stroke="${t.contour}" stroke-width="${5 * w}" stroke-linecap="round" opacity=".95">${heroPaths()}</g></svg><rect x="22" y="6" width="134" height="32" fill="url(#${uid}f)"/></g>` : ''}
+      <rect x="29" y="12" width="52" height="5" rx="2.2" fill="${ink}"/><rect x="29" y="20" width="34" height="3" rx="1.5" fill="${soft}"/>
+      <rect x="29" y="29" width="42" height="2.2" rx="1.1" fill="${line}"/><rect x="29" y="29" width="12" height="2.2" rx="1.1" fill="${accent}"/>
+      <rect x="22" y="42" width="88" height="28" rx="5" fill="${L2}"/>${row(25, 44.5, 36, 0, true)}${row(25, 53, 30, 1, true)}${row(25, 61.5, 40, 2, false)}
+      <rect x="22" y="73" width="88" height="24" rx="5" fill="${L2}"/>${row(25, 75, 32, 3, false)}${row(25, 83.5, 38, 4, false)}
+      <rect x="115" y="42" width="41" height="55" rx="5" fill="${L2}"/>
+      ${[0, 1, 2].map((i) => `<rect x="120" y="${47 + i * 16}" width="${16 - i * 2}" height="3" rx="1.5" fill="${ink}"/><rect x="141" y="${46 + i * 16}" width="10" height="4.5" rx="1.6" fill="${ink}"/><rect x="120" y="${54 + i * 16}" width="31" height="1.8" rx=".9" fill="${line}"/><rect x="120" y="${54 + i * 16}" width="${25 - i * 5}" height="1.8" rx=".9" fill="${accent}"/>`).join('')}
     </svg>`;
     return tpl.content.firstChild;
   }
   const currentLook = () => ({ id: 'cur', name: 'Custom', contour: S.prefs.contour, contourGlow: S.prefs.contourGlow, background: S.prefs.background });
 
-  /** One colour: a picker and a hex box that stay in step; invalid codes are flagged and snap back. */
+  /** One colour: a picker and a hex box that stay in step; invalid codes are flagged and snap back. (No longer used by the panel.) */
   function colourControl(label, key, hint, after) {
-    const P = S.prefs;
+    const P = livePrefs;
     const text = h('input', { class: 'sgo-input hex', value: P[key], maxlength: '7', spellcheck: 'false', autocomplete: 'off', 'aria-label': label + ' as a hex code', 'aria-invalid': 'false' });
     const pick = h('input', { class: 'sgo-swatch-in', type: 'color', value: P[key], 'aria-label': label });
     const write = (hex) => { text.value = hex; pick.value = hex; text.setAttribute('aria-invalid', 'false'); };
@@ -1357,13 +1503,13 @@
     return h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'ap-c' }, pick, text));
   }
   function mapControls(redraw) {
-    const P = S.prefs, segBtn = (opts, cur, on) => opts.map(([v, l]) => h('button', { type: 'button', class: cur === v ? 'on' : '', 'aria-pressed': String(cur === v), onclick: () => on(v) }, l));
-    const seg = (label, hint, opts, cur, on) => h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, label), h('small', null, hint)), h('div', { class: 'sgo-seg', role: 'group', 'aria-label': label }, segBtn(opts, cur, on)));
+    const P = livePrefs, segBtn = (opts, cur, on) => opts.map(([v, l]) => h('button', { type: 'button', class: cur === v ? 'on' : '', 'aria-pressed': String(cur === v), onclick: () => on(v) }, l));
+    const seg = (label, hint, opts, cur, on) => h('div', { class: 'ap-row', title: hint }, h('div', { class: 'ap-l' }, h('b', null, label)), h('div', { class: 'sgo-seg', role: 'group', 'aria-label': label }, segBtn(opts, cur, on)));
     return [
-      seg('Topographic map', 'Contour lines, or just the plain background', [[true, 'On'], [false, 'Off']], P.topoOn !== false, (v) => { S.setMap({ topoOn: v }); redraw(); }),
-      seg('Line density', 'How many contour lines are drawn', [['light', 'Light'], ['standard', 'Standard'], ['dense', 'Dense']], P.topoDensity || 'standard', (v) => { S.setMap({ topoDensity: v }); redraw(); }),
-      seg('Line weight', 'How thick the lines are', [['thin', 'Thin'], ['standard', 'Standard'], ['bold', 'Bold']], P.topoWeight || 'standard', (v) => { S.setMap({ topoWeight: v }); redraw(); }),
-      h('div', { class: 'ap-row' }, h('div', { class: 'ap-l' }, h('b', null, 'Map shape'), h('small', null, 'Draws a different landscape')), btn('New map', () => { S.setMap({ topoSeed: 1000 + Math.floor(Math.random() * 90000) }); redraw(); }, 'ghost', 'reload')),
+      seg('Show map', 'Contour lines, or just the plain background', [[true, 'On'], [false, 'Off']], P.topoOn !== false, (v) => { S.setMap({ topoOn: v }); redraw(); }),
+      seg('Density', 'How many contour lines are drawn', [['light', 'Light'], ['standard', 'Standard'], ['dense', 'Dense']], P.topoDensity || 'standard', (v) => { S.setMap({ topoDensity: v }); redraw(); }),
+      seg('Weight', 'How thick the lines are', [['thin', 'Thin'], ['standard', 'Standard'], ['bold', 'Bold']], P.topoWeight || 'standard', (v) => { S.setMap({ topoWeight: v }); redraw(); }),
+      h('div', { class: 'ap-row', title: 'Draws a different landscape' }, h('div', { class: 'ap-l' }, h('b', null, 'Shape')), btn('New map', () => { S.setMap({ topoSeed: 1000 + Math.floor(Math.random() * 90000) }); redraw(); }, 'ghost', 'reload')),
     ];
   }
 
@@ -1374,39 +1520,33 @@
     const close = () => { S.closeModal(true); S.render(true); };
     S._modalKey = (e) => { if (e.key === 'Escape') close(); };
     document.addEventListener('keydown', S._modalKey, true);
-    const P = S.prefs, prev = h('div', { class: 'ap-live', role: 'img', 'aria-label': 'Live preview of your colours and background map' });
+    const P = livePrefs, prev = h('div', { class: 'ap-live', role: 'img', 'aria-label': 'Live preview of your colours and background map' });
     const paint = () => prev.replaceChildren(themeThumb(currentLook(), P.accent));
-    const accentBox = h('div', { class: 'ap-accent' }), controls = h('div', { class: 'ap-controls' }), mapBody = h('div', { class: 'ap-map' });
-    const drawAccent = () => {
-      const name = (S.ACCENTS.find((x) => x[1] === P.accent) || ['Custom'])[0];
-      accentBox.replaceChildren(
-        h('h3', { id: 'ap-acc-h' }, 'Accent colour', h('small', null, name)),
-        groupedSwatches(S.ACCENT_GROUPS.map(([g, names]) => [g, names.map((n) => S.ACCENTS.find((x) => x[0] === n)).filter(Boolean)]), P.accent, (hex) => { S.setAppearance({ accent: hex }); drawAccent(); paint(); }, 'square'),
-        h('label', { class: 'sw-custom' }, h('span', null, 'Custom colour'), h('input', { type: 'color', value: P.accent, 'aria-label': 'Custom accent colour', onchange: (e) => { S.setAppearance({ accent: e.target.value }); drawAccent(); paint(); } })));
-    };
-    const drawControls = () => controls.replaceChildren(
-      h('h3', { id: 'ap-col-h' }, 'Colours'),
-      h('div', { class: 'ap-presets', role: 'group', 'aria-label': 'Quick colours' }, S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (sameLook(t) ? ' on' : ''), 'aria-pressed': String(sameLook(t)),
-        onclick: () => { S.applyLook(t); drawControls(); paint(); S.render(true); } },
-        h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.contour } }), h('i', { style: { background: t.contourGlow } })), t.name))),
-      colourControl('Background', 'background', 'The surface behind the map', paint), colourControl('Contour lines', 'contour', 'The topographic map drawn behind every page', paint), colourControl('Contour glow', 'contourGlow', 'The soft light under the main contour lines', paint));
-    const fillMap = () => { mapBody.replaceChildren(h('h3', null, 'Background map'), ...mapControls(fillMap)); paint(); };
-    paint(); drawAccent(); drawControls(); fillMap();
+    const themes = h('div', { class: 'ap-themes' }), mapBody = h('div', { class: 'ap-map' });
+    const drawThemes = () => themes.replaceChildren(
+      h('h3', { id: 'ap-col-h' }, 'Theme'),
+      h('div', { class: 'ap-presets', role: 'group', 'aria-label': 'Themes' }, S.THEME_PRESETS.map((t) => h('button', { type: 'button', class: 'ap-preset' + (sameLook(t) ? ' on' : ''), 'aria-pressed': String(sameLook(t)), title: t.note,
+        onclick: () => { S.applyLook(t); drawThemes(); paint(); S.render(true); } },
+        h('span', { class: 'ap-sw', style: { background: t.background, boxShadow: `inset 0 0 0 1px ${t.contour}` } }, h('i', { style: { background: t.contour } }), h('i', { style: { background: t.accent || t.contourGlow } })), h('span', { class: 'ap-pn' }, t.name)))));
+    const fillMap = () => { mapBody.replaceChildren(h('h3', null, 'Contour map'), ...mapControls(fillMap)); paint(); };
+    paint(); drawThemes(); fillMap();
+    S._apRepaint = () => { drawThemes(); fillMap(); };
     host.replaceChildren(h('div', { class: 'sgo-modal-bg', onclick: (e) => { if (e.target === e.currentTarget) close(); } },
       h('div', { class: 'sgo-modal ap-modal', role: 'dialog', 'aria-modal': 'true', 'aria-labelledby': 'ap-h' },
         h('div', { class: 'ap-head' }, h('h2', { id: 'ap-h' }, 'Appearance'), h('button', { class: 'sgo-icon-btn', type: 'button', 'aria-label': 'Close', onclick: close }, icon('plus', 18))),
-        h('div', { class: 'ap-layout' }, h('div', { class: 'ap-left' }, prev, mapBody), h('div', { class: 'ap-right' }, controls, accentBox)),
-        h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Reset appearance', () => { S.resetAppearance(); drawControls(); drawAccent(); fillMap(); S.render(true); }, 'ghost', 'reload'), btn('Done', close, 'primary', 'check')))));
+        h('div', { class: 'ap-layout' }, h('div', { class: 'ap-left' }, prev), h('div', { class: 'ap-right' }, themes)),
+        h('div', { class: 'ap-mapbar' }, mapBody),
+        h('div', { class: 'sgo-head-a sgo-mfoot' }, btn('Reset appearance', () => { S.resetAppearance(); drawThemes(); fillMap(); S.render(true); }, 'ghost', 'reload'), btn('Done', close, 'primary', 'check')))));
   };
 
   /** Settings card: the current look in miniature and a way into the panel. */
   function appearanceCard() {
     const P = S.prefs, known = S.THEME_PRESETS.find(sameLook), look = known || currentLook();
     return h('section', { class: 'sgo-card' }, h('h2', null, 'Appearance'),
-      h('p', { class: 'sgo-muted' }, 'Pick a theme from miniature previews, choose an accent colour, and tune the background map. Changes apply instantly and are saved in this browser.'),
+      h('p', { class: 'sgo-muted' }, 'Pick a theme and tune the contour map. Changes apply instantly and are saved in this browser.'),
       h('div', { class: 'ap-summary' },
         h('span', { class: 'thm-prev' }, themeThumb(look, P.accent)),
-        h('div', { class: 'ap-l' }, h('b', null, known ? known.name : 'Custom colours'), h('small', null, 'Accent colour: ' + ((S.ACCENTS.find((x) => x[1] === P.accent) || ['Custom'])[0]))),
+        h('div', { class: 'ap-l' }, h('b', null, known ? known.name : 'Custom colours'), h('small', null, (known ? known.note : 'Your own colours') + (P.topoOn === false ? ' · Contour map off' : ''))),
         btn('Customise appearance', () => S.openAppearance(), 'primary', 'palette')));
   }
 
@@ -1444,17 +1584,19 @@
           [['light', 'Light'], ['dark', 'Dark'], ['system', 'System']].map(([v, l]) => h('button', { type: 'button', class: S.themeMode() === v ? 'on' : '', 'aria-pressed': String(S.themeMode() === v), onclick: () => { S.setThemeMode(v); S.render(true); } }, l)))),
         row('Density', 'Compact tightens row and card spacing so more fits on screen', h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Density' },
           [['comfortable', 'Comfortable'], ['compact', 'Compact']].map(([v, l]) => h('button', { type: 'button', class: (P.density || 'comfortable') === v ? 'on' : '', 'aria-pressed': String((P.density || 'comfortable') === v), onclick: () => { S.setMap({ density: v }); S.render(true); } }, l))))),
+      h('section', { class: 'sgo-card' }, h('h2', null, 'Accessibility'),
+        row('Text size', 'Makes everything in the app larger', h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Text size' },
+          [['', 'Default'], ['lg', 'Large'], ['xl', 'Larger']].map(([v, l]) => h('button', { type: 'button', class: (P.textSize || '') === v ? 'on' : '', 'aria-pressed': String((P.textSize || '') === v), onclick: () => { S.setA11y({ textSize: v }); S.render(true); } }, l)))),
+        row('High contrast', 'Brighter text, stronger outlines and a thicker focus ring', h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'High contrast' },
+          [[false, 'Off'], [true, 'On']].map(([v, l]) => h('button', { type: 'button', class: !!P.highContrast === v ? 'on' : '', 'aria-pressed': String(!!P.highContrast === v), onclick: () => { S.setA11y({ highContrast: v }); S.render(true); } }, l)))),
+        row('Reduce motion', 'Turns off animations and transitions (also follows your device setting)', h('div', { class: 'sgo-seg', role: 'group', 'aria-label': 'Reduce motion' },
+          [[false, 'Off'], [true, 'On']].map(([v, l]) => h('button', { type: 'button', class: !!P.reduceMotion === v ? 'on' : '', 'aria-pressed': String(!!P.reduceMotion === v), onclick: () => { S.setA11y({ reduceMotion: v }); S.render(true); } }, l))))),
       h('section', { class: 'sgo-card' }, h('h2', null, 'Profile'), row('Your name', 'Used for the dashboard greeting. Saved as you type, only in this browser. Empty uses the name Schoology gives.',
         h('input', { class: 'sgo-input', value: P.displayName || '', placeholder: (S.state.user || 'First name').trim(), maxlength: '40', 'aria-label': 'Your name',
           oninput: (e) => { P.displayName = e.target.value.trim(); S.savePrefs(); }, onchange: () => S.render(true) }))),
       appearanceCard(),
       courseRows.length ? h('section', { class: 'sgo-card' }, h('h2', null, 'Course colours'), h('p', { class: 'sgo-muted' }, 'Pick from fourteen colours, grouped by family. Used for the typographic banner and the course page.'),
         row('Colour-code assignments by course', 'Off keeps every assignment and material indicator in one clean colour. On tints each with its course colour.', seg('tagColours', [[false, 'Off'], [true, 'On']])), courseRows) : null,
-      h('section', { class: 'sgo-card' }, h('h2', null, 'Course banners'),
-        h('p', { class: 'sgo-muted' }, 'Original Schoology banners are never changed or removed. These actions only affect how classes look in this extension.'),
-        h('div', { class: 'sgo-head-a' },
-          btn('Restore original Schoology banners', () => S.openConfirm({ title: 'Restore original banners?', body: 'Every class will use its original Schoology banner again. Names and colours stay.', ok: 'Restore', onOk: () => setAllBanners('orig') }), 'ghost', 'reload'),
-          btn('Reset all banners', () => S.openConfirm({ title: 'Reset all banners?', body: 'This clears every banner choice for all classes, including uploaded images. Original Schoology banners show again. Names and colours stay.', ok: 'Reset all banners', danger: true, onOk: () => setAllBanners('') }), 'ghost'))),
       h('section', { class: 'sgo-card' }, h('h2', null, 'Data & privacy'),
         h('p', { class: 'sgo-muted' }, 'This extension only reads pages you can already see in Schoology, using your existing session. It never sees your password and sends nothing to any server. Preferences and a cache of what it read live in this browser.'),
         h('div', { class: 'sgo-head-a' }, btn('Refresh data now', () => S.hardRefresh(), 'ghost', 'reload'),

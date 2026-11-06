@@ -23,7 +23,10 @@
       "css": [
         "src/styles.css",
         "src/theme.css",
-        "src/studio.css"
+        "src/studio.css",
+        "src/dash.css",
+        "src/pages.css",
+        "src/motion.css"
       ],
       "js": [
         "src/color.js",
@@ -42,7 +45,6 @@
       ],
       "js": [
         "src/core.js",
-        "src/banners.js",
         "src/quips.js",
         "src/data.js",
         "src/social.js",
@@ -55,6 +57,6 @@
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["fonts/*.woff2", "banners/*.jpg"], "matches": ["*://*.schoology.com/*"] }
+    { "resources": ["fonts/*.woff2"], "matches": ["*://*.schoology.com/*"] }
   ]
 }

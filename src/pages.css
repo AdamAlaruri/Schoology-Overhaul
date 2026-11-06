@@ -1,0 +1,443 @@
+/* =====================================================================
+   Calendar, Messages, Groups, Accessibility (Settings) and Search:
+   the same look as the dashboard, Courses and Assignments.
+   Big plain titles, thick buttons and fields, soft surfaces with dashboard-style rows.
+   ===================================================================== */
+
+/* page titles */
+html.sgo-app .sgo-page:not(.dash6):not(.cl-page) > .sgo-head { align-items: flex-end; gap: 16px 32px; margin: 0 0 24px; }
+html.sgo-app .sgo-page:not(.dash6):not(.cl-page) > .sgo-head h1 { margin: 0; font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -.03em; color: var(--t1); }
+html.sgo-app .sgo-page:not(.dash6):not(.cl-page) > .sgo-head p { margin: 12px 0 0; font-size: 16px; line-height: 1.4; color: var(--t2); max-width: 60ch; }
+
+/* thick buttons, fields, chips */
+html.sgo-app .sgo-page:not(.dash6) .sgo-head-a .sgo-btn, html.sgo-app .sgo-toolbar .sgo-btn, html.sgo-app .ib-list .sgo-btn, html.sgo-app .gp-card .sgo-btn, html.sgo-app .ib-read .sgo-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 8px; height: 44px; min-height: 44px; padding: 0 20px; border-radius: 10px; font-size: 15px; font-weight: 700; line-height: 1; text-decoration: none; }
+html.sgo-app .sgo-page .sgo-btn svg { width: 18px; height: 18px; stroke-width: 2.6; flex: none; }
+html.sgo-app .sgo-page:not(.dash6) .sgo-btn.ghost { background: var(--s1); color: var(--t1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-btn.ghost:hover { background: color-mix(in srgb, var(--text) 10%, var(--s1)); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-icon-btn { box-sizing: border-box; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: var(--s1); color: var(--t1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-icon-btn:hover { background: color-mix(in srgb, var(--text) 10%, var(--s1)); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-icon-btn svg { width: 20px; height: 20px; stroke-width: 2.6; }
+html.sgo-app .sgo-page:not(.dash6) .sgo-input:not([type="checkbox"]):not([type="radio"]):not([type="color"]):not(textarea) { box-sizing: border-box; height: 44px; min-height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--s1); color: var(--t1); font-size: 15px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-input:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+html.sgo-app .sgo-page:not(.dash6) .sgo-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--s1); color: var(--t2); font-size: 14px; font-weight: 600; box-shadow: none; transition: background .15s var(--ease-out), color .15s, transform .1s; }
+html.sgo-app .sgo-page:not(.dash6) .sgo-chip span { font-size: 13px; font-weight: 700; color: var(--t3); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-chip:hover { background: color-mix(in srgb, var(--text) 9%, var(--s1)); color: var(--t1); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-chip.on { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-chip.on span { color: inherit; opacity: .75; }
+html.sgo-app .sgo-page:not(.dash6) .sgo-seg { display: inline-flex; padding: 4px; gap: 4px; border-radius: 12px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-seg button { height: 36px; min-height: 36px; padding: 0 16px; border: 0; border-radius: 9px; background: none; color: var(--t2); font-size: 14px; font-weight: 600; }
+html.sgo-app .sgo-page:not(.dash6) .sgo-seg button:hover { color: var(--t1); }
+html.sgo-app .sgo-page:not(.dash6) .sgo-seg button.on { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .sgo-toolbar { margin: 0 0 20px; gap: 12px 16px; }
+
+/* Calendar */
+html.sgo-app .sgo-calnav { display: flex; align-items: center; gap: 8px; }
+html.sgo-app .sgo-month, html.sgo-app .sgo-weekview { gap: 8px; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell { border: 0; border-radius: 14px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); transition: background .15s var(--ease-out), box-shadow .15s; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell:hover { background: color-mix(in srgb, var(--text) 6%, var(--s1)); }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell.today { box-shadow: inset 0 0 0 2px var(--accent); }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell.today .sgo-cell-n { color: var(--accent); font-weight: 800; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell .sgo-cell-n { font-weight: 700; color: var(--t1); }
+html.sgo-app .sgo-wd { font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--t3); }
+html.sgo-app .sgo-wcol { border: 0; border-radius: 16px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .sgo-wcol.today { box-shadow: inset 0 0 0 2px var(--accent); }
+html.sgo-app .sgo-wh { font-weight: 700; color: var(--t1); }
+html.sgo-app .sgo-sec > h3 { display: flex; align-items: baseline; gap: 8px; margin: 0 0 12px; font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .sgo-sec > h3 span { font-size: 14px; font-weight: 400; color: var(--t3); }
+
+/* Messages */
+html.sgo-app .ib { gap: 20px; }
+html.sgo-app .ib-list, html.sgo-app .ib-read { padding: 18px; border-radius: 18px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .ib-tabs { display: flex; gap: 8px; }
+html.sgo-app .ib-tabs a { flex: 1; display: grid; place-items: center; height: 40px; border-radius: 10px; font-size: 14px; font-weight: 700; color: var(--t2); text-decoration: none; background: color-mix(in srgb, var(--text) 6%, transparent); transition: background .15s, color .15s; }
+html.sgo-app .ib-tabs a:hover { color: var(--t1); background: color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .ib-tabs a[aria-current="page"] { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .ib-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+html.sgo-app .ib-row { border-radius: 10px; padding: 10px 12px; transition: background .12s; }
+html.sgo-app .ib-row:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .ib-row.on { background: color-mix(in srgb, var(--accent) 16%, transparent); }
+html.sgo-app .ib-row.unread .ib-top b, html.sgo-app .ib-row.unread .ib-sub { font-weight: 800; color: var(--t1); }
+html.sgo-app .ib-av, html.sgo-app .gp-av { display: grid; place-items: center; border-radius: 12px; background: color-mix(in srgb, var(--accent) 22%, var(--s2)); color: var(--t1); font-weight: 800; }
+html.sgo-app .ib-dot { background: var(--accent); }
+
+/* Groups */
+html.sgo-app .gp-grid { gap: 18px; }
+html.sgo-app .gp-card { padding: 22px; border-radius: 18px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); transition: transform .2s var(--ease-out), box-shadow .2s; }
+html.sgo-app .gp-card:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 40%, transparent); }
+html.sgo-app .gp-name { font-size: 19px; font-weight: 800; letter-spacing: -.01em; color: var(--t1); text-decoration: none; }
+html.sgo-app .gp-name:hover { color: var(--accent); }
+
+/* Accessibility (Settings) */
+html.sgo-app .sgo-page.narrow .sgo-card { border-radius: 18px; padding: 24px 28px; }
+html.sgo-app .sgo-page.narrow .sgo-card h2 { font-size: 20px; font-weight: 800; letter-spacing: -.01em; margin: 0 0 10px; }
+
+/* Search (Ctrl+K) */
+html.sgo-app .sp { border: 0; border-radius: 20px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent), 0 30px 80px -20px rgba(0, 0, 0, .65); }
+html.sgo-app .sp-field { min-height: 68px; padding: 0 22px; gap: 14px; border-bottom: 1px solid color-mix(in srgb, var(--text) 10%, transparent); color: var(--t2); }
+html.sgo-app .sp-field svg { width: 22px; height: 22px; stroke-width: 2.4; }
+html.sgo-app .sp-input { font-size: 19px; font-weight: 600; color: var(--t1); }
+html.sgo-app .sp-field kbd { padding: 4px 10px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--t2); background: color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .sp-list { padding: 8px; }
+html.sgo-app .sp-h { padding: 12px 14px 6px; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--t3); }
+html.sgo-app .sp-r { min-height: 56px; padding: 8px 14px; border-radius: 10px; color: var(--t2); }
+html.sgo-app .sp-r b { font-size: 15px; font-weight: 700; color: var(--t1); }
+html.sgo-app .sp-r.on { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--t1); }
+html.sgo-app .sp-ic { display: grid; place-items: center; width: 36px; height: 36px; flex: none; border-radius: 10px; background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--t1); }
+html.sgo-app .sp-foot { padding: 12px 18px; font-size: 14px; color: var(--t3); border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+
+/* =====================================================================
+   One size for every page except the dashboard: the same width, side padding, title label and spacing
+   ===================================================================== */
+html.sgo-app .sgo-page:not(.dash6):not(.cu) { box-sizing: border-box; width: 100%; max-width: 1240px; margin: 0 auto; padding: 32px 40px 64px; }
+html.sgo-app .sgo-page.narrow:not(.dash6), html.sgo-app .sgo-page.narrow:not(.dash6) > * { max-width: 1240px; }
+html.sgo-app .sgo-page.narrow:not(.dash6) { margin-left: auto; margin-right: auto; }
+html.sgo-app .sgo-page.narrow .sgo-card { width: 100%; box-sizing: border-box; }
+@media (max-width: 900px) { html.sgo-app .sgo-page:not(.dash6):not(.cu) { padding: 24px 20px 56px; } }
+/* every page title is the same big label, always shown */
+html.sgo-app .sgo-page:not(.dash6):not(.cl-page) > .sgo-head h1 { display: block !important; }
+html.sgo-app .cl-top { margin: 0 0 24px; }
+/* type scale: the dashboard greeting is the largest text in the app (56px). Every other page title is one smaller size (32px), course titles included. */
+html.sgo-app .cl-eyebrow, html.sgo-app .asg6 .asg-title, html.sgo-app .sgo-page:not(.dash6):not(.cl-page) > .sgo-head h1, html.sgo-app .crs-title h1 { font-size: clamp(26px, 7vw, 32px) !important; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; overflow-wrap: anywhere; hyphens: none; }
+html.sgo-app .dash6 > .dh .dh-t { font-size: clamp(36px, 9vw, 56px); line-height: 1.05; font-weight: 800; letter-spacing: -.03em; }
+html.sgo-app .sgo-page > .sgo-head p, html.sgo-app .cl-top p, html.sgo-app .asg6 .asg-sub { margin-top: 6px; font-size: 14px; line-height: 1.45; color: var(--t2); }
+html.sgo-app .sgo-page > .sgo-head, html.sgo-app .cl-top, html.sgo-app .asg6 > .asg-h { margin-bottom: 24px !important; }
+/* page-level action buttons, fields, chips: one height everywhere */
+html.sgo-app .sgo-page:not(.dash6) .sgo-head-a .sgo-btn, html.sgo-app .cl-top .sgo-btn { height: 44px; min-height: 44px; padding: 0 20px; border-radius: 10px; font-size: 15px; font-weight: 700; }
+/* Grades: same surfaces as the other pages */
+html.sgo-app .gr2-list { border-radius: 18px; padding: 10px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .gr2-course { border-radius: 12px; }
+html.sgo-app .gr-bar, html.sgo-app .sgo-page .sgo-note { font-size: 14px; color: var(--t3); }
+html.sgo-app .sgo-empty { border-radius: 18px; background: var(--s1); }
+/* Course page: the same banner as the Courses tiles (course-colour wash and its own topographic map), thick tabs, no stat strip */
+html.sgo-app .crs-head { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; min-height: 220px; box-sizing: border-box; margin: 0 0 20px; padding: 28px 32px !important; border-radius: 22px !important; background: color-mix(in srgb, var(--c) 22%, var(--s1)) !important; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 45%, transparent) !important; }
+html.sgo-app .crs-head::before, html.sgo-app .crs-head::after { content: none !important; display: none !important; }
+html.sgo-app .crs-head .crs-art { position: absolute; inset: 0; z-index: 0; pointer-events: none; color: color-mix(in srgb, var(--c) 55%, #fff); -webkit-mask-image: linear-gradient(90deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.2) 45%, #000 100%); mask-image: linear-gradient(90deg, rgba(0,0,0,.15) 0%, rgba(0,0,0,.2) 45%, #000 100%); }
+html.sgo-app .crs-head .crs-art svg { display: block; width: 100%; height: 100%; }
+html.sgo-app .crs-head .crs-art path { fill: none; stroke: currentColor; stroke-width: 1.4; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; opacity: .8; stroke-opacity: 1 !important; }
+html.sgo-app .crs-head .crs-art path.mj { stroke-width: 2.6; opacity: 1; }
+html.sgo-app .crs-title, html.sgo-app .crs-stats { position: relative; z-index: 1; }
+html.sgo-app .crs-stats { display: none; }
+html.sgo-app .crs-kicker { margin: 0 0 12px; font-size: 14px; font-weight: 800; letter-spacing: .16em; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.6); }
+html.sgo-app .crs-kicker i { background: #fff; }
+html.sgo-app .crs-title h1 { max-width: 20ch; font-size: 48px; font-weight: 800; letter-spacing: -.03em; color: #fff; text-shadow: 0 2px 4px rgba(0,0,0,.7), 0 0 18px rgba(0,0,0,.6); }
+html.sgo-app .crs-title h1 .crs-rename { color: #fff; background: rgba(8,8,10,.55); border-radius: 10px; }
+html.sgo-app .crs-meta { margin-top: 14px; gap: 8px; }
+html.sgo-app .crs-meta > span { padding: 6px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; color: #fff; background: rgba(8,8,10,.62); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); }
+html.sgo-app .crs-meta > i { display: none; }
+html.sgo-app .crs-actions { position: absolute; top: 18px; right: 18px; z-index: 3; }
+html.sgo-app .crs-actions button, html.sgo-app .crs-actions .sgo-icon-btn { box-sizing: border-box; display: grid; place-items: center; width: 44px; height: 44px; border: 0; border-radius: 10px; color: #fff; background: rgba(8,8,10,.62); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); }
+html.sgo-app .crs-actions button:hover { background: var(--c); color: var(--ink, #fff); }
+html.sgo-app .crs-actions svg { width: 20px; height: 20px; stroke-width: 2.6; }
+html.sgo-app .crs-tabs { gap: 6px; padding: 5px; border-radius: 14px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent); }
+html.sgo-app .crs-tabs a { height: 40px; display: inline-flex; align-items: center; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 700; }
+html.sgo-app .crs-tab-pill { border-radius: 10px; background: var(--accent); }
+html.sgo-app .crs-tabs a[aria-current="page"] { color: var(--on-accent); }
+@media (max-width: 700px) { html.sgo-app .crs-head { min-height: 190px; padding: 22px !important; } html.sgo-app .crs-title h1 { font-size: 34px; } }
+
+/* Course page body: the dashboard's layout. A small heading with its link above, and one soft panel below it, no card inside a card */
+html.sgo-app .crs .crs-grid { gap: 32px 40px; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); }
+html.sgo-app .crs .crs-col { gap: 28px; }
+html.sgo-app .crs .crs-card, html.sgo-app .crs .crs-card.primary, html.sgo-app .crs .crs-card.compact, html.sgo-app .crs .crs-card:hover { padding: 0 !important; border: 0; background: none !important; box-shadow: none !important; transform: none !important; border-radius: 0; }
+html.sgo-app .crs .crs-card-h { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 32px; margin: 0 0 12px; }
+html.sgo-app .crs .crs-card-h h2, html.sgo-app .crs .crs-card.primary .crs-card-h h2 { margin: 0; font-size: 15px; line-height: 1.3; font-weight: 600; letter-spacing: 0; color: var(--t1); }
+html.sgo-app .crs .crs-card-h .link { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; color: var(--accent); text-decoration: none; }
+html.sgo-app .crs .crs-card-h .link svg { stroke-width: 2.6; }
+html.sgo-app .crs .crs-panel { padding: 16px; border-radius: 14px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent); min-width: 0; }
+html.sgo-app .crs .crs-card.compact .crs-panel { padding: 14px 16px; }
+html.sgo-app .crs .tl li, html.sgo-app .crs .an-feed li { border-radius: 10px; }
+html.sgo-app .crs .crs-pane { padding: 0; }
+html.sgo-app .crs .crs-micro { color: var(--t3); }
+@media (max-width: 900px) { html.sgo-app .crs .crs-grid { grid-template-columns: 1fr; } }
+
+/* =====================================================================
+   Grades and What-if: a course list on the left, one course on the right
+   ===================================================================== */
+html.sgo-app .gx-layout { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 40px; align-items: start; }
+html.sgo-app .gx-list { position: sticky; top: 24px; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 14px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .gx-c { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px 12px; padding: 12px 14px; border: 0; border-radius: 10px; background: none; color: var(--t1); text-align: left; cursor: pointer; transition: background .15s var(--ease-out); }
+html.sgo-app .gx-c:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .gx-c.on { background: color-mix(in srgb, var(--c) 18%, transparent); box-shadow: inset 3px 0 0 var(--c); }
+html.sgo-app .gx-c-n { font-size: 15px; font-weight: 700; line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .gx-c-g { display: inline-flex; align-items: baseline; gap: 8px; font-variant-numeric: tabular-nums; }
+html.sgo-app .gx-c-g b { font-size: 16px; font-weight: 800; }
+html.sgo-app .gx-c-g em { font-style: normal; font-size: 14px; font-weight: 700; color: var(--t2); }
+html.sgo-app .gx-c-g small { font-size: 13px; font-weight: 700; color: var(--accent); }
+html.sgo-app .gx-bar { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--text) 10%, transparent); overflow: hidden; }
+html.sgo-app .gx-bar i { display: block; height: 100%; width: var(--p, 0%); border-radius: inherit; background: var(--c, var(--accent)); transform-origin: left; animation: bar-grow .6s var(--ease-out) both; }
+
+html.sgo-app .gx-detail { min-width: 0; }
+html.sgo-app .gx-detail.swap { animation: dash-rise .3s var(--ease-out) both; }
+html.sgo-app .gx-body { display: flex; flex-direction: column; gap: 0; }
+html.sgo-app .gx-big { display: grid; grid-template-columns: auto auto; align-items: baseline; justify-content: start; column-gap: 12px; }
+html.sgo-app .gx-lbl { grid-column: 1 / -1; margin-bottom: 4px; font-size: 13px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; color: var(--t3); }
+html.sgo-app .gx-big b { font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -.03em; font-variant-numeric: tabular-nums; color: var(--t1); }
+html.sgo-app .gx-big em { padding: 4px 12px; border-radius: 10px; font-style: normal; font-size: 18px; font-weight: 800; color: var(--t1); background: color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .gx-wi b { color: var(--accent); }
+html.sgo-app .gx-wi small { align-self: center; padding: 4px 10px; border-radius: 10px; font-size: 14px; font-weight: 800; }
+html.sgo-app .gx-wi small.up { color: var(--u-done, #4ade80); background: color-mix(in srgb, var(--u-done, #4ade80) 16%, transparent); }
+html.sgo-app .gx-wi small.down { color: var(--bad, #f87171); background: color-mix(in srgb, var(--bad, #f87171) 16%, transparent); }
+html.sgo-app .gx-note { display: flex; align-items: flex-start; gap: 8px; margin: 6px 0 0; font-size: 14px; line-height: 1.45; color: var(--t2); }
+html.sgo-app .gx-note svg { flex: none; margin-top: 2px; }
+
+html.sgo-app .gx-sec { margin-top: 32px; }
+html.sgo-app .gx-sec-h { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 32px; margin: 0 0 12px; }
+html.sgo-app .gx-sec-h h3 { margin: 0; font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .gx-total { padding: 4px 10px; border-radius: 8px; font-size: 13px; font-weight: 700; }
+html.sgo-app .gx-total.ok { color: var(--u-done, #4ade80); background: color-mix(in srgb, var(--u-done, #4ade80) 14%, transparent); }
+html.sgo-app .gx-total.warn { color: var(--u-today, #fbbf24); background: color-mix(in srgb, var(--u-today, #fbbf24) 14%, transparent); }
+html.sgo-app .gx-wt { font-size: 13px; color: var(--t2); }
+html.sgo-app .gx-in { display: inline-flex; align-items: center; gap: 6px; }
+html.sgo-app .gx-in i { font-style: normal; font-size: 14px; font-weight: 700; color: var(--t2); }
+html.sgo-app .gx .gx-in .sgo-input, html.sgo-app .gx .gx-r-s .sgo-input, html.sgo-app .gx .ov-num { box-sizing: border-box; width: 76px; min-width: 0; height: 40px; min-height: 40px; padding: 0 10px; text-align: right; font-variant-numeric: tabular-nums; }
+html.sgo-app .gx .gx-cname { width: 100%; text-align: left; height: 36px; min-height: 36px; }
+html.sgo-app .gx-x { flex: none; display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: 10px; background: none; color: var(--t2); cursor: pointer; transition: background .15s, color .15s; }
+html.sgo-app .gx-x:hover { color: var(--bad, #f87171); background: color-mix(in srgb, var(--bad, #f87171) 14%, transparent); }
+html.sgo-app .gx-x svg { stroke-width: 2.4; }
+html.sgo-app .gx-addcat { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; }
+html.sgo-app .gx-addcat .sgo-input:first-child { flex: 1 1 220px; }
+
+html.sgo-app .gx-add { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; height: 32px; padding: 0 12px; border: 0; border-radius: 8px; font-size: 14px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); cursor: pointer; }
+html.sgo-app .gx-add:hover { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .gx-add svg { stroke-width: 2.8; }
+html.sgo-app .gx-rows { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; border-radius: 14px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .gx-r { display: grid; grid-template-columns: minmax(0, 1fr) auto 64px 108px; align-items: center; gap: 12px; min-height: 56px; padding: 8px 12px; border-radius: 10px; transition: background .12s; }
+html.sgo-app .gx-r:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .gx-r.ed { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+html.sgo-app .gx-r-m { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+html.sgo-app .gx-r-m b { font-size: 14.5px; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .gx-r-m span { font-size: 13px; color: var(--t3); }
+html.sgo-app .gx-r-m .sgo-input { height: 40px; }
+html.sgo-app .gx-r-s { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--t1); }
+html.sgo-app .gx-r-s i { font-style: normal; color: var(--t3); }
+html.sgo-app .gx-r-p { text-align: right; font-size: 14px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--t1); }
+html.sgo-app .gx-r .gr2-st { justify-self: end; text-align: right; font-size: 13px; }
+html.sgo-app .gx-r .gx-x { justify-self: end; }
+html.sgo-app .gx-none { margin: 0; padding: 14px 4px; font-size: 14px; color: var(--t3); }
+html.sgo-app .gx-foot { margin-top: 28px; }
+
+
+html.sgo-app .gx-bar-top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; margin-bottom: 8px; }
+html.sgo-app .gx-hint { margin: 0; font-size: 14px; color: var(--t2); max-width: 60ch; }
+html.sgo-app .gx-mode { flex: none; }
+html.sgo-app .gx-mode button { display: inline-flex; align-items: center; gap: 6px; }
+@media (max-width: 960px) {
+  html.sgo-app .gx-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  html.sgo-app .gx-list { position: static; }
+}
+@media (max-width: 640px) {
+  html.sgo-app .gx-r { grid-template-columns: minmax(0, 1fr) auto; row-gap: 6px; }
+  html.sgo-app .gx-r-p { grid-column: 1; text-align: left; }
+  html.sgo-app .gx-r .gr2-st, html.sgo-app .gx-r .gx-x { grid-column: 2; grid-row: 2; }
+  html.sgo-app .gx-big b { font-size: 44px; }
+}
+@media (prefers-reduced-motion: reduce) { html.sgo-app .gx-detail.swap, html.sgo-app .gx-bar i { animation: none; } }
+
+html.sgo-app .gx .sgo-input:not([type="checkbox"]):not([type="radio"]) { background: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent); }
+html.sgo-app .gx .sgo-input:focus { box-shadow: inset 0 0 0 2px var(--accent); }
+
+
+/* ---- Grades, compact: sticky summary, category filter chips, one flat list ---- */
+html.sgo-app .gx-sum { position: sticky; top: 0; z-index: 6; display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 40px; margin: 0 0 16px; padding: 4px 0 14px; background: linear-gradient(180deg, var(--app-background) 75%, transparent); }
+html.sgo-app .gx-sum-n { flex: 1 1 220px; min-width: 0; }
+html.sgo-app .gx-sum-n h2 { margin: 0; font-size: 26px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .gx-sum-n p { margin: 6px 0 0; font-size: 14px; color: var(--t2); }
+html.sgo-app .gx-sum .gx-big b { font-size: 40px; }
+html.sgo-app .gx-sum .gx-big em { padding: 3px 10px; font-size: 15px; }
+html.sgo-app .gx-sum .gx-lbl { margin-bottom: 2px; }
+html.sgo-app .gx-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 16px; }
+html.sgo-app .gx-chip { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--s1); color: var(--t2); font-size: 14px; font-weight: 600; cursor: pointer; transition: background .15s var(--ease-out), color .15s; }
+html.sgo-app .gx-chip:hover { background: color-mix(in srgb, var(--text) 9%, var(--s1)); color: var(--t1); }
+html.sgo-app .gx-chip b { font-weight: 800; font-variant-numeric: tabular-nums; color: var(--t1); }
+html.sgo-app .gx-chip i { font-style: normal; font-size: 13px; color: var(--t3); }
+html.sgo-app .gx-chip.on { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .gx-chip.on b, html.sgo-app .gx-chip.on i { color: inherit; }
+html.sgo-app .gx-weights { margin: 0 0 12px; border-radius: 14px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .gx-weights > summary { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 16px; font-size: 14px; font-weight: 700; color: var(--t1); cursor: pointer; list-style: none; }
+html.sgo-app .gx-weights > summary::-webkit-details-marker { display: none; }
+html.sgo-app .gx-weights > summary span { flex: 1; }
+html.sgo-app .gx-weights > summary svg { transition: transform .2s var(--ease-out); color: var(--t2); }
+html.sgo-app .gx-weights[open] > summary svg { transform: rotate(180deg); }
+html.sgo-app .gx-weights > :not(summary) { margin-left: 16px; margin-right: 16px; }
+html.sgo-app .gx-weights > :last-child { margin-bottom: 16px; }
+html.sgo-app .gx-wl { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+html.sgo-app .gx-w { display: flex; align-items: center; gap: 12px; min-height: 44px; }
+html.sgo-app .gx-w-n { flex: 1; min-width: 0; font-size: 14px; font-weight: 600; color: var(--t1); }
+html.sgo-app .gx-w-n em { margin-left: 8px; padding: 2px 8px; border-radius: 6px; font-style: normal; font-size: 13px; font-weight: 800; color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); }
+html.sgo-app .gx-w .gx-cname { flex: 1; }
+html.sgo-app .gx-xs { width: 36px; flex: none; }
+html.sgo-app .gx-sec { margin-top: 8px; }
+html.sgo-app .gx-sec-h b { font-size: 14px; font-weight: 400; color: var(--t3); }
+html.sgo-app .gx-sec-h .gx-add { margin-left: auto; }
+html.sgo-app .gx-r { min-height: 52px; padding: 6px 12px; }
+html.sgo-app .gx .gx-tname { width: 100%; height: 36px; min-height: 36px; }
+html.sgo-app .gx .gx-catsel { width: auto; max-width: 100%; height: 32px; min-height: 32px; margin-top: 4px; padding: 0 28px 0 10px; font-size: 14px; }
+html.sgo-app .gx .gx-r.mine .gx-r-m { gap: 0; }
+html.sgo-app .gx .tp-more { margin-top: 8px; }
+html.sgo-app .gx-detail .gx-body > .gx-note { margin-bottom: 8px; }
+
+
+/* Grades fields: a real border (the app-wide reset removes box-shadow, so shadow outlines never show) and compact, fixed sizes */
+html.sgo-app .gx .sgo-input:not([type="checkbox"]):not([type="radio"]) { border: 1px solid color-mix(in srgb, var(--text) 22%, transparent) !important; background: var(--s2) !important; box-shadow: none; border-radius: 10px !important; height: 40px !important; min-height: 40px !important; padding: 0 12px; font-size: 14px; color: var(--t1); }
+html.sgo-app .gx .sgo-input:focus { border-color: var(--accent) !important; outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent); outline-offset: 0; }
+html.sgo-app .gx .gx-in .sgo-input, html.sgo-app .gx .gx-r-s .sgo-input { width: 76px !important; text-align: right; padding: 0 10px; }
+html.sgo-app .gx .gx-tname { height: 36px !important; min-height: 36px !important; }
+html.sgo-app .gx .gx-catsel { height: 32px !important; min-height: 32px !important; width: auto; margin-top: 4px; font-size: 14px; }
+html.sgo-app .gx .gx-cname { height: 36px !important; min-height: 36px !important; }
+html.sgo-app .gx .gx-r.mine { background: color-mix(in srgb, var(--accent) 8%, transparent); }
+html.sgo-app .gx-weights, html.sgo-app .gx-rows, html.sgo-app .gx-list { border: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
+html.sgo-app .gx-chip { border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .gx-chip.on { border-color: var(--accent); }
+html.sgo-app .gx-add { border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent); }
+
+
+html.sgo-app .gx-sum { background: color-mix(in srgb, var(--app-background) 94%, transparent); -webkit-backdrop-filter: blur(12px); backdrop-filter: blur(12px); padding-bottom: 12px; margin-bottom: 12px; }
+html.sgo-app .gx .gx-r.mine .gx-r-m { flex-direction: row; align-items: center; gap: 8px; }
+html.sgo-app .gx .gx-r.mine .gx-tname { flex: 1 1 auto; min-width: 0; width: auto; }
+html.sgo-app .gx .gx-r.mine .gx-catsel { flex: 0 0 auto; margin-top: 0; max-width: 40%; }
+
+
+html.sgo-app .gx-sec-h .gx-q { width: 200px !important; margin-left: auto; height: 36px !important; min-height: 36px !important; }
+html.sgo-app .gx-sec-h .gx-q + .gx-add { margin-left: 0; }
+
+
+/* ---- Grades, third pass: one banner, softer surfaces, month accordions, compact course list ---- */
+html.sgo-app .gx-sticky { position: sticky; top: 0; z-index: 6; margin: 0 0 14px; padding: 0 0 10px; background: linear-gradient(180deg, var(--app-background) 82%, transparent); }
+html.sgo-app .gx-sum { position: static; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 32px; margin: 0 0 10px; padding: 14px 18px; border-radius: 16px; background: var(--s1); backdrop-filter: none; -webkit-backdrop-filter: none; }
+html.sgo-app .gx-sum-n { flex: 1 1 200px; }
+html.sgo-app .gx-sum-n h2 { font-size: 20px; }
+html.sgo-app .gx-sum-n p { margin: 4px 0 0; }
+html.sgo-app .gx-sum-g { display: flex; align-items: center; gap: 16px; }
+html.sgo-app .gx-g { display: grid; grid-template-columns: auto auto; align-items: baseline; column-gap: 8px; }
+html.sgo-app .gx-g .gx-lbl { grid-column: 1 / -1; margin: 0 0 2px; font-size: 13px; }
+html.sgo-app .gx-g b { font-size: 30px; line-height: 1; font-weight: 800; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--t1); }
+html.sgo-app .gx-g em { padding: 2px 8px; border-radius: 8px; font-style: normal; font-size: 14px; font-weight: 800; color: var(--t1); background: color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .gx-g.gx-wi b { color: var(--accent); }
+html.sgo-app .gx-arrow { color: var(--t3); display: grid; place-items: center; }
+html.sgo-app .gx-delta { padding: 4px 10px; border-radius: 8px; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; }
+html.sgo-app .gx-delta.up { color: var(--u-done, #4ade80); background: color-mix(in srgb, var(--u-done, #4ade80) 15%, transparent); }
+html.sgo-app .gx-delta.down { color: var(--bad, #f87171); background: color-mix(in srgb, var(--bad, #f87171) 15%, transparent); }
+html.sgo-app .gx-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html.sgo-app .gx-tools .gx-chips { flex: 1 1 auto; margin: 0; }
+html.sgo-app .gx-tools .gx-q { width: 180px !important; margin: 0; height: 40px !important; }
+html.sgo-app .gx-tools .gx-add { margin: 0; height: 40px; }
+html.sgo-app .gx-share { font-size: 13px; color: var(--t3); font-variant-numeric: tabular-nums; }
+html.sgo-app .gx-groups { display: flex; flex-direction: column; gap: 10px; }
+html.sgo-app .gx-grp { border-radius: 14px; background: var(--s1); }
+html.sgo-app .gx-grp > summary { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 0 16px; list-style: none; cursor: pointer; font-size: 14px; font-weight: 700; color: var(--t1); }
+html.sgo-app .gx-grp > summary::-webkit-details-marker { display: none; }
+html.sgo-app .gx-grp > summary span { flex: 1; }
+html.sgo-app .gx-grp > summary b { font-size: 14px; font-weight: 400; color: var(--t3); }
+html.sgo-app .gx-grp > summary svg { color: var(--t2); transition: transform .2s var(--ease-out); }
+html.sgo-app .gx-grp[open] > summary svg { transform: rotate(180deg); }
+html.sgo-app .gx-grp .gx-rows { margin: 0; padding: 0 6px 8px; border: 0; background: none; border-radius: 0; }
+html.sgo-app .gx-blank { margin-top: 6px; border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
+html.sgo-app .gx-blank > summary { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 14px; list-style: none; cursor: pointer; font-size: 14px; font-weight: 600; color: var(--t2); }
+html.sgo-app .gx-blank > summary::-webkit-details-marker { display: none; }
+html.sgo-app .gx-blank > summary span { flex: 1; }
+html.sgo-app .gx-blank > summary b { font-weight: 400; color: var(--t3); }
+html.sgo-app .gx-blank[open] > summary svg { transform: rotate(180deg); }
+html.sgo-app .gx-c.empty { grid-template-columns: 1fr; padding: 9px 14px; }
+html.sgo-app .gx-c.empty .gx-c-n { font-size: 14px; font-weight: 600; color: var(--t2); }
+/* softer edges: surfaces separate by tone, outlines are barely there */
+html.sgo-app .gx .sgo-input:not([type="checkbox"]):not([type="radio"]) { border-color: color-mix(in srgb, var(--text) 12%, transparent) !important; background: color-mix(in srgb, var(--text) 5%, var(--s1)) !important; }
+html.sgo-app .gx-weights, html.sgo-app .gx-rows, html.sgo-app .gx-list { border: 0; }
+html.sgo-app .gx-chip { border-color: transparent; }
+html.sgo-app .gx-add { border-color: transparent; }
+html.sgo-app .gx .gx-r.mine { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+
+
+/* =====================================================================
+   Calendar: a readable month, a clear today, event chips in the course colour
+   ===================================================================== */
+html.sgo-app .sgo-page .sgo-toolbar { align-items: center; }
+html.sgo-app .sgo-calnav { gap: 8px; }
+html.sgo-app .sgo-calnav > b, html.sgo-app .sgo-calnav > h2, html.sgo-app .sgo-calnav > span { margin-left: 8px; font-size: 22px; line-height: 1.1; font-weight: 800; letter-spacing: -.02em; color: var(--t1); }
+html.sgo-app .sgo-month:not(.mini) { gap: 6px; }
+html.sgo-app .sgo-month .sgo-wd { padding: 6px 0 4px; text-align: center; font-size: 13px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--t3); border: 0; background: none; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell { min-height: 96px; padding: 8px; gap: 4px; border: 1px solid color-mix(in srgb, var(--text) 7%, transparent); border-radius: 12px; background: var(--s1); transition: background .15s var(--ease-out), border-color .15s; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell:hover { background: color-mix(in srgb, var(--text) 6%, var(--s1)); border-color: color-mix(in srgb, var(--text) 16%, transparent); }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell.other { opacity: 1; background: none; border-color: transparent; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell.other .sgo-cell-n { color: var(--t3); font-weight: 600; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell.today { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--s1)); }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell.today .sgo-cell-n { background: var(--accent); color: var(--on-accent); font-weight: 800; }
+html.sgo-app .sgo-month:not(.mini) .sgo-cell-n { min-width: 28px; height: 28px; padding: 0 6px; border-radius: 14px; font-size: 14px; font-weight: 700; color: var(--t1); }
+html.sgo-app .sgo-month:not(.mini) .sgo-ev { display: flex; align-items: center; min-width: 0; padding: 4px 8px; border: 0; border-radius: 6px; background: color-mix(in srgb, var(--c) 20%, transparent); font-size: 13px; font-weight: 600; line-height: 1.25; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-decoration: none; }
+html.sgo-app .sgo-month:not(.mini) .sgo-ev:hover { background: color-mix(in srgb, var(--c) 34%, transparent); }
+html.sgo-app .sgo-month:not(.mini) .sgo-ev em, html.sgo-app .sgo-month:not(.mini) .sgo-ev .sgo-ev-k { display: none; }
+html.sgo-app .sgo-month:not(.mini) .sgo-more { padding: 2px 4px; font-size: 13px; font-weight: 700; color: var(--accent); background: none; border: 0; text-align: left; cursor: pointer; }
+html.sgo-app .sgo-ev.done { opacity: .5; text-decoration: line-through; }
+
+/* week */
+html.sgo-app .sgo-weekview { gap: 8px; }
+html.sgo-app .sgo-wcol { display: flex; flex-direction: column; gap: 6px; min-height: 220px; padding: 12px 10px; border: 1px solid color-mix(in srgb, var(--text) 7%, transparent); border-radius: 14px; background: var(--s1); }
+html.sgo-app .sgo-wcol.today { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--s1)); }
+html.sgo-app .sgo-wh { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 4px; font-size: 13px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--t3); text-decoration: none; }
+html.sgo-app .sgo-wh b { font-size: 20px; letter-spacing: 0; color: var(--t1); }
+html.sgo-app .sgo-wcol.today .sgo-wh b { color: var(--accent); }
+html.sgo-app .sgo-wcol .sgo-ev { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; padding: 6px 8px; border: 0; border-radius: 8px; background: color-mix(in srgb, var(--c) 20%, transparent); font-size: 13px; font-weight: 600; line-height: 1.3; color: var(--t1); text-decoration: none; }
+html.sgo-app .sgo-wcol .sgo-ev em { font-style: normal; font-size: 12.5px; font-weight: 700; color: var(--t2); }
+html.sgo-app .sgo-wcol .sgo-ev-k { font-size: 11.5px; font-weight: 800; letter-spacing: .06em; opacity: .85; }
+html.sgo-app .sgo-wcol .sgo-muted { color: var(--t3); }
+
+@media (max-width: 900px) {
+  html.sgo-app .sgo-month:not(.mini) .sgo-cell { min-height: 56px; padding: 6px 4px; align-items: center; }
+  html.sgo-app .sgo-month:not(.mini) .sgo-cell .sgo-ev { display: block; width: 100%; height: 6px; padding: 0; border-radius: 3px; font-size: 0; overflow: hidden; border-left-width: 0; background: var(--c); }
+  html.sgo-app .sgo-month:not(.mini) .sgo-cell .sgo-more { display: none; }
+  html.sgo-app .sgo-month .sgo-wd { font-size: 11px; letter-spacing: 0; }
+  html.sgo-app .sgo-weekview { grid-template-columns: 1fr; }
+}
+
+/* Messages: same gap and heights */
+html.sgo-app .ib-page .sgo-head { margin-bottom: 24px; }
+html.sgo-app .ib-list { top: 16px; max-height: calc(100vh - 120px); }
+html.sgo-app .ib-q, html.sgo-app .ib-list .sgo-input { width: 100%; }
+
+/* Search fields above lists fill their row on small screens; segmented controls never push past the card */
+html.sgo-app .sgo-toolbar .sgo-input { width: 100%; max-width: 420px; }
+html.sgo-app .sgo-set .sgo-seg { max-width: 100%; flex-wrap: wrap; }
+
+/* side navigation labels: no text under 13px */
+html.sgo-app .sgo-rail-i > span:not(.sgo-face) { font-size: 13px; }
+
+/* Grades: footnote and reset line up with the list, and the filter row stays on one line */
+html.sgo-app .gx-detail > .gx-fine { margin: 20px 0 0; padding: 0; border: 0; background: none; font-size: 14px; line-height: 1.5; color: var(--t3); }
+html.sgo-app .gx-foot { margin: 16px 0 0; }
+html.sgo-app .gx-foot:empty { display: none; }
+html.sgo-app .gx-tools .gx-q { width: 150px !important; }
+html.sgo-app .gx-tools { flex-wrap: nowrap; }
+html.sgo-app .gx-tools .gx-chips { flex-wrap: wrap; min-width: 0; }
+html.sgo-app .gx-tools .gx-add, html.sgo-app .gx-tools .gx-q { flex: none; }
+@media (max-width: 640px) { html.sgo-app .gx-tools { flex-wrap: wrap; } }
+
+html.sgo-app .sgo-weekview { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+html.sgo-app .sgo-wcol { min-height: 300px; min-width: 0; }
+html.sgo-app .sgo-wcol .sgo-ev { min-width: 0; overflow-wrap: anywhere; }
+@media (max-width: 900px) { html.sgo-app .sgo-weekview { grid-template-columns: minmax(0, 1fr); } html.sgo-app .sgo-wcol { min-height: 0; } }
+
+/* event chips: a colour dot instead of a side stripe */
+html.sgo-app .sgo-month:not(.mini) .sgo-ev::before, html.sgo-app .sgo-wcol .sgo-ev::before { content: ''; flex: none; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: var(--c); }
+html.sgo-app .sgo-wcol .sgo-ev::before { margin-top: 0; }
+
+/* ---- Updates panel: four recent items, easy to scan ---- */
+html.sgo-app .up-p { width: 360px; padding: 6px; border-radius: 16px; background: var(--s1); border: 1px solid color-mix(in srgb, var(--text) 12%, transparent); overflow: hidden; }
+html.sgo-app .up-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 12px 8px; }
+html.sgo-app .up-h b { display: block; font-size: 18px; font-weight: 800; letter-spacing: -.01em; color: var(--t1); }
+html.sgo-app .up-h span { font-size: 13px; color: var(--t2); }
+html.sgo-app .up-all { height: 32px; padding: 0 12px; border: 0; border-radius: 8px; font-size: 13px; font-weight: 700; color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, transparent); cursor: pointer; }
+html.sgo-app .up-all:hover { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .up-l { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+html.sgo-app .up-a { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; align-items: start; gap: 12px; padding: 10px 12px; border-radius: 10px; text-decoration: none; color: inherit; transition: background .15s var(--ease-out); }
+html.sgo-app .up-a:hover { background: color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .up-dot { width: 8px; height: 8px; margin-top: 7px; border-radius: 50%; background: transparent; }
+html.sgo-app .up-i.unread .up-dot { background: var(--accent); }
+html.sgo-app .up-m { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+html.sgo-app .up-m b { font-size: 15px; font-weight: 700; line-height: 1.3; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .up-i:not(.unread) .up-m b { font-weight: 600; color: var(--t2); }
+html.sgo-app .up-m span { font-size: 13px; color: var(--t3); }
+html.sgo-app .up-m em { margin-top: 2px; font-style: normal; font-size: 13px; line-height: 1.4; color: var(--t2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+html.sgo-app .up-s { padding-top: 2px; font-size: 14px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--t1); white-space: nowrap; }
+html.sgo-app .up-none { margin: 0; padding: 18px 12px; font-size: 14px; line-height: 1.5; color: var(--t2); }
+html.sgo-app .up-f { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0; padding: 12px; border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent); font-size: 14px; font-weight: 700; color: var(--accent); text-decoration: none; }
+html.sgo-app .up-f:hover { color: var(--t1); }
+@media (max-width: 900px) { html.sgo-app .sgo-rail-notif .up-p { width: auto; } }

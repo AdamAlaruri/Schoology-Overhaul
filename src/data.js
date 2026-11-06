@@ -1,7 +1,7 @@
 /* Data layer. Reads data Schoology already shows the signed-in user through same-origin requests
  * that reuse the existing session cookie. Each resource has exactly one source (see S.refresh), so
  * data never depends on which page happens to be loaded. The live page is only read for what no
- * endpoint provides: course banners, and the name, picture and unread counts in the header.
+ * endpoint provides: the name, picture and unread counts in the header.
  * Nothing is sent to any third party; results are cached in chrome.storage.local only.
  * S.state.diag (Settings > Diagnostics) reports what each source returned. */
 (() => {
@@ -25,7 +25,7 @@
   const state = (S.state = {
     courses: [], items: {}, announcements: [], grades: [], user: '', loading: false,
     loaded: false, diag: [], lastRefresh: 0,
-    session: 'ok', fetchedAt: {}, banners: {}, avatar: '', unread: { messages: 0, notifications: 0 }, cd: {}, // 'ok' | 'expired'; when each remote resource was last fetched (persisted)
+    session: 'ok', fetchedAt: {}, avatar: '', unread: { messages: 0, notifications: 0 }, cd: {}, // 'ok' | 'expired'; when each remote resource was last fetched (persisted)
   });
   const clean = (s) => String(s || '').replace(/\s+/g, ' ').trim();
   const abs = (href) => { try { return new URL(href, location.origin); } catch (e) { return null; } };
@@ -171,14 +171,22 @@
   function parseAnnouncements(root) {
     const out = [];
     root.querySelectorAll(SEL.feedItem).forEach((li) => {
-      const body = clean((li.querySelector(SEL.feedBody) || {}).textContent);
+      const bodyEl = li.querySelector(SEL.feedBody);
+      let body = clean((bodyEl || {}).textContent);
       if (!body) return;
+      // A subject exists only when the post starts with its own heading or bold line and has text after it; plain posts have none.
+      let subject = '';
+      const lead = bodyEl && [...bodyEl.childNodes].find((n) => (n.textContent || '').trim());
+      if (lead && lead.nodeType === 1 && /^(H[1-6]|STRONG|B)$/.test(lead.tagName)) {
+        const t = clean(lead.textContent);
+        if (t && t.length <= 120 && body.length > t.length + 3 && body.startsWith(t)) { subject = t; body = clean(body.slice(t.length)); }
+      }
       const links = [...li.querySelectorAll('.edge-sentence a, .update-sentence-inner a, a')];
       const courseA = links.find((a) => /\/(course|group)\/\d+/.test(a.getAttribute('href') || ''));
       const authorA = links.find((a) => /\/user\/\d+/.test(a.getAttribute('href') || '')) || links[0];
       const cm = courseA && courseA.getAttribute('href').match(/\/course\/(\d+)/);
       out.push({
-        id: li.id || String(out.length), author: clean(authorA && authorA.textContent),
+        id: li.id || String(out.length), subject, author: clean(authorA && authorA.textContent),
         courseName: clean(courseA && courseA.textContent), courseId: cm ? cm[1] : '',
         body: body.slice(0, 1500), time: clean((li.querySelector(SEL.feedTime) || {}).textContent),
         url: courseA ? abs(courseA.getAttribute('href')).pathname : '',
@@ -186,37 +194,6 @@
     });
     return out;
   }
-
-  /* ---- original Schoology course banners ----
-   * Each course card on the home Course Dashboard is a section.sgy-card holding the banner <img> and the course title.
-   * Only the image URL is kept (the browser already has the file cached from Schoology's own page), and only for
-   * Schoology's own hosts or this page's origin. Nothing is downloaded or modified. */
-  function parseBanners(root) {
-    const out = {};
-    root.querySelectorAll('section.sgy-card').forEach((card) => {
-      const img = card.querySelector('img.course-dashboard__card-lens-img'), title = card.querySelector('.course-dashboard__card-context-title');
-      const src = img && (img.currentSrc || img.getAttribute('src'));
-      if (!src || !title) return;
-      let url; try { url = new URL(src, location.href); } catch (e) { return; }
-      if (url.protocol !== 'https:' && url.origin !== location.origin) return;
-      if (!/(^|\.)schoology\.com$/i.test(url.hostname) && url.origin !== location.origin) return;
-      out[clean(title.textContent)] = url.href;
-    });
-    return out;
-  }
-  /** The original banner for a course, matched by its title: exact first, then by cleaned name when that is unambiguous. */
-  S.originalBanner = (id, name) => {
-    const c = state.courses.find((x) => x.id === id), raw = clean(c ? c.name : name);
-    if (state.banners[raw]) return state.banners[raw];
-    // The dashboard card says "TITLE: (S1) Teacher ..." while the course list says just "TITLE", so a card whose title begins with
-    // the course title and a colon belongs to it (checked on a real account, where the exact and tidied-name matches both missed Calculus).
-    const low = raw.toLowerCase(), starts = Object.entries(state.banners).filter(([t]) => t.toLowerCase().startsWith(low + ':'));
-    if (starts.length === 1) return starts[0][1];
-    if (starts.length > 1) { const urls = new Set(starts.map((x) => x[1])); if (urls.size === 1) return starts[0][1]; } // several titles, one picture: no doubt
-    const key = S.cleanName(raw).toLowerCase();
-    const hits = Object.entries(state.banners).filter(([t]) => S.cleanName(t).toLowerCase() === key);
-    return hits.length === 1 ? hits[0][1] : '';
-  };
 
   /* ---- course content ----
    * /course/<id>/materials[?f=<folder>] is server-rendered: #folder-contents-table > tbody > tr, one row per item in Schoology's order.
@@ -461,13 +438,13 @@
   }
 
   /** Signature of everything the UI renders. Comparing it avoids re-rendering when a scan finds identical data. */
-  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.banners, state.avatar, state.unread, (S.prefs.gradeNotifs || []).length]);
+  const sig = () => JSON.stringify([state.courses, Object.values(state.items).map(({ lastSeen, ...rest }) => rest), state.announcements, state.grades, state.user, state.avatar, state.unread, (S.prefs.gradeNotifs || []).length]);
   S.stateSig = sig;
   /** Adopt cache written by another tab. Returns true only if the data actually differs. */
   S.adoptCache = (c) => {
     if (c.v !== CACHE_VERSION) return false;
     const before = sig();
-    Object.assign(state, { courses: c.courses || [], items: c.items || {}, announcements: c.announcements || [], grades: c.grades || [], user: c.user || '', banners: c.banners || state.banners });
+    Object.assign(state, { courses: c.courses || [], items: c.items || {}, announcements: c.announcements || [], grades: c.grades || [], user: c.user || '' });
     return sig() !== before;
   };
   function applyUpcoming(list) { list.forEach(upsert); }
@@ -492,14 +469,14 @@
   }
   const saveCache = S.debounce(() => {
     prune();
-    S.store.set('sgo_cache', { v: CACHE_VERSION, courses: state.courses, items: state.items, announcements: state.announcements, grades: state.grades, user: state.user, fetchedAt: state.fetchedAt, banners: state.banners, avatar: state.avatar, cd: state.cd });
+    S.store.set('sgo_cache', { v: CACHE_VERSION, courses: state.courses, items: state.items, announcements: state.announcements, grades: state.grades, user: state.user, fetchedAt: state.fetchedAt, avatar: state.avatar, cd: state.cd });
   }, 500);
-  S.clearCache = async () => { await S.store.remove('sgo_cache'); Object.assign(state, { courses: [], items: {}, announcements: [], grades: [], fetchedAt: {}, banners: {}, cd: {} }); };
+  S.clearCache = async () => { await S.store.remove('sgo_cache'); Object.assign(state, { courses: [], items: {}, announcements: [], grades: [], fetchedAt: {}, cd: {} }); };
 
   S.loadCache = async () => {
     const c = await S.store.get('sgo_cache');
     if (!c) return;
-    Object.assign(state, { user: c.user || '', banners: c.banners || {}, avatar: c.avatar || '' });
+    Object.assign(state, { user: c.user || '', avatar: c.avatar || '' });
     if (c.cd) state.cd = c.cd;
     if (c.v === CACHE_VERSION) Object.assign(state, { courses: c.courses || [], items: c.items || {}, announcements: c.announcements || [], grades: c.grades || [], fetchedAt: c.fetchedAt || {} });
   };
@@ -522,18 +499,10 @@
     return out;
   }
 
-  /** Banners exist only on the home page's Course Dashboard, so they are read only when /home is the loaded page. */
-  S.scrapeLive = (root = document, hostIsHome = false) => {
+  /** Reads what the live page already shows (the header: name, picture, unread counts). */
+  S.scrapeLive = (root = document) => {
     const before = sig();
     try {
-      if (hostIsHome) {
-        const b = parseBanners(root);
-        // The dashboard lists only the current classes, so a reasonably complete read replaces the saved set (old terms' titles would otherwise
-        // linger and make a class's title ambiguous); a partial read, while the dashboard is still filling in, is merged instead.
-        const n = Object.keys(b).length, enough = n >= Math.max(1, Math.floor(state.courses.length / 2));
-        if (n) state.banners = enough ? b : Object.assign({}, state.banners, b);
-        diag('Live page: banners', Object.keys(b).length > 0, Object.keys(b).length);
-      }
       const hd = readHeader(root);
       if (hd.user) state.user = hd.user;
       if (hd.avatar) state.avatar = hd.avatar;
@@ -670,5 +639,5 @@
   /** The colour a course shows on cards, banners, rows and bars: one calm accent for every course unless the student turns on colour-coding. */
   S.tint = (courseId, name) => (S.prefs.tagColours ? S.courseColor(courseId, name) : (/^#[0-9a-f]{6}$/i.test(S.prefs.accent || '') ? S.prefs.accent : '#8aa8ff'));
   S.colorOf = (it) => (S.prefs.tagColours ? S.courseColor(it.courseId, it.courseName) : 'var(--accent)');
-  S.data = { SEL, parseCourses, parseUpcoming, parseOverdue, parseAnnouncements, parseGrades, parseBanners, relink };
+  S.data = { SEL, parseCourses, parseUpcoming, parseOverdue, parseAnnouncements, parseGrades, relink };
 })();

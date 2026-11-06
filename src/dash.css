@@ -1,0 +1,1916 @@
+/* Dashboard design system. Loaded last; every rule is scoped to the dashboard or to shared shell pieces.
+ *
+ * Surfaces: canvas < s1 (a group of rows) < s2 (hover / pressed). Rows are never cards; one quiet surface holds a whole group.
+ * Text: t1 titles and numbers, t2 supporting lines, t3 timestamps and counts. Accent is for actions and today; red is for overdue only.
+ * Scale: 4 / 8 / 12 / 16 / 24 / 40. Type: 12.5 meta, 13 secondary, 15 body and titles, 28 greeting. Weights 400 and 600.
+ */
+html.sgo-app {
+  --s1: color-mix(in srgb, var(--text) 4.5%, var(--app-background));
+  --s2: color-mix(in srgb, var(--text) 8.5%, var(--app-background));
+  --t1: var(--text);
+  --t2: color-mix(in srgb, var(--text) 74%, var(--app-background));
+  --t3: color-mix(in srgb, var(--text) 58%, var(--app-background));
+  --hair: color-mix(in srgb, var(--text) 10%, transparent);
+  --ease-out: cubic-bezier(.22, 1, .36, 1);
+}
+html.sgo-app ::selection { background: color-mix(in srgb, var(--accent) 38%, transparent); color: inherit; }
+html.sgo-app .dash6 :is(a, button, select, summary):focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 8px; }
+html.sgo-app .dash6 { font-variant-numeric: tabular-nums; }
+
+/* ---------- page frame ---------- */
+html.sgo-app .sgo-page.dash6 { display: grid; grid-template-columns: minmax(0, 1fr) 340px; column-gap: 40px; row-gap: 32px; align-items: start; max-width: 1240px; padding: 32px 40px 64px; }
+html.sgo-app .dash6 > .dp-main { grid-column: 1; grid-row: 2; min-width: 0; }
+html.sgo-app .dash6 > .dp-side-col { grid-column: 2; grid-row: 2; padding: 0; gap: 0; position: sticky; top: 24px; }
+html.sgo-app .dash6 .dp-fused { display: flex; flex-direction: column; gap: 40px; }
+@media (max-width: 1000px) {
+  html.sgo-app .sgo-page.dash6 { grid-template-columns: minmax(0, 1fr); padding: 24px 20px 56px; row-gap: 24px; }
+  html.sgo-app .dash6 > .dp-main, html.sgo-app .dash6 > .dp-side-col { grid-column: 1; position: static; }
+  html.sgo-app .dash6 > .dp-side-col { grid-row: 3; }
+}
+
+/* ---------- welcome: greeting on the left, the week as a strip on the right ---------- */
+html.sgo-app .dash6 > .dh { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 40px; padding: 0; margin: 0; min-height: 0; background: none; position: static; }
+html.sgo-app .dh-l { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+html.sgo-app .dh-date { margin: 0; font-size: 14px; font-weight: 400; color: var(--t3); }
+html.sgo-app .dh-t { margin: 0; font-size: 28px; line-height: 1.2; font-weight: 600; color: var(--t1); text-wrap: balance; }
+html.sgo-app .dh-msg { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; font-size: 15px; font-weight: 400; color: var(--t2); }
+html.sgo-app .dh-sync { margin: 0; font-size: 14px; color: var(--t3); display: inline-flex; align-items: center; gap: 6px; }
+html.sgo-app .dh-sync.bad { color: var(--bad); }
+html.sgo-app .dash6 .dh-wk { flex: none; width: 320px; max-width: 40%; margin: 0; padding: 0; background: none; border: 0; display: flex; flex-direction: column; gap: 8px; }
+html.sgo-app .wk-n { margin: 0; text-align: right; font-size: 14px; color: var(--t2); }
+html.sgo-app .wk-n b { font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .wk-seg { display: flex; gap: 3px; height: 8px; }
+html.sgo-app .wk-seg i { flex: 1; min-width: 0; border-radius: 2px; background: color-mix(in srgb, var(--text) 16%, var(--app-background)); transition: background .3s var(--ease-out); transition-delay: calc(var(--k, 0) * 12ms); }
+html.sgo-app .wk-seg i.on { background: var(--accent); }
+@media (max-width: 720px) { html.sgo-app .dash6 > .dh { flex-direction: column; align-items: stretch; gap: 16px; } html.sgo-app .dash6 .dh-wk { width: auto; max-width: none; } }
+
+/* ---------- section headings ---------- */
+html.sgo-app .dash6 .ag-g + .ag-g { margin-top: 24px; }
+html.sgo-app .dash6 .ag-gh, html.sgo-app .dash6 .side-h h3 { margin: 0; display: flex; align-items: baseline; gap: 8px; font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .ag-gh b { font-size: 14px; font-weight: 400; color: var(--t3); }
+html.sgo-app .dash6 .g-overdue .ag-gh, html.sgo-app .dash6 .g-overdue .ag-gh b { color: var(--bad); }
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 0 0 12px; min-height: 32px; }
+html.sgo-app .dash6 .ag-hrow .ag-gh { margin: 0; }
+html.sgo-app .dash6 .link { font-size: 14px; font-weight: 600; color: var(--accent); background: none; border: 0; padding: 4px 0; text-decoration: none; cursor: pointer; }
+html.sgo-app .dash6 .link:hover { text-decoration: underline; text-underline-offset: 3px; }
+
+/* controls: one quiet select, one filled action */
+html.sgo-app .dash6 .ag-ctl { display: flex; gap: 8px; align-items: center; }
+html.sgo-app .dash6 .pri-filter { height: 32px; padding: 0 28px 0 12px; border: 0; border-radius: 8px; background-color: var(--s1); color: var(--t2); font-size: 14px; font-weight: 400; box-shadow: none; transition: background-color .15s var(--ease-out), color .15s var(--ease-out); }
+html.sgo-app .dash6 .pri-filter:hover { background-color: var(--s2); color: var(--t1); }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary { height: 32px; min-height: 32px; padding: 0 12px; border-radius: 8px; font-size: 14px; font-weight: 600; gap: 6px; background: var(--accent); color: var(--on-accent) !important; transition: filter .15s var(--ease-out), transform .15s var(--ease-out); }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary:hover { filter: brightness(1.08); background: var(--accent); }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary:active { transform: scale(.97); }
+
+/* ---------- assignments: one surface per group, compact rows, no dividers ---------- */
+html.sgo-app .dash6 .ag .pr-list, html.sgo-app .dash6 .an-list, html.sgo-app .dash6 .cl-list { list-style: none; margin: 0; padding: 6px; display: flex; flex-direction: column; gap: 2px; border: 0; border-radius: 14px; background: var(--s1); }
+html.sgo-app .dash6 .g-overdue .pr-list { background: color-mix(in srgb, var(--bad) 7%, var(--s1)); }
+html.sgo-app .dash6 .g-today .pr-list { background: color-mix(in srgb, var(--accent) 7%, var(--s1)); }
+html.sgo-app .dash6 .ag .pr { position: relative; display: grid; grid-template-columns: 20px minmax(0, 1fr) auto 20px; align-items: center; column-gap: 16px; min-height: 52px; padding: 8px 12px; border: 0; border-radius: 10px; background: none !important; box-shadow: none !important; transition: background-color .15s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr:hover, html.sgo-app .dash6 .ag .pr:focus-within { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
+html.sgo-app .dash6 .pr-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+html.sgo-app .dash6 .pr-title { font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--t1); text-decoration: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .pr-title:hover { text-decoration: underline; text-decoration-color: color-mix(in srgb, var(--t1) 40%, transparent); text-underline-offset: 3px; }
+html.sgo-app .dash6 .pr-course { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 1.3; font-weight: 400; color: var(--t2); min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html.sgo-app .dash6 .pr-course i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
+html.sgo-app .dash6 .pr-pts { color: var(--t3); }
+html.sgo-app .dash6 .pr-pts::before { content: '·'; margin-right: 8px; }
+html.sgo-app .dash6 .ag .pr .pr-due { justify-self: end; background: none !important; padding: 0; border-radius: 0; font-size: 14px; font-weight: 400; color: var(--t2) !important; white-space: nowrap; }
+html.sgo-app .dash6 .ag .pr.u-overdue .pr-due { color: var(--bad) !important; font-weight: 600; }
+html.sgo-app .dash6 .ag .pr.u-today .pr-due { color: var(--accent) !important; font-weight: 600; }
+html.sgo-app .dash6 .ag .pr.u-soon .pr-due { color: var(--t1) !important; }
+html.sgo-app .dash6 .ag .pr .badge { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+html.sgo-app .dash6 .pr-open { width: 20px; height: 20px; border: 0; background: none; color: var(--t3) !important; opacity: 0; transform: translateX(-4px); transition: opacity .15s var(--ease-out), transform .15s var(--ease-out), color .15s; }
+html.sgo-app .dash6 .pr-open svg { width: 16px; height: 16px; }
+html.sgo-app .dash6 .pr:hover .pr-open, html.sgo-app .dash6 .pr:focus-within .pr-open { opacity: 1; transform: none; }
+html.sgo-app .dash6 .pr-open:hover { color: var(--t1) !important; background: none; }
+
+/* completion control: an open ring that fills with the accent */
+html.sgo-app .dash6 .pr-check { width: 20px; height: 20px; border: 1.5px solid var(--t3); border-radius: 50%; background: none; color: transparent; transition: background-color .15s var(--ease-out), border-color .15s var(--ease-out), color .15s var(--ease-out), transform .15s var(--ease-out); }
+html.sgo-app .dash6 .pr-check svg { width: 12px; height: 12px; stroke-width: 2.4; }
+html.sgo-app .dash6 .pr-check:hover { border-color: var(--accent); color: color-mix(in srgb, var(--accent) 70%, transparent); background: color-mix(in srgb, var(--accent) 12%, transparent); }
+html.sgo-app .dash6 .pr-check:active { transform: scale(.88); }
+html.sgo-app .dash6 .pr-check.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+html.sgo-app .dash6 .pr.u-done .pr-title { color: var(--t3); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--t3) 60%, transparent); }
+html.sgo-app .dash6 .pr.u-done .pr-course { color: var(--t3); }
+html.sgo-app .dash6 .pr.u-done .pr-due { color: var(--t3) !important; font-weight: 400; }
+html.sgo-app .dash6 .tp-more { margin: 8px 0 0; padding: 4px 12px; background: none; border: 0; border-radius: 6px; font-size: 14px; font-weight: 600; color: var(--t3); cursor: pointer; transition: color .15s; }
+html.sgo-app .dash6 .tp-more:hover { color: var(--t1); }
+html.sgo-app .dash6 .pr-done { margin-top: 24px; }
+html.sgo-app .dash6 .pr-done > summary { display: inline-flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 14px; font-weight: 600; color: var(--t3); cursor: pointer; list-style: none; }
+html.sgo-app .dash6 .pr-done > summary::-webkit-details-marker { display: none; }
+html.sgo-app .dash6 .pr-done > summary:hover { color: var(--t1); }
+html.sgo-app .dash6 .pr-done .pr-list { margin-top: 12px; }
+html.sgo-app .dash6 .sgo-empty { padding: 32px 16px; border-radius: 14px; background: var(--s1); text-align: left; }
+html.sgo-app .dash6 .sgo-empty-t { font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .sgo-empty-s { margin-top: 4px; font-size: 14px; color: var(--t2); }
+html.sgo-app .dash6 .topo-empty::before, html.sgo-app .dash6 .topo-empty::after { display: none; }
+
+/* ---------- announcements: dense rows, new ones lead ---------- */
+html.sgo-app .dash6 .dp-fused > .side-card { background: none !important; padding: 0; border: 0; box-shadow: none !important; }
+html.sgo-app .dash6 .an-list li { margin: 0; padding: 0; border: 0; border-radius: 10px; background: none !important; box-shadow: none !important; transition: background-color .15s var(--ease-out); }
+html.sgo-app .dash6 .an-list li:hover { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
+html.sgo-app .dash6 .an-list li > button { display: flex; flex-direction: column; align-items: stretch; gap: 2px; width: 100%; padding: 12px 12px; border: 0; background: none; text-align: left; cursor: pointer; color: inherit; border-radius: 10px; }
+html.sgo-app .dash6 .an-top { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
+html.sgo-app .dash6 .an-c { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 400; color: var(--t2); min-width: 0; }
+html.sgo-app .dash6 .an-c i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
+html.sgo-app .dash6 .an-d { flex: none; font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .an-list li > button b { display: block; font-size: 15px; line-height: 1.4; font-weight: 400; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .an-list li.new > button b { font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .an-new { display: inline-block; margin-right: 8px; vertical-align: 1px; }
+html.sgo-app .dash6 .an-new i { display: block; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); }
+html.sgo-app .dash6 .an-t { font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .an-list li > p { margin: 0; padding: 0 12px 14px; font-size: 15px; line-height: 1.55; color: var(--t2); max-width: 68ch; white-space: pre-line; }
+html.sgo-app .dash6 .side-empty { margin: 0; padding: 16px 12px; border-radius: 14px; background: var(--s1); font-size: 14px; color: var(--t2); }
+
+/* ---------- courses: a compact academic overview ---------- */
+html.sgo-app .dash6 .dp-side-col > .side-card { background: none !important; padding: 0; border: 0; box-shadow: none !important; overflow: visible; }
+html.sgo-app .dash6 .dp-side-col > .side-card::before { display: none; }
+html.sgo-app .dash6 .cl-list { gap: 2px; }
+html.sgo-app .dash6 .cl-r { position: relative; display: flex; align-items: center; border-radius: 10px; transition: background-color .15s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover, html.sgo-app .dash6 .cl-r:focus-within { background: color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .dash6 .cl-a { flex: 1; min-width: 0; display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: center; column-gap: 12px; padding: 10px 12px; border: 0; border-radius: 10px; background: none; text-decoration: none; color: inherit; }
+html.sgo-app .dash6 .cl-a:hover { background: none; }
+html.sgo-app .dash6 .cl-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); align-self: start; margin-top: 7px; }
+html.sgo-app .dash6 .cl-m { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+html.sgo-app .dash6 .cl-m b { font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .cl-m small { min-height: 0; font-size: 14px; line-height: 1.3; font-weight: 400; color: var(--t2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .cl-r.late .cl-m small { color: var(--bad); }
+html.sgo-app .dash6 .cl-r.idle .cl-m small { color: var(--t3); }
+html.sgo-app .dash6 .cl-r2 { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; }
+html.sgo-app .dash6 .cl-g { font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .cl-g.up { color: var(--t1); }
+html.sgo-app .dash6 .cl-w { font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .cl-n, html.sgo-app .dash6 .cl-menu { opacity: 0; transition: opacity .15s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover .cl-n, html.sgo-app .dash6 .cl-r:focus-within .cl-n, html.sgo-app .dash6 .cl-r:hover .cl-menu, html.sgo-app .dash6 .cl-r:focus-within .cl-menu { opacity: 1; }
+html.sgo-app .dash6 .dc-hidden-note { margin: 12px 0 0; padding: 0 12px; display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .dc-hidden-note .dc-hn-t { font-size: 14px; color: var(--t3); }
+
+/* ---------- sidebar: compact, one clear active state ---------- */
+@media (min-width: 901px) {
+  html.sgo-app { --sb: 60px; }
+  html.sgo-app .sgo-rail { background: transparent; border-right: 1px solid var(--hair); box-shadow: none; gap: 4px; padding: 16px 0; }
+  html.sgo-app .sgo-rail-i, html.sgo-app .sgo-rail-i:hover, html.sgo-app .sgo-rail-i[aria-current="page"] { position: relative; width: 40px; height: 40px; min-height: 40px; border-radius: 10px; box-shadow: none; transition: background-color .15s var(--ease-out), color .15s var(--ease-out); }
+  html.sgo-app .sgo-rail-i { color: var(--t3) !important; }
+  html.sgo-app .sgo-rail-i:hover { color: var(--t1) !important; background: color-mix(in srgb, var(--text) 8%, transparent); }
+  html.sgo-app .sgo-rail-i[aria-current="page"] { color: var(--accent) !important; background: color-mix(in srgb, var(--accent) 14%, transparent); }
+  html.sgo-app .sgo-rail-i[aria-current="page"]::before { display: none; }
+  html.sgo-app .sgo-rail-i svg, html.sgo-app .sgo-rail-i:hover svg, html.sgo-app .sgo-rail-i[aria-current="page"] svg { width: 20px; height: 20px; stroke-width: 1.6; filter: none; }
+  html.sgo-app .sgo-rail-i[data-tip]::after { padding: 6px 10px; border-radius: 8px; background: var(--s2); color: var(--t1); font-size: 14px; font-weight: 600; box-shadow: 0 6px 16px rgb(0 0 0 / .35); border: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.sgo-app .dash6 *, html.sgo-app .sgo-rail-i { transition-duration: .01ms !important; transition-delay: 0s !important; }
+}
+
+/* the week strip fills its column */
+html.sgo-app .dash6 .dh-wk { align-items: stretch; }
+html.sgo-app .wk-seg { align-self: stretch; width: 100%; }
+html.sgo-app .dash6 > .dh { height: auto !important; max-height: none; }
+html.sgo-app .dash6 .dh-t { display: block; }
+@media (max-width: 720px) { html.sgo-app .dh-t { font-size: 24px; } html.sgo-app .dash6 .dh-wk { align-self: stretch; } }
+@media (max-width: 720px) {
+  html.sgo-app .dash6 .ag .pr { grid-template-columns: 20px minmax(0, 1fr) 20px; grid-template-areas: "c m o" ". d ."; row-gap: 2px; padding: 12px; }
+  html.sgo-app .dash6 .ag .pr .pr-check { grid-area: c; }
+  html.sgo-app .dash6 .ag .pr .pr-main { grid-area: m; }
+  html.sgo-app .dash6 .ag .pr .pr-due { grid-area: d; justify-self: start; }
+  html.sgo-app .dash6 .ag .pr .pr-open { grid-area: o; opacity: 1; transform: none; }
+}
+
+/* =====================================================================
+   Composition v3: a masthead with the day's status as its headline, the work on the left,
+   and an overview column (courses, announcements) on the right.
+   Contour art is used in four places only: the masthead, the courses panel corner, the rail foot, empty states.
+   ===================================================================== */
+html.sgo-app .sgo-page.dash6 { max-width: 1320px; grid-template-columns: minmax(0, 1fr) 372px; column-gap: 48px; row-gap: 40px; padding: 32px 48px 72px; }
+html.sgo-app .dash6 > .dp-side-col { position: static; display: flex; flex-direction: column; gap: 40px; }
+
+/* masthead: one sheet, contours rising from its right edge */
+html.sgo-app .dash6 > .dh { position: relative; overflow: hidden; isolation: isolate; align-items: flex-end; min-height: 184px; padding: 32px 40px; border-radius: 20px; background: var(--s1); }
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { content: ''; display: block; position: absolute; z-index: -1; inset: 0 0 0 30%; background: var(--topo-hero) right center / cover no-repeat; opacity: .6; -webkit-mask-image: linear-gradient(to right, transparent, #000 55%); mask-image: linear-gradient(to right, transparent, #000 55%); pointer-events: none; }
+html.sgo-app .dash6 .dh-l { gap: 12px; justify-content: flex-end; }
+html.sgo-app .dh-hi { margin: 0; display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .dh-hi time { font-size: 14px; font-weight: 400; color: var(--t2); }
+html.sgo-app .dash6 .dh-t { font-size: 44px; line-height: 1.06; font-weight: 600; letter-spacing: -.02em; color: var(--t1); max-width: 26ch; }
+html.sgo-app .dash6 .dh-sync { margin: 0; }
+html.sgo-app .dash6 .dh-wk { width: 300px; gap: 12px; align-self: flex-end; }
+html.sgo-app .dash6 .wk-n { color: var(--t1); font-size: 14px; }
+html.sgo-app .wk-seg { height: 10px; gap: 3px; }
+html.sgo-app .wk-seg i { background: color-mix(in srgb, var(--text) 22%, var(--s1)); }
+@media (max-width: 1000px) { html.sgo-app .sgo-page.dash6 { padding: 24px 20px 56px; } html.sgo-app .dash6 > .dh { padding: 24px; min-height: 0; flex-direction: column; align-items: stretch; } html.sgo-app .dash6 .dh-t { font-size: 32px; } html.sgo-app .dash6 .dh-wk { width: auto; max-width: none; } }
+
+/* needs attention reads as heavier than the rest */
+html.sgo-app .dash6 .g-overdue .pr-list { background: color-mix(in srgb, var(--bad) 8%, var(--s1)); }
+html.sgo-app .dash6 .g-today .pr-list { background: color-mix(in srgb, var(--accent) 8%, var(--s1)); }
+html.sgo-app .dash6 .g-overdue .pr-title, html.sgo-app .dash6 .g-today .pr-title { font-size: 15px; }
+
+/* upcoming work: a quiet heading for each day, the row carries only its time */
+html.sgo-app .dash6 .pr-day { display: flex; align-items: baseline; gap: 8px; padding: 16px 12px 4px; list-style: none; }
+html.sgo-app .dash6 .pr-day:first-child { padding-top: 10px; }
+html.sgo-app .dash6 .pr-day b { font-size: 14px; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .pr-day span { font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .g-soon .ag-gh, html.sgo-app .dash6 .g-later .ag-gh { font-size: 15px; }
+
+/* right column */
+html.sgo-app .dash6 .dp-side-col > .side-card { position: relative; }
+html.sgo-app[data-sgo-topo="on"] .dash6 .dp-side-col > .cl .cl-list { position: relative; overflow: hidden; isolation: isolate; }
+html.sgo-app[data-sgo-topo="on"] .dash6 .dp-side-col > .cl .cl-list::after { content: ''; position: absolute; z-index: -1; right: 0; bottom: 0; width: 70%; height: 70%; background: var(--topo-card) right bottom / cover no-repeat; opacity: .35; -webkit-mask-image: radial-gradient(120% 120% at 100% 100%, #000 10%, transparent 70%); mask-image: radial-gradient(120% 120% at 100% 100%, #000 10%, transparent 70%); pointer-events: none; }
+html.sgo-app .dash6 .an-list li > p { max-width: none; }
+
+/* rail foot: a fading patch of contour at the bottom of the rail */
+@media (min-width: 901px) {
+  html.sgo-app[data-sgo-topo="on"] .sgo-rail { background-image: none; }
+  html.sgo-app[data-sgo-topo="on"] .sgo-rail::after { content: ''; position: absolute; z-index: -1; left: 0; right: 0; bottom: 0; height: 200px; background: var(--topo-rail) center bottom / 160px auto no-repeat; opacity: .28; -webkit-mask-image: linear-gradient(to top, #000 10%, transparent); mask-image: linear-gradient(to top, #000 10%, transparent); pointer-events: none; }
+}
+
+/* empty states carry the contour art, which is the one place it replaces content */
+html.sgo-app[data-sgo-topo="on"] .dash6 .topo-empty { position: relative; overflow: hidden; isolation: isolate; }
+html.sgo-app[data-sgo-topo="on"] .dash6 .topo-empty::after { content: ''; display: block !important; position: absolute; z-index: -1; inset: 0; background: var(--topo-empty) right center / cover no-repeat; opacity: .5; -webkit-mask-image: linear-gradient(to left, #000, transparent 75%); mask-image: linear-gradient(to left, #000, transparent 75%); }
+
+/* =====================================================================
+   v4: greeting is the headline (with the time); the right column starts at the top so announcements are in view;
+   more air between content and the edges of every surface.
+   ===================================================================== */
+html.sgo-app .sgo-page.dash6 { row-gap: 32px; }
+html.sgo-app .dash6 > .dh { grid-column: 1; grid-row: 1; padding: 36px 40px; min-height: 0; }
+html.sgo-app .dash6 > .dp-main { grid-column: 1; grid-row: 2; }
+html.sgo-app .dash6 > .dp-side-col { grid-column: 2; grid-row: 1 / span 2; gap: 32px; }
+
+html.sgo-app .dh-hi { gap: 8px; font-size: 15px; font-weight: 400; color: var(--t2); align-items: baseline; }
+html.sgo-app .dh-hi .dh-date, html.sgo-app .dh-hi .dh-dot { color: var(--t2); font-weight: 400; }
+html.sgo-app .dh-hi .dh-clock { font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; }
+html.sgo-app .dash6 .dh-t { font-size: 48px; line-height: 1.05; max-width: none; text-wrap: balance; }
+html.sgo-app .dash6 .dh-msg { display: block; margin: 0; font-size: 18px; line-height: 1.4; font-weight: 400; color: var(--t1); }
+html.sgo-app .dash6 .dh-l { gap: 10px; }
+html.sgo-app .dash6 .dh-sync { margin-top: 2px; }
+html.sgo-app .dash6 .dh-wk { position: absolute; right: 40px; bottom: 36px; width: 220px; }
+
+/* air: 24px from a surface's edge to its content, 16px between a surface and the next thing */
+html.sgo-app .dash6 .ag .pr-list, html.sgo-app .dash6 .an-list, html.sgo-app .dash6 .cl-list { padding: 8px; gap: 4px; }
+html.sgo-app .dash6 .ag .pr { padding: 12px 16px; column-gap: 16px; }
+html.sgo-app .dash6 .pr-day { padding: 16px 16px 6px; }
+html.sgo-app .dash6 .pr-day:first-child { padding-top: 12px; }
+html.sgo-app .dash6 .cl-a { padding: 12px 16px; }
+html.sgo-app .dash6 .an-list li > button { padding: 12px 16px; }
+html.sgo-app .dash6 .an-list li > p { padding: 0 16px 16px; }
+html.sgo-app .dash6 .dc-hidden-note { padding: 0 16px; }
+html.sgo-app .dash6 .tp-more { margin-top: 12px; padding: 6px 16px; }
+html.sgo-app .dash6 .sgo-empty { padding: 32px 24px; }
+html.sgo-app .dash6 .side-empty { padding: 20px 16px; }
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { margin-bottom: 16px; }
+
+/* announcements: course and time on one line, the headline under it (the author is in the expanded view) */
+html.sgo-app .dash6 .an-t { display: none; }
+html.sgo-app .dash6 .an-list li > button { gap: 4px; }
+
+/* =====================================================================
+   v5: the banner spans the full width and is the longest element; below it the work and announcements
+   sit on the left, and the courses sit on the right, level with the work.
+   ===================================================================== */
+html.sgo-app .sgo-page.dash6 { grid-template-columns: minmax(0, 1fr) 380px; column-gap: 48px; row-gap: 40px; padding: 40px 56px 80px; max-width: 1400px; }
+html.sgo-app .dash6 > .dh { grid-column: 1 / -1; grid-row: 1; padding: 36px 48px; align-items: center; }
+html.sgo-app .dash6 > .dp-main { grid-column: 1; grid-row: 2; }
+html.sgo-app .dash6 > .dp-side-col { grid-column: 2; grid-row: 2; gap: 40px; }
+html.sgo-app .dash6 .dp-fused { gap: 48px; }
+html.sgo-app .dash6 .dh-l { gap: 8px; }
+html.sgo-app .dash6 .dh-t { font-size: 52px; }
+html.sgo-app .dash6 .dh-sub { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 20px; }
+html.sgo-app .dash6 .dh-wk { position: static; width: 280px; }
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0 0 0 38%; }
+
+/* roomier surfaces */
+html.sgo-app .dash6 .ag .pr-list, html.sgo-app .dash6 .an-list, html.sgo-app .dash6 .cl-list { padding: 10px; gap: 4px; border-radius: 16px; }
+html.sgo-app .dash6 .ag .pr { min-height: 56px; padding: 14px 20px; column-gap: 18px; }
+html.sgo-app .dash6 .cl-a { padding: 14px 20px; }
+html.sgo-app .dash6 .an-list li > button { padding: 14px 20px; }
+html.sgo-app .dash6 .an-list li > p { padding: 0 20px 18px; }
+html.sgo-app .dash6 .pr-day { padding: 18px 20px 6px; }
+html.sgo-app .dash6 .pr-day:first-child { padding-top: 12px; }
+html.sgo-app .dash6 .dc-hidden-note { padding: 0 20px; }
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { margin-bottom: 16px; }
+html.sgo-app .dash6 .ag-g + .ag-g { margin-top: 32px; }
+
+/* =====================================================================
+   v6: a thicker banner; each task row has a labelled due tag and a boxy "Open in Schoology" button
+   ===================================================================== */
+html.sgo-app .dash6 > .dh { padding: 52px 48px; min-height: 220px; }
+html.sgo-app .dash6 .ag .pr { grid-template-columns: 22px minmax(0, 1fr) auto 32px; column-gap: 16px; }
+html.sgo-app .dash6 .ag .pr .pr-due { padding: 5px 10px; border-radius: 6px; background: color-mix(in srgb, var(--text) 9%, transparent) !important; font-size: 14px; font-weight: 600; line-height: 1.2; color: var(--t1) !important; }
+html.sgo-app .dash6 .ag .pr.u-overdue .pr-due { background: color-mix(in srgb, var(--bad) 17%, transparent) !important; color: var(--bad) !important; }
+html.sgo-app .dash6 .ag .pr.u-today .pr-due { background: color-mix(in srgb, var(--accent) 17%, transparent) !important; color: var(--accent) !important; }
+html.sgo-app .dash6 .ag .pr.u-done .pr-due { background: none !important; color: var(--t3) !important; }
+html.sgo-app .dash6 .pr-open { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 8px; background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--t2) !important; opacity: 1; transform: none; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); transition: background-color .15s var(--ease-out), color .15s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .dash6 .pr-open svg { width: 15px; height: 15px; }
+html.sgo-app .dash6 .pr-open:hover { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+html.sgo-app .dash6 .pr-open:active { transform: scale(.94); }
+
+/* =====================================================================
+   v7: tighter lists, a more spacious banner; due tags say "Due today", "Due tomorrow", "Due Fri, Nov 6"
+   ===================================================================== */
+html.sgo-app .dash6 .ag .pr-list, html.sgo-app .dash6 .an-list, html.sgo-app .dash6 .cl-list { padding: 8px; gap: 2px; }
+html.sgo-app .dash6 .ag .pr { min-height: 0; padding: 10px 16px; }
+html.sgo-app .dash6 .pr-main { gap: 1px; }
+html.sgo-app .dash6 .cl-a { padding: 11px 16px; }
+html.sgo-app .dash6 .an-list li > button { padding: 11px 16px; gap: 2px; }
+html.sgo-app .dash6 .an-list li > p { padding: 0 16px 14px; }
+html.sgo-app .dash6 .dc-hidden-note { padding: 0 16px; }
+html.sgo-app .dash6 .dp-fused { gap: 36px; }
+html.sgo-app .dash6 > .dp-side-col { gap: 32px; }
+html.sgo-app .dash6 .ag-g + .ag-g { margin-top: 28px; }
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { margin-bottom: 12px; }
+html.sgo-app .dash6 .tp-more { margin-top: 8px; }
+html.sgo-app .dash6 .ag .pr .pr-due { padding: 4px 10px; }
+
+/* banner: room between every line */
+html.sgo-app .dash6 > .dh { padding: 56px 56px; min-height: 240px; }
+html.sgo-app .dash6 .dh-l { gap: 20px; }
+html.sgo-app .dash6 .dh-hi { margin-bottom: 4px; }
+html.sgo-app .dash6 .dh-sub { gap: 8px 24px; margin-top: 4px; }
+
+/* =====================================================================
+   v8: one rhythm. Panel edge to content 24 (8 + 16). Heading row 32 tall, 16 above its list. Sections 36 apart.
+   ===================================================================== */
+html.sgo-app .dash6 > .dh { padding: 48px 56px; min-height: 0; }
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .side-h { min-height: 32px; margin: 0 0 16px; align-items: center; }
+html.sgo-app .dash6 .ag-hrow .ag-gh { margin: 0; min-height: 0; }
+html.sgo-app .dash6 .dp-fused > .side-card .side-h { margin-bottom: 16px; }
+
+/* =====================================================================
+   v9: urgency colour coding, a proper weekly progress block, contours that run to the banner's far edge
+   Scale: overdue red, due today amber (accent), due soon blue, later neutral, done green.
+   ===================================================================== */
+html.sgo-app .dash6 { --u-overdue: var(--bad); --u-today: var(--accent); --u-soon: #7db4ff; --u-later: var(--t3); --u-done: var(--ok, #6fd3a0); }
+html.sgo-app .dash6 .ag .pr { --u: var(--u-later); }
+html.sgo-app .dash6 .ag .pr.u-overdue { --u: var(--u-overdue); }
+html.sgo-app .dash6 .ag .pr.u-today { --u: var(--u-today); }
+html.sgo-app .dash6 .ag .pr.u-soon { --u: var(--u-soon); }
+html.sgo-app .dash6 .ag .pr.u-done { --u: var(--u-done); }
+/* the ring, the due tag and the row wash all take the urgency colour */
+html.sgo-app .dash6 .ag .pr .pr-check { border-color: var(--u); }
+html.sgo-app .dash6 .ag .pr .pr-check:hover { background: color-mix(in srgb, var(--u) 16%, transparent); color: color-mix(in srgb, var(--u) 80%, transparent); }
+html.sgo-app .dash6 .ag .pr .pr-check.on { background: var(--u-done); border-color: var(--u-done); color: #06210f; }
+html.sgo-app .dash6 .ag .pr .pr-due { background: color-mix(in srgb, var(--u) 16%, transparent) !important; color: var(--u) !important; }
+html.sgo-app .dash6 .ag .pr.u-later .pr-due { color: var(--t1) !important; background: color-mix(in srgb, var(--text) 9%, transparent) !important; }
+html.sgo-app .dash6 .ag .pr.u-done .pr-due { background: none !important; color: var(--t3) !important; }
+html.sgo-app .dash6 .ag .pr { background: color-mix(in srgb, var(--u) 5%, transparent) !important; }
+html.sgo-app .dash6 .ag .pr.u-later, html.sgo-app .dash6 .ag .pr.u-done { background: none !important; }
+html.sgo-app .dash6 .ag .pr:hover, html.sgo-app .dash6 .ag .pr:focus-within { background: color-mix(in srgb, var(--u) 11%, transparent) !important; }
+html.sgo-app .dash6 .ag .pr.u-later:hover, html.sgo-app .dash6 .ag .pr.u-later:focus-within { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
+html.sgo-app .dash6 .g-overdue .pr-list { background: color-mix(in srgb, var(--u-overdue) 7%, var(--s1)); }
+html.sgo-app .dash6 .g-today .pr-list { background: color-mix(in srgb, var(--u-today) 7%, var(--s1)); }
+html.sgo-app .dash6 .g-soon .pr-list { background: color-mix(in srgb, var(--u-soon) 6%, var(--s1)); }
+html.sgo-app .dash6 .g-later .pr-list, html.sgo-app .dash6 .g-none .pr-list { background: var(--s1); }
+html.sgo-app .dash6 .g-overdue .ag-gh, html.sgo-app .dash6 .g-overdue .ag-gh b { color: var(--u-overdue); }
+html.sgo-app .dash6 .g-today .ag-gh, html.sgo-app .dash6 .g-today .ag-gh b { color: var(--u-today); }
+html.sgo-app .dash6 .g-soon .ag-gh, html.sgo-app .dash6 .g-soon .ag-gh b { color: var(--u-soon); }
+
+/* banner contours: across the whole banner and out to its right edge */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0; background-size: cover; background-position: right center; opacity: .7; -webkit-mask-image: linear-gradient(to right, transparent 20%, #000 62%); mask-image: linear-gradient(to right, transparent 20%, #000 62%); }
+
+/* weekly progress: its own small panel, so it reads cleanly over the contours */
+html.sgo-app .dash6 .dh-wk { width: 300px; padding: 18px 20px; border-radius: 14px; gap: 12px; background: color-mix(in srgb, var(--app-background) 70%, var(--s1)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .wk-top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+html.sgo-app .dash6 .wk-n { margin: 0; font-size: 14px; color: var(--t2); }
+html.sgo-app .dash6 .wk-n b { font-size: 18px; font-weight: 600; color: var(--t1); margin-right: 6px; }
+html.sgo-app .wk-pct { font-size: 14px; font-weight: 600; color: var(--accent); }
+html.sgo-app .wk-bar { height: 10px; border-radius: 5px; background: color-mix(in srgb, var(--text) 16%, transparent); box-shadow: none; overflow: hidden; }
+html.sgo-app .wk-bar i { border-radius: 5px; background: var(--accent); min-width: 0; }
+html.sgo-app .wk-bar i[style*="width: 0%"] { min-width: 0; }
+
+html.sgo-app .dash6 .dh-wk { width: 340px; }
+html.sgo-app .dash6 .wk-n { white-space: nowrap; }
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { -webkit-mask-image: linear-gradient(to right, transparent 38%, #000 70%); mask-image: linear-gradient(to right, transparent 38%, #000 70%); }
+
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { opacity: .9; -webkit-mask-image: linear-gradient(to right, transparent 28%, #000 52%); mask-image: linear-gradient(to right, transparent 28%, #000 52%); }
+html.sgo-app .dash6 .dh-wk { background: color-mix(in srgb, var(--app-background) 62%, transparent); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+
+/* a second, mirrored pass of the same map carries the contours all the way to the right edge */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::after { content: ''; display: block; position: absolute; z-index: -1; inset: 0 0 0 52%; background: var(--topo-hero) center / cover no-repeat; transform: scaleX(-1); opacity: .75; -webkit-mask-image: linear-gradient(to left, transparent 0%, #000 35%); mask-image: linear-gradient(to left, transparent 0%, #000 35%); pointer-events: none; }
+html.sgo-app .dash6 .dh-wk { background: color-mix(in srgb, var(--app-background) 50%, transparent); -webkit-backdrop-filter: none; backdrop-filter: none; }
+
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::after { opacity: .5; }
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { opacity: .75; }
+html.sgo-app .dash6 .dh-wk { background: color-mix(in srgb, var(--app-background) 84%, transparent); }
+
+/* =====================================================================
+   v10: contours begin at the banner's midpoint and fade in to the right edge; progress sits under the status line;
+   the courses panel answers "what is due next, and when" instead of showing grades
+   ===================================================================== */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::after { display: none; }
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0 0 0 50%; background-size: cover; background-position: right center; opacity: .8; -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, #000 55%); }
+
+html.sgo-app .dash6 .dh-wk { position: static; width: auto; max-width: 440px; margin-top: 12px; padding: 0; border: 0; border-radius: 0; background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; display: flex; flex-direction: column; gap: 10px; align-self: auto; }
+html.sgo-app .dash6 .wk-bar { order: 0; height: 8px; border-radius: 4px; background: color-mix(in srgb, var(--text) 16%, transparent); }
+html.sgo-app .dash6 .wk-bar i { border-radius: 4px; }
+html.sgo-app .dash6 .wk-n { order: 1; display: flex; align-items: baseline; gap: 6px; margin: 0; font-size: 14px; color: var(--t2); white-space: nowrap; }
+html.sgo-app .dash6 .wk-n b { font-size: 15px; margin: 0; }
+html.sgo-app .dash6 .wk-pct { margin-left: auto; font-size: 14px; font-weight: 600; color: var(--accent); }
+html.sgo-app .dash6 > .dh { align-items: center; }
+
+/* courses: name and next assignment on the left, when it is due and how much is coming on the right */
+html.sgo-app .dash6 .cl-g { display: none; }
+html.sgo-app .dash6 .cl-a { grid-template-columns: 8px minmax(0, 1fr) auto; padding: 12px 16px; column-gap: 12px; }
+html.sgo-app .dash6 .cl-r2 { align-items: flex-end; gap: 2px; min-width: 96px; }
+html.sgo-app .dash6 .cl-d { font-size: 14px; font-weight: 600; line-height: 1.3; color: var(--t2); }
+html.sgo-app .dash6 .cl-d.t-over { color: var(--u-overdue); }
+html.sgo-app .dash6 .cl-d.t-today { color: var(--u-today); }
+html.sgo-app .dash6 .cl-d.t-soon { color: var(--u-soon); }
+html.sgo-app .dash6 .cl-d.t-later { color: var(--t1); }
+html.sgo-app .dash6 .cl-w { font-size: 14px; line-height: 1.3; color: var(--t3); transition: opacity .15s var(--ease-out); }
+html.sgo-app .dash6 .cl-r.late .cl-m small { color: var(--t2); }
+/* the options buttons overlay the second line on hover, so the right edge keeps the same 16px as every other row */
+html.sgo-app .dash6 .cl-n, html.sgo-app .dash6 .cl-menu { position: absolute; right: 12px; bottom: 8px; margin: 0; }
+html.sgo-app .dash6 .cl-n { right: 44px; }
+html.sgo-app .dash6 .cl-r:hover .cl-w, html.sgo-app .dash6 .cl-r:focus-within .cl-w { opacity: 0; }
+
+html.sgo-app .dash6 > .dh { padding: 40px 56px; }
+html.sgo-app .dash6 .dh-l { gap: 14px; }
+
+/* =====================================================================
+   v11: "Due by course" says each thing once; announcements are small tinted notes in their course colour
+   ===================================================================== */
+/* due by course */
+html.sgo-app .dash6 .cl-list { padding: 8px; gap: 2px; }
+html.sgo-app .dash6 .cl-a { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px; }
+html.sgo-app .dash6 .cl-m { gap: 2px; }
+html.sgo-app .dash6 .cl-c { display: flex; align-items: center; gap: 8px; font-size: 14px; line-height: 1.3; font-weight: 400; color: var(--t2); }
+html.sgo-app .dash6 .cl-c i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
+html.sgo-app .dash6 .cl-m b { font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .cl-r2 { min-width: 0; flex: none; align-items: flex-end; gap: 2px; }
+html.sgo-app .dash6 .cl-d { font-size: 14px; font-weight: 600; }
+html.sgo-app .dash6 .cl-w { font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .cl-r:hover .cl-w, html.sgo-app .dash6 .cl-r:focus-within .cl-w { opacity: 0; }
+html.sgo-app .dash6 .cl-n, html.sgo-app .dash6 .cl-menu { position: absolute; right: 12px; bottom: 8px; margin: 0; }
+html.sgo-app .dash6 .cl-dot, html.sgo-app .dash6 .cl-m small { display: none; }
+/* courses with nothing due: said once */
+html.sgo-app .dash6 .cl-idle { margin-top: 16px; padding: 0 4px; }
+html.sgo-app .dash6 .cl-idle p { margin: 0 0 10px; font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .cl-idle ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+html.sgo-app .dash6 .cl-idle a { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; background: var(--s1); color: var(--t2); font-size: 14px; text-decoration: none; transition: background-color .15s var(--ease-out), color .15s var(--ease-out); }
+html.sgo-app .dash6 .cl-idle a:hover { background: var(--s2); color: var(--t1); }
+html.sgo-app .dash6 .cl-idle i { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c, var(--accent)); }
+
+/* announcements: one small note each, tinted with its course's colour */
+html.sgo-app .dash6 .an-list { padding: 0; gap: 8px; background: none; border-radius: 0; }
+html.sgo-app .dash6 .an-list li { border-radius: 14px; background: color-mix(in srgb, var(--c, var(--accent)) 8%, var(--s1)) !important; transition: background-color .15s var(--ease-out); }
+html.sgo-app .dash6 .an-list li:hover { background: color-mix(in srgb, var(--c, var(--accent)) 14%, var(--s1)) !important; }
+html.sgo-app .dash6 .an-list li > button { padding: 16px 20px; gap: 6px; border-radius: 14px; }
+html.sgo-app .dash6 .an-top { align-items: center; }
+html.sgo-app .dash6 .an-c { padding: 3px 10px 3px 8px; border-radius: 6px; background: color-mix(in srgb, var(--c, var(--accent)) 20%, transparent); color: var(--t1); font-size: 14px; font-weight: 600; }
+html.sgo-app .dash6 .an-list li > button b { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.4; }
+html.sgo-app .dash6 .an-list li.new > button b { color: var(--t1); }
+html.sgo-app .dash6 .an-x { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14px; line-height: 1.5; color: var(--t2); }
+html.sgo-app .dash6 .an-list li > p { padding: 0 20px 18px; }
+html.sgo-app .dash6 .an-t { display: block; font-size: 14px; color: var(--t3); }
+
+/* =====================================================================
+   v12: "Grades", a different question from the priority list: how is each course going, and which way is it heading
+   ===================================================================== */
+html.sgo-app .dash6 .cl-a { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "m g" "b b"; align-items: center; column-gap: 16px; row-gap: 10px; padding: 14px 16px; }
+html.sgo-app .dash6 .cl-m { grid-area: m; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+html.sgo-app .dash6 .cl-g { grid-area: g; display: block; font-size: 20px; line-height: 1.1; font-weight: 600; color: var(--t1); font-variant-numeric: tabular-nums; }
+html.sgo-app .dash6 .cl-bar { grid-area: b; display: block; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--text) 12%, transparent); overflow: hidden; }
+html.sgo-app .dash6 .cl-bar i { display: block; height: 100%; width: var(--p, 0%); border-radius: 2px; background: var(--c, var(--accent)); transition: width .5s var(--ease-out); }
+html.sgo-app .dash6 .cl-c { font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .cl-t { display: inline-flex; align-items: center; gap: 4px; padding-left: 16px; font-size: 14px; line-height: 1.3; font-weight: 400; color: var(--t3); }
+html.sgo-app .dash6 .cl-t svg { width: 14px; height: 14px; stroke-width: 2.2; }
+html.sgo-app .dash6 .d-up .cl-t { color: var(--u-done); font-weight: 600; }
+html.sgo-app .dash6 .d-down .cl-t { color: var(--u-overdue); font-weight: 600; }
+html.sgo-app .dash6 .d-flat .cl-t { color: var(--t2); }
+html.sgo-app .dash6 .cl-menu { position: absolute; right: 8px; top: 8px; bottom: auto; }
+html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { opacity: 0; }
+html.sgo-app .dash6 .cl-g { transition: opacity .15s var(--ease-out); }
+
+/* =====================================================================
+   v13: announcements show their text once; one spacing scale (4 / 8 / 12 / 16 / 24 / 36) throughout
+   ===================================================================== */
+html.sgo-app .dash6 .an-list li > button { padding: 16px 20px; gap: 10px; }
+html.sgo-app .dash6 .an-list .an-body { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 15px; line-height: 1.5; font-weight: 400; color: var(--t1); text-wrap: pretty; white-space: pre-line; }
+html.sgo-app .dash6 .an-list li.open .an-body { -webkit-line-clamp: unset; display: block; overflow: visible; }
+html.sgo-app .dash6 .an-list li:not(.new) .an-body { color: var(--t2); }
+html.sgo-app .dash6 .an-list .an-new { margin-right: 8px; vertical-align: 2px; }
+html.sgo-app .dash6 .an-list .an-t { margin-top: 2px; }
+
+/* spacing */
+html.sgo-app .dash6 .cl-a { padding: 14px 16px; row-gap: 10px; }
+html.sgo-app .dash6 .cl-list { padding: 8px; gap: 4px; }
+html.sgo-app .dash6 .ag .pr-list, html.sgo-app .dash6 .an-list { gap: 4px; }
+html.sgo-app .dash6 .an-list { gap: 8px; }
+html.sgo-app .dash6 .ag .pr { padding: 12px 16px; }
+html.sgo-app .dash6 .tp-more { margin-top: 12px; }
+html.sgo-app .dash6 .cl-idle { margin-top: 16px; }
+html.sgo-app .dash6 .dc-hidden-note { margin-top: 16px; }
+html.sgo-app .dash6 .pr-done { margin-top: 24px; }
+
+html.sgo-app .dash6 .ag-g + .ag-g { margin-top: 36px; }
+
+/* announcement subject line: its own slot, with clear room above and below, only when the post has one */
+html.sgo-app .dash6 .an-list li > button { gap: 0; }
+html.sgo-app .dash6 .an-top { margin-bottom: 12px; min-height: 24px; }
+html.sgo-app .dash6 .an-sub { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; margin: 0 0 6px; font-size: 15px; line-height: 1.35; font-weight: 600; color: var(--t1); text-wrap: balance; }
+html.sgo-app .dash6 .an-list .an-sub + .an-body { font-size: 15px; line-height: 1.55; color: var(--t2); -webkit-line-clamp: 2; }
+html.sgo-app .dash6 .an-list li.open .an-sub { display: block; overflow: visible; }
+html.sgo-app .dash6 .an-list li.open .an-sub + .an-body { -webkit-line-clamp: unset; }
+html.sgo-app .dash6 .an-list .an-t { margin-top: 12px; line-height: 1.3; }
+html.sgo-app .dash6 .an-d { line-height: 24px; }
+
+/* all done: a calm confirmation in the same panel language as the lists */
+html.sgo-app .dash6 .ag-clear { display: flex; align-items: center; gap: 20px; padding: 28px 24px; border-radius: 16px; background: color-mix(in srgb, var(--u-done) 7%, var(--s1)); }
+html.sgo-app .dash6 .ag-clear-i { flex: none; display: grid; place-items: center; width: 44px; height: 44px; border-radius: 12px; background: color-mix(in srgb, var(--u-done) 20%, transparent); color: var(--u-done); }
+html.sgo-app .dash6 .ag-clear-i svg { width: 22px; height: 22px; stroke-width: 2; }
+html.sgo-app .dash6 .ag-clear-t { margin: 0 0 4px; font-size: 18px; line-height: 1.3; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .ag-clear-s { margin: 0; font-size: 15px; line-height: 1.5; color: var(--t2); }
+
+/* the all-done panel gets a patch of contour, rising from its right edge */
+html.sgo-app[data-sgo-topo="on"] .dash6 .ag-clear { position: relative; overflow: hidden; isolation: isolate; }
+html.sgo-app[data-sgo-topo="on"] .dash6 .ag-clear::after { content: ''; position: absolute; z-index: -1; inset: 0 0 0 40%; background: var(--topo-empty) right center / cover no-repeat; opacity: .75; -webkit-mask-image: linear-gradient(to right, transparent, #000 60%); mask-image: linear-gradient(to right, transparent, #000 60%); pointer-events: none; }
+
+/* =====================================================================
+   v14: one control size, one heading height, one inner margin (24px from a surface's edge to its text)
+   ===================================================================== */
+/* every section heading row is 40px tall, in both columns, so lists start level */
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .side-h, html.sgo-app .dash6 .dp-fused > .side-card .side-h { min-height: 40px; margin: 0 0 16px; align-items: center; }
+html.sgo-app .dash6 .side-h .link { padding: 0; line-height: 1.3; }
+
+/* the course filter and Add task: the same height, radius and type */
+html.sgo-app .dash6 .ag-ctl { gap: 8px; align-items: center; }
+html.sgo-app .dash6 .pri-filter, html.sgo-app .dash6 .ag-ctl .sgo-btn.primary { box-sizing: border-box; height: 36px; min-height: 36px; border-radius: 10px; font-size: 14px; font-weight: 600; line-height: 1; }
+html.sgo-app .dash6 .pri-filter { -webkit-appearance: none; appearance: none; width: 168px; padding: 0 36px 0 14px; border: 0; color: var(--t1); background-color: var(--s1); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b9b2a8' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); cursor: pointer; }
+html.sgo-app .dash6 .pri-filter:hover { background-color: var(--s2); }
+html.sgo-app .dash6 .pri-filter:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html.sgo-app .dash6 .pri-filter option { background: var(--s2); color: var(--t1); }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary { padding: 0 16px; gap: 8px; }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary svg { width: 14px; height: 14px; stroke-width: 2.2; }
+
+/* announcements and grades share radius, inner margin and row rhythm with the task lists */
+html.sgo-app .dash6 .an-list { gap: 8px; }
+html.sgo-app .dash6 .an-list li, html.sgo-app .dash6 .an-list li > button { border-radius: 16px; }
+html.sgo-app .dash6 .an-list li > button { padding: 16px 24px; }
+html.sgo-app .dash6 .an-list li > p { padding: 0 24px 20px; }
+html.sgo-app .dash6 .an-list .an-body { font-size: 15px; }
+html.sgo-app .dash6 .cl-a { padding: 14px 16px; }
+html.sgo-app .dash6 .cl-list { border-radius: 16px; }
+
+/* =====================================================================
+   v15: a themed course menu, counts beside their labels, announcements that catch the eye, and one calm entrance
+   ===================================================================== */
+/* counts sit right after the section name, not at the far edge */
+html.sgo-app .dash6 .ag-g > .ag-gh, html.sgo-app .dash6 .ag-hrow .ag-gh { justify-content: flex-start; gap: 10px; }
+html.sgo-app .dash6 .ag-gh b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; font-size: 13px; font-weight: 600; line-height: 1; background: color-mix(in srgb, currentColor 16%, transparent); color: inherit; }
+html.sgo-app .dash6 .g-later .ag-gh, html.sgo-app .dash6 .g-none .ag-gh { color: var(--t1); }
+
+/* the course filter is a button that opens the app's menu */
+html.sgo-app .dash6 .pri-filter { display: inline-flex; align-items: center; justify-content: space-between; gap: 12px; width: 176px; padding: 0 12px 0 14px; background-image: none; text-align: left; transition: background-color .15s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .dash6 .pri-filter span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .pri-filter svg { flex: none; width: 16px; height: 16px; color: var(--t3); transition: transform .2s var(--ease-out); }
+html.sgo-app .dash6 .pri-filter[aria-expanded="true"] { background-color: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 60%, transparent); }
+html.sgo-app .dash6 .pri-filter[aria-expanded="true"] svg { transform: rotate(180deg); color: var(--accent); }
+html.sgo-app .dash6 .pri-filter-menu { display: inline-flex; }
+html.sgo-app .sgo-menu-p { padding: 6px; border: 0; border-radius: 14px; background: color-mix(in srgb, var(--text) 10%, var(--app-background)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent), 0 18px 44px -8px rgb(0 0 0 / .55); -webkit-backdrop-filter: none; backdrop-filter: none; min-width: 200px; }
+html.sgo-app .sgo-menu-p button { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; min-height: 38px; padding: 0 12px; border-radius: 9px; font-size: 15px; font-weight: 400; color: var(--t1); text-align: left; transition: background-color .12s var(--ease-out), color .12s var(--ease-out); }
+html.sgo-app .sgo-menu-p button:hover, html.sgo-app .sgo-menu-p button:focus-visible { background: color-mix(in srgb, var(--text) 9%, transparent); outline: none; }
+html.sgo-app .sgo-menu-p .mi { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; }
+html.sgo-app .sgo-menu-p .mi.on { color: var(--accent); font-weight: 600; }
+html.sgo-app .sgo-menu-p .mi svg { flex: none; stroke-width: 2.4; }
+html.sgo-app .sgo-menu-p:not([hidden]) { animation: dash-pop .18s var(--ease-out) both; transform-origin: top left; }
+@keyframes dash-pop { from { opacity: 0; transform: translateY(-4px) scale(.97); } to { opacity: 1; transform: none; } }
+
+/* announcements: tinted in the course colour, edged, the newest one larger, unread ones flagged */
+html.sgo-app .dash6 .side-h h3 { display: inline-flex; align-items: center; gap: 10px; }
+html.sgo-app .dash6 .side-h h3 > svg { width: 18px; height: 18px; color: var(--accent); stroke-width: 2; }
+html.sgo-app .dash6 .an-count { padding: 3px 10px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; line-height: 1.3; }
+html.sgo-app .dash6 .an-list li { background: color-mix(in srgb, var(--c, var(--accent)) 14%, var(--s1)) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--accent)) 30%, transparent) !important; transition: background-color .15s var(--ease-out), transform .2s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .dash6 .an-list li:hover { background: color-mix(in srgb, var(--c, var(--accent)) 22%, var(--s1)) !important; transform: translateY(-1px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c, var(--accent)) 50%, transparent) !important; }
+html.sgo-app .dash6 .an-list .an-c { background: color-mix(in srgb, var(--c, var(--accent)) 34%, transparent); }
+html.sgo-app .dash6 .an-list li.lead > button { padding: 20px 24px; }
+html.sgo-app .dash6 .an-list li.lead .an-body { font-size: 15px; line-height: 1.5; font-weight: 400; color: var(--t1); }
+html.sgo-app .dash6 .an-list li.lead .an-sub { font-size: 18px; }
+html.sgo-app .dash6 .an-list li:not(.new) .an-body { color: var(--t1); }
+html.sgo-app .dash6 .an-list li.new .an-d::before { content: 'New'; margin-right: 10px; padding: 2px 9px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; }
+html.sgo-app .dash6 .an-list .an-new { display: none; }
+
+/* one entrance, the first time the dashboard is drawn */
+@keyframes dash-rise { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@keyframes bar-grow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+html.sgo-app .dash6.intro > .dh { animation: dash-rise .55s var(--ease-out) both; }
+html.sgo-app .dash6.intro .ag-g, html.sgo-app .dash6.intro .dp-fused > .side-card, html.sgo-app .dash6.intro .dp-side-col > .side-card { animation: dash-rise .55s var(--ease-out) both; }
+html.sgo-app .dash6.intro .ag-g:nth-of-type(1) { animation-delay: .12s; }
+html.sgo-app .dash6.intro .dp-side-col > .side-card { animation-delay: .18s; }
+html.sgo-app .dash6.intro .ag-g:nth-of-type(2) { animation-delay: .24s; }
+html.sgo-app .dash6.intro .ag-g:nth-of-type(3) { animation-delay: .32s; }
+html.sgo-app .dash6.intro .dp-fused > .side-card { animation-delay: .4s; }
+html.sgo-app .dash6.intro .wk-bar i, html.sgo-app .dash6.intro .cl-bar i { transform-origin: left center; animation: bar-grow .9s var(--ease-out) .45s both; }
+/* small, steady responses everywhere else */
+html.sgo-app .dash6 .ag .pr { transition: background-color .15s var(--ease-out), transform .15s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr:active { transform: scale(.995); }
+html.sgo-app .dash6 .cl-r { transition: background-color .15s var(--ease-out), transform .15s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover { transform: translateX(2px); }
+@media (prefers-reduced-motion: reduce) {
+  html.sgo-app .dash6.intro *, html.sgo-app .dash6.intro, html.sgo-app .sgo-menu-p { animation: none !important; }
+  html.sgo-app .dash6 .an-list li:hover, html.sgo-app .dash6 .cl-r:hover { transform: none; }
+}
+
+html.sgo-app .dash6 .pri-filter { background-color: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent); }
+html.sgo-app .dash6 .pri-filter:hover { background-color: color-mix(in srgb, var(--text) 13%, var(--app-background)); }
+
+/* announcement actions: mark as read, dismiss */
+html.sgo-app .dash6 .side-acts { display: flex; align-items: center; gap: 16px; }
+html.sgo-app .dash6 .an-list li { position: relative; }
+html.sgo-app .dash6 .an-top { padding-right: 72px; }
+html.sgo-app .dash6 .an-acts { position: absolute; top: 14px; right: 16px; display: flex; gap: 4px; }
+html.sgo-app .dash6 .an-act { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 8px; background: transparent; color: var(--t2); cursor: pointer; opacity: .7; transition: background-color .15s var(--ease-out), color .15s var(--ease-out), opacity .15s var(--ease-out), transform .15s var(--ease-out); }
+html.sgo-app .dash6 .an-list li:hover .an-act, html.sgo-app .dash6 .an-list li:focus-within .an-act { opacity: 1; }
+html.sgo-app .dash6 .an-act:hover { background: color-mix(in srgb, var(--text) 14%, transparent); color: var(--t1); }
+html.sgo-app .dash6 .an-act:active { transform: scale(.9); }
+html.sgo-app .dash6 .an-act:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; opacity: 1; }
+html.sgo-app .dash6 .an-act svg { width: 15px; height: 15px; stroke-width: 2.2; }
+html.sgo-app .dash6 .an-act[title="Dismiss"] svg { transform: rotate(45deg); }
+html.sgo-app .dash6 .an-act[title="Mark as read"]:hover { color: var(--u-done); background: color-mix(in srgb, var(--u-done) 18%, transparent); }
+html.sgo-app .dash6 .an-restore { display: flex; align-items: center; gap: 12px; margin: 12px 0 0; padding: 0 4px; font-size: 14px; color: var(--t3); }
+@media (hover: none) { html.sgo-app .dash6 .an-act { opacity: 1; } }
+
+/* =====================================================================
+   v16: announcement buttons at the 36px control size; motion for completing work, progress, dismissing and filtering
+   ===================================================================== */
+html.sgo-app .dash6 .an-top { min-height: 36px; padding-right: 88px; }
+html.sgo-app .dash6 .an-acts { top: 10px; right: 12px; gap: 6px; }
+html.sgo-app .dash6 .an-act { width: 36px; height: 36px; border-radius: 10px; opacity: 1; background: color-mix(in srgb, var(--text) 9%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .dash6 .an-act svg { width: 16px; height: 16px; }
+html.sgo-app .dash6 .an-act:hover { background: color-mix(in srgb, var(--text) 16%, transparent); }
+html.sgo-app .dash6 .an-list li.lead > button { padding-top: 14px; }
+html.sgo-app .dash6 .an-list li > button { padding-top: 10px; }
+
+/* completing an assignment: the ring pulses, the tick draws itself, the row settles shut */
+@keyframes check-pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in srgb, var(--u-done) 55%, transparent); } 45% { transform: scale(1.22); } 100% { transform: scale(1); box-shadow: 0 0 0 12px color-mix(in srgb, var(--u-done) 0%, transparent); } }
+@keyframes tick-draw { from { stroke-dashoffset: 24; } to { stroke-dashoffset: 0; } }
+html.sgo-app .dash6 .pr-check.just { animation: check-pulse .55s var(--ease-out); }
+html.sgo-app .dash6 .pr-check.just svg path, html.sgo-app .dash6 .pr-check.on.just svg path { stroke-dasharray: 24; stroke-dashoffset: 0; animation: tick-draw .35s var(--ease-out) .05s both; }
+html.sgo-app .dash6 .pr.u-done.folding .pr-title { transition: color .2s var(--ease-out); }
+
+/* progress: the bar eases to its new width, the counter pops, the percentage counts */
+html.sgo-app .wk-bar i { transition: width .8s var(--ease-out); }
+html.sgo-app .wk-bar.moving { box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 14%, transparent); transition: box-shadow .8s var(--ease-out); }
+@keyframes counter-pop { 0% { transform: scale(1); } 40% { transform: scale(1.22); color: var(--accent); } 100% { transform: scale(1); } }
+html.sgo-app .dash6 .wk-n b.bump { display: inline-block; animation: counter-pop .6s var(--ease-out); }
+
+/* dismissing or reading an announcement: it slides away or settles before the list changes */
+html.sgo-app .dash6 .an-list li { overflow: hidden; }
+html.sgo-app .dash6 .an-list li.leaving { opacity: 0; transform: translateX(24px); max-height: 0 !important; padding-block: 0; transition: opacity .2s var(--ease-out), transform .28s var(--ease-out), max-height .28s var(--ease-out) .04s; }
+html.sgo-app .dash6 .an-list li.settling .an-d::before { opacity: 0; transform: scale(.5); transition: opacity .2s var(--ease-out), transform .2s var(--ease-out); }
+html.sgo-app .dash6 .an-list li.settling { background: color-mix(in srgb, var(--c, var(--accent)) 8%, var(--s1)) !important; }
+html.sgo-app .dash6 .an-list li.settling .an-act[title="Mark as read"] { opacity: 0; transform: scale(.6); }
+
+/* filtering and "show more": the lists ease back in */
+html.sgo-app .dash6 .ag.swap .ag-g, html.sgo-app .dash6 .ag.swap .pr-done, html.sgo-app .dash6 .ag.swap .ag-clear { animation: dash-rise .35s var(--ease-out) both; }
+html.sgo-app .dash6 .ag.swap .ag-g:nth-of-type(2) { animation-delay: .05s; }
+html.sgo-app .dash6 .ag.swap .ag-g:nth-of-type(3) { animation-delay: .1s; }
+@media (prefers-reduced-motion: reduce) {
+  html.sgo-app .dash6 .pr-check.just, html.sgo-app .dash6 .pr-check.just svg path, html.sgo-app .dash6 .wk-n b.bump, html.sgo-app .dash6 .ag.swap * { animation: none !important; }
+  html.sgo-app .wk-bar i { transition: none; }
+}
+
+/* completing a task: the row's own transition was being overridden, so it snapped shut. Restore it here, with the tick given time to draw first. */
+html.sgo-app .dash6 .ag .pr.folding { overflow: hidden; pointer-events: none; transition: max-height .36s var(--ease-out), opacity .26s var(--ease-out), padding .36s var(--ease-out), background-color .15s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.folding.fold { max-height: 0 !important; opacity: 0; padding-block: 0; min-height: 0; }
+html.sgo-app .dash6 .ag .pr.folding .pr-check { transform: none; }
+html.sgo-app .dash6 .ag .pr.folding:hover, html.sgo-app .dash6 .ag .pr.folding:active { transform: none; }
+/* the ring and the tick are one gesture: the ring settles to green while the tick draws, with nothing else on the button animating */
+html.sgo-app .dash6 .pr-check.just { animation: check-pulse .5s var(--ease-out) both; transition: background-color .18s var(--ease-out), border-color .18s var(--ease-out), color .18s var(--ease-out); }
+html.sgo-app .dash6 .pr-check.just svg { overflow: visible; }
+html.sgo-app .dash6 .pr-check.just svg path { stroke-dasharray: 24; animation: tick-draw .3s var(--ease-out) .08s both; }
+/* the done list's rows were replaying the tick when the list redrew */
+html.sgo-app .dash6 .pr-done .pr-check.just, html.sgo-app .dash6 .pr-done .pr-check.just svg path { animation: none; }
+
+/* announcements all caught up */
+html.sgo-app .dash6 .an-clear { margin-top: 0; }
+
+/* grades: stock-style trend arrows (solid, with a stem) in a small tinted chip; the options button slides in without hiding the grade */
+html.sgo-app .dash6 .cl-t { padding-left: 0; margin-top: 4px; }
+html.sgo-app .dash6 .cl-t svg { width: 12px; height: 12px; stroke-width: 0; }
+html.sgo-app .dash6 .d-up .cl-t, html.sgo-app .dash6 .d-down .cl-t { align-self: flex-start; gap: 6px; padding: 3px 10px 3px 8px; border-radius: 999px; font-weight: 600; }
+html.sgo-app .dash6 .d-up .cl-t { background: color-mix(in srgb, var(--u-done) 17%, transparent); color: var(--u-done); }
+html.sgo-app .dash6 .d-down .cl-t { background: color-mix(in srgb, var(--u-overdue) 17%, transparent); color: var(--u-overdue); }
+html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { opacity: 1; transform: translateX(-40px); }
+html.sgo-app .dash6 .cl-g { transition: transform .22s var(--ease-out); }
+html.sgo-app .dash6 .cl-menu { top: 50%; right: 10px; bottom: auto; transform: translateY(-50%); opacity: 0; transition: opacity .18s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover .cl-menu, html.sgo-app .dash6 .cl-r:focus-within .cl-menu { opacity: 1; }
+html.sgo-app .dash6 .cl-r:hover { transform: none; }
+@media (hover: none) { html.sgo-app .dash6 .cl-r .cl-g { transform: none; } html.sgo-app .dash6 .cl-menu { display: none; } }
+
+html.sgo-app .dash6 .cl-t svg { width: 14px; height: 14px; }
+html.sgo-app .dash6 .d-up .cl-t, html.sgo-app .dash6 .d-down .cl-t { padding: 4px 11px 4px 8px; }
+
+/* =====================================================================
+   v17: bigger course names and grades; announcement cards laid out as content on the left, actions in their own column on the right
+   ===================================================================== */
+html.sgo-app .dash6 .cl-c { font-size: 15px; line-height: 1.3; gap: 10px; }
+html.sgo-app .dash6 .cl-c i { width: 9px; height: 9px; }
+html.sgo-app .dash6 .cl-g { font-size: 28px; line-height: 1; letter-spacing: -.01em; }
+html.sgo-app .dash6 .cl-a { padding: 16px 16px 16px 16px; row-gap: 12px; }
+html.sgo-app .dash6 .cl-t { margin-top: 6px; font-size: 14px; }
+html.sgo-app .dash6 .cl-bar { height: 5px; border-radius: 3px; }
+html.sgo-app .dash6 .cl-bar i { border-radius: 3px; }
+html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { transform: translateX(-44px); }
+
+/* announcements: [ content | actions ] */
+html.sgo-app .dash6 .an-list li { display: flex; align-items: center; }
+html.sgo-app .dash6 .an-list li > .an-main { flex: 1; min-width: 0; padding-right: 8px; }
+html.sgo-app .dash6 .an-top { padding-right: 0; min-height: 0; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+html.sgo-app .dash6 .an-top-l { display: flex; align-items: center; gap: 8px; min-width: 0; }
+html.sgo-app .dash6 .an-pill { flex: none; padding: 2px 9px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; line-height: 1.5; }
+html.sgo-app .dash6 .an-list li.new .an-d::before, html.sgo-app .dash6 .an-list li.settling .an-d::before { content: none; }
+html.sgo-app .dash6 .an-d { flex: none; line-height: 1.3; font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .an-list li > .an-acts { position: static; flex: none; display: flex; flex-direction: column; gap: 8px; padding: 0 20px 0 8px; }
+html.sgo-app .dash6 .an-list li.settling .an-pill { opacity: 0; transform: scale(.5); transition: opacity .2s var(--ease-out), transform .2s var(--ease-out); }
+html.sgo-app .dash6 .an-list li > button { padding-top: 16px; }
+html.sgo-app .dash6 .an-list li.lead > button { padding-top: 20px; }
+html.sgo-app .dash6 .an-list li > p { padding: 0 24px 20px; }
+html.sgo-app .dash6 .an-list li.open { flex-wrap: wrap; }
+html.sgo-app .dash6 .an-list li.open > p { flex-basis: 100%; }
+
+/* announcement footer: teacher, then when it was posted */
+html.sgo-app .dash6 .an-top { margin-bottom: 10px; }
+html.sgo-app .dash6 .an-list .an-t { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 14px; line-height: 1.3; color: var(--t3); }
+html.sgo-app .dash6 .an-list .an-t .an-d { font-size: 14px; color: var(--t3); }
+html.sgo-app .dash6 .an-sep { flex: none; width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: .7; }
+
+/* =====================================================================
+   v18: a crisp completion ring (no scaling, so nothing is resampled), and one type size for every announcement
+   ===================================================================== */
+@keyframes check-ring { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--u-done) 55%, transparent); } 100% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--u-done) 0%, transparent); } }
+html.sgo-app .dash6 .pr-check.just { animation: check-ring .5s var(--ease-out) both; }
+html.sgo-app .dash6 .pr-check { transform: none !important; will-change: auto; }
+html.sgo-app .dash6 .pr-check svg { shape-rendering: geometricPrecision; }
+html.sgo-app .dash6 .pr-check.on { background: var(--u-done); border-color: var(--u-done); color: #06210f; }
+html.sgo-app .dash6 .pr.u-done .pr-check { --u: var(--u-done); }
+html.sgo-app .dash6 .pr.u-done .pr-check:hover { background: color-mix(in srgb, var(--u-done) 82%, #fff); }
+
+html.sgo-app .dash6 .an-list li.lead > button { padding-top: 16px; }
+html.sgo-app .dash6 .an-list li .an-body, html.sgo-app .dash6 .an-list li.lead .an-body, html.sgo-app .dash6 .an-list .an-sub + .an-body { font-size: 15px; line-height: 1.5; font-weight: 400; }
+html.sgo-app .dash6 .an-list li .an-sub, html.sgo-app .dash6 .an-list li.lead .an-sub { font-size: 15px; line-height: 1.4; font-weight: 600; }
+html.sgo-app .dash6 .an-list li.new .an-body { font-weight: 400; }
+
+/* "Open in Schoology": a bolder, more dominant button, in the accent */
+html.sgo-app .dash6 .pr-open { width: 36px; height: 36px; border-radius: 10px; background: color-mix(in srgb, var(--accent) 22%, transparent); color: var(--accent) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 55%, transparent); }
+html.sgo-app .dash6 .pr-open svg { width: 17px; height: 17px; stroke-width: 2.4; }
+html.sgo-app .dash6 .pr-open:hover { background: var(--accent); color: var(--on-accent) !important; box-shadow: inset 0 0 0 1px var(--accent); }
+html.sgo-app .dash6 .ag .pr { grid-template-columns: 22px minmax(0, 1fr) auto 36px; }
+@media (max-width: 720px) { html.sgo-app .dash6 .ag .pr { grid-template-columns: 22px minmax(0, 1fr) 36px; grid-template-areas: "c m o" ". d ."; } }
+
+/* announcement dismiss: a "hide" eye instead of a cross */
+html.sgo-app .dash6 .an-act[title="Dismiss"] svg { transform: none; }
+
+/* =====================================================================
+   v19: heavier symbols, each in the colour of what it belongs to (urgency for tasks, the course colour for announcements)
+   ===================================================================== */
+html.sgo-app .dash6 .ag .pr { --ub: var(--t1); }
+html.sgo-app .dash6 .ag .pr.u-overdue { --ub: var(--u-overdue); }
+html.sgo-app .dash6 .ag .pr.u-today { --ub: var(--u-today); }
+html.sgo-app .dash6 .ag .pr.u-soon { --ub: var(--u-soon); }
+html.sgo-app .dash6 .ag .pr.u-done { --ub: var(--u-done); }
+html.sgo-app .dash6 .g-none .pr { --ub: var(--t2); }
+
+/* to-do, Later and the other groups: thicker ring, thicker tick, thicker open arrow */
+html.sgo-app .dash6 .ag .pr .pr-check { width: 22px; height: 22px; border-width: 2.5px; border-color: var(--ub); }
+html.sgo-app .dash6 .ag .pr .pr-check svg { width: 14px; height: 14px; stroke-width: 3.4; }
+html.sgo-app .dash6 .ag .pr .pr-check:hover { border-color: var(--ub); background: color-mix(in srgb, var(--ub) 20%, transparent); color: var(--ub); }
+html.sgo-app .dash6 .ag .pr .pr-check.on { background: var(--u-done); border-color: var(--u-done); color: #06210f; }
+html.sgo-app .dash6 .ag .pr { grid-template-columns: 24px minmax(0, 1fr) auto 36px; }
+html.sgo-app .dash6 .ag .pr .pr-open { background: color-mix(in srgb, var(--ub) 22%, transparent); color: var(--ub) !important; box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--ub) 60%, transparent); }
+html.sgo-app .dash6 .ag .pr .pr-open svg { width: 18px; height: 18px; stroke-width: 2.8; }
+html.sgo-app .dash6 .ag .pr .pr-open:hover { background: var(--ub); color: #12100e !important; box-shadow: inset 0 0 0 2px var(--ub); }
+html.sgo-app .dash6 .ag .pr .pr-due { font-weight: 600; }
+
+/* announcements: the check and the eye take the course colour */
+html.sgo-app .dash6 .an-act { color: color-mix(in srgb, var(--c, var(--accent)) 70%, #fff); background: color-mix(in srgb, var(--c, var(--accent)) 26%, transparent); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--c, var(--accent)) 55%, transparent); }
+html.sgo-app .dash6 .an-act svg { width: 18px; height: 18px; stroke-width: 2.8; }
+html.sgo-app .dash6 .an-act:hover, html.sgo-app .dash6 .an-act[title="Mark as read"]:hover { background: var(--c, var(--accent)); color: #12100e; box-shadow: inset 0 0 0 2px var(--c, var(--accent)); }
+
+/* the rest of the symbols in this view */
+html.sgo-app .dash6 .pri-filter svg { stroke-width: 2.8; width: 17px; height: 17px; }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary svg { stroke-width: 3; width: 15px; height: 15px; }
+html.sgo-app .dash6 .pr-done > summary svg { stroke-width: 3; }
+html.sgo-app .dash6 .ag-clear-i svg { stroke-width: 2.8; }
+
+/* =====================================================================
+   v20: the completion circle as one vector (ring + fill + ripple + tick); every state is a transition, so ticking and un-ticking are both smooth.
+   Progress: the bar, the percentage and the counter share one duration and curve; nothing is scaled, so nothing blurs.
+   ===================================================================== */
+html.sgo-app .dash6 .ag .pr .pr-check { width: 24px; height: 24px; padding: 0; border: 0 !important; border-radius: 50%; background: none !important; box-shadow: none !important; color: var(--ub); animation: none !important; transform: none !important; display: grid; place-items: center; }
+html.sgo-app .dash6 .ag .pr .pr-check.just, html.sgo-app .dash6 .ag .pr .pr-check.on { animation: none !important; }
+html.sgo-app .dash6 .ag .pr .pr-check svg.pc { width: 24px; height: 24px; display: block; overflow: visible; stroke-width: initial; }
+.pc-ring { fill: none; stroke: var(--ub); stroke-width: 2.5; transition: stroke .22s var(--ease-out); }
+.pc-fill { fill: var(--ub); opacity: 0; transition: opacity .22s var(--ease-out), fill .22s var(--ease-out); }
+.pc-tick { fill: none; stroke: #06210f; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 14; stroke-dashoffset: 14; transition: stroke-dashoffset .26s var(--ease-out); }
+.pc-ripple { fill: none; stroke: var(--u-done); stroke-width: 2; opacity: 0; }
+html.sgo-app .dash6 .pr-check:hover .pc-fill { opacity: .2; }
+html.sgo-app .dash6 .pr-check.on .pc-ring { stroke: var(--u-done); }
+html.sgo-app .dash6 .pr-check.on .pc-fill { fill: var(--u-done); opacity: 1; }
+html.sgo-app .dash6 .pr-check.on .pc-tick { stroke-dashoffset: 0; transition-delay: .08s; }
+html.sgo-app .dash6 .pr-check.on:hover .pc-fill { opacity: .85; }
+html.sgo-app .dash6 .pr-check.just .pc-ripple { animation: pc-ripple .6s var(--ease-out) both; }
+@keyframes pc-ripple { from { r: 10px; opacity: .65; stroke-width: 2.5px; } to { r: 17px; opacity: 0; stroke-width: .5px; } }
+html.sgo-app .dash6 .pr-check:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 50%; }
+
+/* progress: one curve, one duration */
+html.sgo-app .wk-bar { overflow: hidden; box-shadow: none !important; }
+html.sgo-app .wk-bar.moving { box-shadow: none !important; }
+html.sgo-app .wk-bar i { transition: width .8s var(--ease-out); will-change: width; }
+@keyframes counter-glow { from { color: var(--accent); } to { color: var(--t1); } }
+html.sgo-app .dash6 .wk-n b.bump { display: inline; animation: counter-glow .8s var(--ease-out) both; transform: none; }
+html.sgo-app .dash6 .wk-pct { font-variant-numeric: tabular-nums; min-width: 3ch; text-align: right; }
+@keyframes clock-fade { from { opacity: .25; } to { opacity: 1; } }
+html.sgo-app .dh-clock.tick { animation: clock-fade .5s var(--ease-out) both; }
+@media (prefers-reduced-motion: reduce) {
+  .pc-ring, .pc-fill, .pc-tick { transition: none; }
+  html.sgo-app .dash6 .pr-check.just .pc-ripple, html.sgo-app .dash6 .wk-n b.bump, html.sgo-app .dh-clock.tick { animation: none; }
+}
+
+/* older tick rules (a separate keyframe animation) must not touch the new circle */
+html.sgo-app .dash6 .pr-check svg.pc path.pc-tick, html.sgo-app .dash6 .pr-check.just svg.pc path.pc-tick, html.sgo-app .dash6 .pr-check.on.just svg.pc path.pc-tick { animation: none !important; stroke-dasharray: 14 !important; }
+html.sgo-app .dash6 .pr-check svg.pc path.pc-tick { stroke-dashoffset: 14; }
+html.sgo-app .dash6 .pr-check.on svg.pc path.pc-tick, html.sgo-app .dash6 .pr-check.on.just svg.pc path.pc-tick { stroke-dashoffset: 0; }
+
+/* =====================================================================
+   v21: the notice that appears after completing, hiding or dismissing: one size, one look, clear of the phone menu button
+   ===================================================================== */
+html.sgo-app #sgo-toasts { width: min(440px, calc(100vw - 32px)); bottom: 24px; }
+html.sgo-app #sgo-toasts .toast { box-sizing: border-box; display: flex; align-items: center; gap: 12px; min-height: 56px; padding: 10px 10px 10px 18px; border: 0; border-radius: 16px; background: color-mix(in srgb, var(--text) 13%, var(--app-background)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent), 0 20px 48px -8px rgb(0 0 0 / .6); font-size: 15px; line-height: 1.4; color: var(--t1); pointer-events: auto; }
+html.sgo-app #sgo-toasts .toast > svg:first-child { flex: none; width: 18px; height: 18px; color: var(--u-done); stroke-width: 2.8; }
+html.sgo-app #sgo-toasts .toast span { flex: 1; min-width: 0; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; font-weight: 400; }
+html.sgo-app #sgo-toasts .toast .sgo-btn { flex: none; height: 36px; min-height: 36px; padding: 0 16px; border: 0; border-radius: 10px; background: color-mix(in srgb, var(--accent) 20%, transparent); color: var(--accent) !important; font-size: 14px; font-weight: 600; box-shadow: none; transition: background-color .15s var(--ease-out), color .15s var(--ease-out); }
+html.sgo-app #sgo-toasts .toast .sgo-btn:hover { background: var(--accent); color: var(--on-accent) !important; }
+html.sgo-app #sgo-toasts .toast-x { flex: none; width: 36px; height: 36px; border-radius: 10px; color: var(--t3); }
+html.sgo-app #sgo-toasts .toast-x:hover { background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--t1); }
+html.sgo-app #sgo-toasts .toast-x svg { width: 16px; height: 16px; stroke-width: 2.6; transform: rotate(45deg); color: currentColor; }
+@media (max-width: 900px) { html.sgo-app #sgo-toasts { bottom: 88px; } }
+
+/* the completed list: a quiet heading with a count, not a stray tick and a sentence */
+html.sgo-app .dash6 .pr-done > summary { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 4px; font-size: 15px; font-weight: 600; color: var(--t2); }
+html.sgo-app .dash6 .pr-done > summary b { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; font-size: 13px; font-weight: 600; line-height: 1; background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--t2); }
+html.sgo-app .dash6 .pr-done > summary svg { margin-left: auto; width: 16px; height: 16px; stroke-width: 2.6; color: var(--t3); transition: transform .22s var(--ease-out); }
+html.sgo-app .dash6 .pr-done[open] > summary svg { transform: rotate(180deg); }
+html.sgo-app .dash6 .pr-done > summary:hover { color: var(--t1); }
+
+/* phones: long course names never run under the open button; the banner art stays behind, not through, the text */
+html.sgo-app .dash6 .ag .pr .pr-main { min-width: 0; overflow: hidden; }
+html.sgo-app .dash6 .ag .pr .pr-course { max-width: 100%; }
+@media (max-width: 720px) {
+  html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0 0 0 30%; opacity: .32; -webkit-mask-image: linear-gradient(to right, transparent, #000 70%); mask-image: linear-gradient(to right, transparent, #000 70%); }
+  html.sgo-app .dash6 .dh-t { font-size: 34px; }
+}
+
+/* the course line ends in an ellipsis instead of being cut */
+html.sgo-app .dash6 .ag .pr .pr-course { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .dash6 .ag .pr .pr-course i { display: inline-block; vertical-align: 1px; margin-right: 8px; }
+html.sgo-app .dash6 .ag .pr .pr-pts { display: inline; }
+
+html.sgo-app #sgo-toasts .toast span { overflow-wrap: break-word; word-break: normal; hyphens: manual; text-wrap: pretty; }
+
+/* =====================================================================
+   v22: the Assignments page and its relatives join the dashboard's language (same circle, same panels, same controls)
+   ===================================================================== */
+html.sgo-app { --u-overdue: var(--bad); --u-today: var(--accent); --u-soon: #7db4ff; --u-done: var(--ok, #6fd3a0); }
+html.sgo-app .sgo-list { padding: 8px; gap: 2px; display: flex; flex-direction: column; border: 0; border-radius: 16px; background: var(--s1); }
+html.sgo-app .sgo-list > .sgo-item { position: relative; display: flex; align-items: center; gap: 16px; min-height: 0; padding: 12px 16px; border: 0; border-radius: 10px; background: none; box-shadow: none; transition: background-color .15s var(--ease-out); --ub: var(--t1); }
+html.sgo-app .sgo-list > .sgo-item + .sgo-item { border-top: 0; }
+html.sgo-app .sgo-list > .sgo-item::before { display: none; }
+html.sgo-app .sgo-list > .sgo-item:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .sgo-item.pr-critical { --ub: var(--u-overdue); }
+html.sgo-app .sgo-item.pr-high { --ub: var(--u-today); }
+html.sgo-app .sgo-item.pr-medium { --ub: var(--u-soon); }
+html.sgo-app .sgo-item.is-done { --ub: var(--u-done); }
+html.sgo-app .sgo-item .sgo-check { flex: none; width: 24px; height: 24px; padding: 0; border: 0; background: none; border-radius: 50%; color: var(--ub); display: grid; place-items: center; }
+html.sgo-app .sgo-item .sgo-check svg.pc { width: 24px; height: 24px; display: block; overflow: visible; stroke-width: initial; }
+html.sgo-app .sgo-check:hover .pc-fill { opacity: .2; }
+html.sgo-app .sgo-check.on .pc-ring { stroke: var(--u-done); }
+html.sgo-app .sgo-check.on .pc-fill { fill: var(--u-done); opacity: 1; }
+html.sgo-app .sgo-check svg.pc path.pc-tick { animation: none !important; stroke-dasharray: 14 !important; stroke-dashoffset: 14; }
+html.sgo-app .sgo-check.on svg.pc path.pc-tick { stroke-dashoffset: 0; }
+html.sgo-app .sgo-item.is-done .sgo-item-title { color: var(--t3); text-decoration: line-through; }
+html.sgo-app .sgo-item-main { flex: 1; min-width: 0; }
+html.sgo-app .sgo-item-title { font-size: 15px; font-weight: 600; line-height: 1.35; }
+html.sgo-app .sgo-item-meta { margin-top: 2px; font-size: 14px; line-height: 1.4; color: var(--t2); }
+html.sgo-app .sgo-item .sgo-act { width: 36px; height: 36px; border-radius: 10px; background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--t2); }
+html.sgo-app .sgo-item .sgo-act:hover { background: color-mix(in srgb, var(--text) 16%, transparent); color: var(--t1); }
+
+/* closed selects look like the dashboard's filter; the open list stays the device's own (best on a phone) */
+html.sgo-app .sgo-page select.sgo-input, html.sgo-app .sgo-page select { box-sizing: border-box; height: 36px; min-height: 36px; padding: 0 36px 0 14px; border: 0; border-radius: 10px; -webkit-appearance: none; appearance: none; background-color: var(--s2); background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23b9b2a8' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 12px center; background-size: 16px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 16%, transparent); color: var(--t1); font-size: 14px; font-weight: 600; }
+html.sgo-app .sgo-page select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+@media (max-width: 720px) { html.sgo-app .sgo-list > .sgo-item { padding: 12px; gap: 12px; } html.sgo-app .sgo-page:not(.dash6) { padding: 24px 16px 96px; } }
+
+html.sgo-app .sgo-item-meta { display: block; }
+html.sgo-app .sgo-item-meta .sgo-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
+
+@media (max-width: 720px) {
+  html.sgo-app .gr2-id b, html.sgo-app .gr2-id small, html.sgo-app .gr2-id span { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  html.sgo-app .gr2-h { align-items: start; }
+}
+
+/* =====================================================================
+   v23: no dots beside course names in the to-do; a strike that draws itself; grades with a steady layout, a bigger name and a count-up
+   ===================================================================== */
+html.sgo-app .dash6 .pr-course i, html.sgo-app .sgo-item-meta .sgo-dot { display: none !important; }
+
+/* completing a row: tint, tag, text and strike all change together over the same short time (nothing snaps) */
+html.sgo-app .dash6 .ag .pr { transition: background-color .3s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr .pr-due { transition: background-color .3s var(--ease-out), color .3s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr .pr-course { transition: color .3s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr .pr-title { align-self: flex-start; max-width: 100%; text-decoration: none !important; background-image: linear-gradient(currentColor, currentColor); background-repeat: no-repeat; background-position: 0 60%; background-size: 0% 2px; transition: background-size .4s var(--ease-out), color .3s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.u-done .pr-title { text-decoration: none !important; background-size: 100% 2px; }
+html.sgo-app .dash6 .ag .pr.u-done .pr-due { background: color-mix(in srgb, var(--text) 6%, transparent) !important; }
+
+/* grades: the layout never moves. The grade keeps a fixed column; the options button fades in beside it. */
+html.sgo-app .dash6 .cl-c { font-size: 20px; line-height: 1.25; font-weight: 600; }
+html.sgo-app .dash6 .cl-m { padding-right: 40px; }
+html.sgo-app .dash6 .cl-g { min-width: 6.2ch; text-align: right; font-size: 28px; transition: none; font-variant-numeric: tabular-nums; }
+html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { transform: none; opacity: 1; }
+html.sgo-app .dash6 .cl-menu { top: 14px; bottom: auto; right: 132px; transform: none; opacity: 0; transition: opacity .2s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover .cl-menu, html.sgo-app .dash6 .cl-r:focus-within .cl-menu { opacity: 1; }
+html.sgo-app .dash6 .cl-r { transition: background-color .25s var(--ease-out); }
+html.sgo-app .dash6 .cl-bar { transition: height .25s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover .cl-bar { height: 7px; }
+html.sgo-app .dash6 .cl-bar i { transition: width .6s var(--ease-out); }
+
+html.sgo-app .dash6 .cl-c i { display: none !important; }
+
+/* =====================================================================
+   v24: lighter grade rows with even spacing, no options dots; hovering a course lights its row in the course colour and sends a sheen along its bar
+   ===================================================================== */
+html.sgo-app .dash6 .cl-menu, html.sgo-app .dash6 .cl-n { display: none !important; }
+html.sgo-app .dash6 .cl-list { padding: 8px; gap: 4px; }
+html.sgo-app .dash6 .cl-r { position: relative; display: block; overflow: hidden; isolation: isolate; border-radius: 12px; transform: none; }
+html.sgo-app .dash6 .cl-a { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "m g" "b b"; align-items: center; column-gap: 16px; row-gap: 14px; padding: 16px; }
+html.sgo-app .dash6 .cl-m { grid-area: m; display: flex; flex-direction: column; gap: 8px; padding-right: 0; min-width: 0; }
+html.sgo-app .dash6 .cl-c { font-size: 18px; line-height: 1.25; font-weight: 600; transition: transform .35s var(--ease-out); }
+html.sgo-app .dash6 .cl-g { grid-area: g; min-width: 0; font-size: 24px; line-height: 1; font-weight: 600; letter-spacing: 0; color: var(--t1); transition: color .3s var(--ease-out); }
+html.sgo-app .dash6 .cl-t { padding-left: 0; margin-top: 0; font-size: 13px; line-height: 1.3; }
+html.sgo-app .dash6 .cl-t svg { width: 11px; height: 11px; }
+html.sgo-app .dash6 .d-up .cl-t, html.sgo-app .dash6 .d-down .cl-t { gap: 5px; padding: 3px 9px 3px 7px; }
+html.sgo-app .dash6 .cl-bar { grid-area: b; height: 4px; border-radius: 2px; transition: height .3s var(--ease-out); }
+html.sgo-app .dash6 .cl-bar i { position: relative; overflow: hidden; border-radius: 2px; }
+html.sgo-app .dash6 .cl-bar i::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, transparent, rgb(255 255 255 / .6), transparent); transform: translateX(-100%); }
+
+/* the hover: a wash of the course's colour rises from the left, the name leans in, the grade takes the colour, the bar thickens and a sheen runs along it */
+html.sgo-app .dash6 .cl-r::before { content: ''; position: absolute; inset: 0; z-index: -1; background: radial-gradient(130% 160% at 0% 40%, color-mix(in srgb, var(--c, var(--accent)) 26%, transparent), transparent 72%); opacity: 0; transform: translateX(-12%); transition: opacity .4s var(--ease-out), transform .5s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover::before, html.sgo-app .dash6 .cl-r:focus-within::before { opacity: 1; transform: none; }
+html.sgo-app .dash6 .cl-r:hover { background: none; }
+html.sgo-app .dash6 .cl-r:hover .cl-c, html.sgo-app .dash6 .cl-r:focus-within .cl-c { transform: translateX(4px); }
+html.sgo-app .dash6 .cl-r:hover .cl-g, html.sgo-app .dash6 .cl-r:focus-within .cl-g { color: color-mix(in srgb, var(--c, var(--accent)) 55%, #fff); opacity: 1; transform: none; }
+html.sgo-app .dash6 .cl-r:hover .cl-bar, html.sgo-app .dash6 .cl-r:focus-within .cl-bar { height: 7px; border-radius: 4px; }
+html.sgo-app .dash6 .cl-r:hover .cl-bar i, html.sgo-app .dash6 .cl-r:focus-within .cl-bar i { border-radius: 4px; }
+html.sgo-app .dash6 .cl-r:hover .cl-bar i::after, html.sgo-app .dash6 .cl-r:focus-within .cl-bar i::after { animation: bar-sheen 1s var(--ease-out) both; }
+@keyframes bar-sheen { to { transform: translateX(100%); } }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .dash6 .cl-r::before, html.sgo-app .dash6 .cl-c, html.sgo-app .dash6 .cl-bar { transition: none; } html.sgo-app .dash6 .cl-r:hover .cl-bar i::after { animation: none; } html.sgo-app .dash6 .cl-r:hover .cl-c { transform: none; } }
+@media (hover: none) { html.sgo-app .dash6 .cl-r::before { display: none; } }
+
+/* =====================================================================
+   v25: one motion language. Everything eases out on the same curve; durations are 0.15s (hover), 0.3-0.4s (state change), 0.5s (entrance, close).
+   Type: two weights (400, 600) and the sizes 12 / 13 / 15 / 18 / 24 / 28 and the headline.
+   ===================================================================== */
+/* completing a task: the strike draws, the text settles, the row eases shut and slides slightly away */
+html.sgo-app .dash6 .ag .pr .pr-title { transition: background-size .55s var(--ease-out), color .45s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr .pr-course, html.sgo-app .dash6 .ag .pr .pr-due { transition: color .45s var(--ease-out), background-color .45s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr { transition: background-color .45s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.folding { transition: max-height .5s var(--ease-out), opacity .4s var(--ease-out), padding .5s var(--ease-out), transform .5s var(--ease-out), background-color .3s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.folding.fold { transform: translateX(10px); }
+html.sgo-app .dash6 .pr-open { transition: background-color .3s var(--ease-out), color .3s var(--ease-out), box-shadow .3s var(--ease-out), opacity .3s var(--ease-out); }
+
+/* the notice: rises in, drops out */
+@keyframes dash-toast-in { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes dash-toast-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(10px); } }
+html.sgo-app #sgo-toasts .toast { animation: dash-toast-in .45s var(--ease-out) both; }
+html.sgo-app #sgo-toasts .toast.leaving { animation: dash-toast-out .3s var(--ease-out) both; }
+
+/* announcements: the heading and then each card rise in turn; cards ease open and shut; "View all" brings the extra cards in the same way */
+html.sgo-app .dash6.intro .dp-fused > .side-card { animation: none; }
+html.sgo-app .dash6.intro .dp-fused > .side-card .side-h { animation: dash-rise .5s var(--ease-out) .42s both; }
+html.sgo-app .dash6.intro .an-list li, html.sgo-app .dash6 .side-card.swap .an-list li { animation: dash-rise .55s var(--ease-out) both; animation-delay: calc(.5s + var(--i, 0) * 90ms); }
+html.sgo-app .dash6 .side-card.swap .an-list li { animation-delay: calc(var(--i, 0) * 60ms); }
+html.sgo-app .dash6.intro .an-pill { animation: pill-in .5s var(--ease-out) calc(.8s + var(--i, 0) * 90ms) both; }
+@keyframes pill-in { from { opacity: 0; } to { opacity: 1; } }
+html.sgo-app .dash6 .an-list li { transition: background-color .3s var(--ease-out), box-shadow .3s var(--ease-out), opacity .3s var(--ease-out), transform .3s var(--ease-out); }
+html.sgo-app .dash6 .an-list li.leaving { transition: opacity .3s var(--ease-out), transform .4s var(--ease-out), max-height .4s var(--ease-out) .05s; }
+html.sgo-app .dash6 .an-act { transition: background-color .2s var(--ease-out), color .2s var(--ease-out), box-shadow .2s var(--ease-out), opacity .2s var(--ease-out), transform .2s var(--ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  html.sgo-app #sgo-toasts .toast, html.sgo-app #sgo-toasts .toast.leaving, html.sgo-app .dash6 .an-list li, html.sgo-app .dash6 .side-card.swap .an-list li, html.sgo-app .dash6 .an-pill, html.sgo-app .dash6 .side-h { animation: none !important; }
+  html.sgo-app .dash6 .ag .pr.folding.fold { transform: none; }
+}
+
+/* =====================================================================
+   v26: faster, shorter motion. Hover 0.12s, state change 0.2s, entrance and close 0.3s; staggers of 50ms.
+   ===================================================================== */
+/* completing */
+html.sgo-app .dash6 .ag .pr { transition: background-color .2s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr .pr-title { transition: background-size .3s var(--ease-out), color .22s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr .pr-course, html.sgo-app .dash6 .ag .pr .pr-due { transition: color .22s var(--ease-out), background-color .22s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.folding { transition: max-height .3s var(--ease-out), opacity .22s var(--ease-out), padding .3s var(--ease-out), transform .3s var(--ease-out), background-color .2s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.folding.fold { transform: translateX(8px); }
+.pc-ring { transition: stroke .15s var(--ease-out); }
+.pc-fill { transition: opacity .15s var(--ease-out), fill .15s var(--ease-out); }
+.pc-tick { transition: stroke-dashoffset .2s var(--ease-out); }
+html.sgo-app .dash6 .pr-check.on .pc-tick { transition-delay: .04s; }
+html.sgo-app .dash6 .pr-check.just .pc-ripple { animation-duration: .4s; }
+html.sgo-app .dash6 .pr-open, html.sgo-app .dash6 .an-act, html.sgo-app .dash6 .tp-more { transition-duration: .15s; }
+/* progress and numbers */
+html.sgo-app .wk-bar i { transition: width .5s var(--ease-out); }
+html.sgo-app .dash6 .cl-bar i { transition: width .45s var(--ease-out); }
+html.sgo-app .dash6 .wk-n b.bump { animation-duration: .5s; }
+/* entrance */
+@keyframes dash-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+html.sgo-app .dash6.intro > .dh { animation-duration: .35s; }
+html.sgo-app .dash6.intro .ag-g, html.sgo-app .dash6.intro .dp-side-col > .side-card { animation-duration: .35s; }
+html.sgo-app .dash6.intro .ag-g:nth-of-type(1) { animation-delay: .04s; }
+html.sgo-app .dash6.intro .dp-side-col > .side-card { animation-delay: .08s; }
+html.sgo-app .dash6.intro .ag-g:nth-of-type(2) { animation-delay: .12s; }
+html.sgo-app .dash6.intro .ag-g:nth-of-type(3) { animation-delay: .18s; }
+html.sgo-app .dash6.intro .wk-bar i, html.sgo-app .dash6.intro .cl-bar i { animation-duration: .5s; animation-delay: .2s; }
+html.sgo-app .dash6 .ag.swap .ag-g, html.sgo-app .dash6 .ag.swap .pr-done, html.sgo-app .dash6 .ag.swap .ag-clear { animation-duration: .25s; }
+/* the notice */
+html.sgo-app #sgo-toasts .toast { animation-duration: .3s; }
+html.sgo-app #sgo-toasts .toast.leaving { animation-duration: .2s; }
+/* grades hover */
+html.sgo-app .dash6 .cl-r::before { transition: opacity .25s var(--ease-out), transform .3s var(--ease-out); }
+html.sgo-app .dash6 .cl-c { transition: transform .22s var(--ease-out); }
+html.sgo-app .dash6 .cl-g { transition: color .2s var(--ease-out); }
+html.sgo-app .dash6 .cl-bar { transition: height .2s var(--ease-out); }
+html.sgo-app .dash6 .cl-r:hover .cl-bar i::after, html.sgo-app .dash6 .cl-r:focus-within .cl-bar i::after { animation-duration: .7s; }
+
+/* announcements: each card slides in from the right and settles; the New pill catches the light once */
+@keyframes ann-in { from { opacity: 0; transform: translate3d(18px, 6px, 0); } to { opacity: 1; transform: none; } }
+@keyframes pill-shine { 0% { transform: translateX(-130%); } 100% { transform: translateX(130%); } }
+html.sgo-app .dash6.intro .dp-fused > .side-card .side-h { animation-duration: .3s; animation-delay: .22s; }
+html.sgo-app .dash6.intro .an-list li, html.sgo-app .dash6 .side-card.swap .an-list li { animation: ann-in .34s var(--ease-out) both; animation-delay: calc(.26s + var(--i, 0) * 55ms); }
+html.sgo-app .dash6 .side-card.swap .an-list li { animation-delay: calc(var(--i, 0) * 45ms); }
+html.sgo-app .dash6 .an-pill { position: relative; overflow: hidden; }
+html.sgo-app .dash6 .an-pill::after { content: ''; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 20%, rgb(255 255 255 / .75) 50%, transparent 80%); transform: translateX(-130%); }
+html.sgo-app .dash6.intro .an-pill { animation: none; }
+html.sgo-app .dash6.intro .an-pill::after, html.sgo-app .dash6 .side-card.swap .an-pill::after { animation: pill-shine .7s var(--ease-out) calc(.6s + var(--i, 0) * 120ms) both; }
+html.sgo-app .dash6 .an-list li { transition: background-color .2s var(--ease-out), box-shadow .2s var(--ease-out), opacity .2s var(--ease-out), transform .2s var(--ease-out); }
+html.sgo-app .dash6 .an-list li:hover { transform: translateY(-2px); }
+html.sgo-app .dash6 .an-list li.leaving { transition: opacity .22s var(--ease-out), transform .28s var(--ease-out), max-height .28s var(--ease-out) .03s; }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .dash6 .an-pill::after { animation: none !important; } html.sgo-app .dash6 .an-list li:hover { transform: none; } }
+
+/* =====================================================================
+   v27: dismissing an announcement; one sidebar button system (40px tiles, 20px icons, one badge, one active state)
+   ===================================================================== */
+/* dismiss: the card slides away and fades, closes up the gap it leaves, and its buttons vanish first */
+html.sgo-app .dash6 .an-list li.leaving { opacity: 0; transform: translateX(36px) scale(.97); max-height: 0 !important; margin-bottom: -8px; padding-block: 0; transition: opacity .22s var(--ease-out), transform .3s var(--ease-out), max-height .3s var(--ease-out) .04s, margin-bottom .3s var(--ease-out) .04s; }
+html.sgo-app .dash6 .an-list li.leaving .an-acts { opacity: 0; transition: opacity .1s linear; }
+html.sgo-app .dash6 .an-list li.leaving .an-act[title="Dismiss"] { transform: scale(.85); }
+
+@media (min-width: 901px) {
+  /* every button in the rail is the same tile */
+  html.sgo-app .sgo-rail .sgo-rail-i { box-sizing: border-box; position: relative; width: 40px; height: 40px; min-height: 40px; padding: 0; border-radius: 10px; display: grid; place-items: center; transition: background-color .15s var(--ease-out), color .15s var(--ease-out); }
+  html.sgo-app .sgo-rail .sgo-rail-i svg { width: 20px; height: 20px; stroke-width: 1.7; }
+  html.sgo-app .sgo-rail .sgo-rail-i:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  /* the account button: the same tile, holding a small rounded initial */
+  html.sgo-app .sgo-rail .sgo-rail-i .sgo-face { width: 28px; height: 28px; border-radius: 8px; font-size: 15px; font-weight: 600; letter-spacing: 0; box-shadow: none; background: var(--accent); color: var(--on-accent); display: grid; place-items: center; }
+  html.sgo-app .sgo-rail .sgo-rail-i:hover .sgo-face { filter: brightness(1.1); }
+  /* one badge, same corner on every button */
+  html.sgo-app .sgo-rail .sgo-rail-n, html.sgo-app .sgo-rail .sgo-bell-n { position: absolute; top: 3px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; box-sizing: border-box; border-radius: 8px; background: var(--accent); color: var(--on-accent); font-size: 13px; font-weight: 600; line-height: 16px; text-align: center; box-shadow: 0 0 0 2px var(--app-background); }
+}
+
+@media (min-width: 901px) {
+  html.sgo-app .sgo-rail > .sgo-menu .sgo-rail-i { width: 40px; height: 40px; min-height: 40px; border-radius: 10px; }
+  html.sgo-app .sgo-rail > .sgo-menu .sgo-rail-i:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+}
+
+/* =====================================================================
+   v28: labelled sections (Priorities, Announcements, Grades) at one size; controls at the dashboard's type size; a lighter New task form
+   ===================================================================== */
+html.sgo-app .dash6 .sec-h { display: flex; align-items: center; justify-content: space-between; gap: 16px; min-height: 40px; margin: 0 0 20px; }
+html.sgo-app .dash6 .sec-t, html.sgo-app .dash6 .side-h h3 { margin: 0; font-size: 20px; line-height: 1.25; font-weight: 600; color: var(--t1); }
+html.sgo-app .dash6 .side-h { min-height: 40px; margin-bottom: 20px; }
+html.sgo-app .dash6 .an-count { font-size: 13px; }
+html.sgo-app .dash6 .ag > .ag-g:first-of-type { margin-top: 0; }
+
+/* the course filter and Add task: 40px tall, the dashboard's 15px type */
+html.sgo-app .dash6 .pri-filter, html.sgo-app .dash6 .ag-ctl .sgo-btn.primary { height: 40px; min-height: 40px; font-size: 15px; border-radius: 10px; }
+html.sgo-app .dash6 .pri-filter { width: 200px; padding: 0 14px 0 16px; }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary { padding: 0 18px; gap: 8px; }
+html.sgo-app .dash6 .ag-ctl .sgo-btn.primary svg, html.sgo-app .dash6 .pri-filter svg { width: 16px; height: 16px; }
+html.sgo-app .sgo-menu-p button { font-size: 15px; min-height: 40px; }
+
+/* New task: a short form, details tucked away */
+html.sgo-app .sgo-modal.sgo-task { width: min(480px, calc(100vw - 32px)); padding: 28px; border-radius: 20px; display: flex; flex-direction: column; gap: 20px; }
+html.sgo-app .sgo-task h2 { margin: 0; font-size: 20px; font-weight: 600; line-height: 1.25; color: var(--t1); }
+html.sgo-app .sgo-task .sgo-mrow { display: flex; flex-direction: column; gap: 8px; margin: 0; }
+html.sgo-app .sgo-task .sgo-mrow label { font-size: 14px; font-weight: 600; color: var(--t2); }
+html.sgo-app .sgo-task .sgo-input, html.sgo-app .sgo-task select { box-sizing: border-box; width: 100%; height: 44px; padding: 0 14px; border: 0; border-radius: 10px; background-color: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); color: var(--t1); font-size: 15px; font-weight: 400; transition: box-shadow .15s var(--ease-out); }
+html.sgo-app .sgo-task textarea.sgo-input { height: auto; min-height: 88px; padding: 12px 14px; resize: vertical; line-height: 1.5; }
+html.sgo-app .sgo-task .sgo-input:focus, html.sgo-app .sgo-task select:focus { outline: none; box-shadow: inset 0 0 0 2px var(--accent); }
+html.sgo-app .sgo-task .sgo-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+html.sgo-app .sgo-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -8px; }
+html.sgo-app .sgo-qchip { height: 32px; padding: 0 14px; border: 0; border-radius: 8px; background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--t1); font-size: 14px; font-weight: 600; cursor: pointer; transition: background-color .15s var(--ease-out), color .15s var(--ease-out); }
+html.sgo-app .sgo-qchip:hover { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .sgo-more > summary { display: flex; align-items: center; justify-content: space-between; min-height: 40px; padding: 0 2px; font-size: 14px; font-weight: 600; color: var(--t2); cursor: pointer; list-style: none; }
+html.sgo-app .sgo-more > summary::-webkit-details-marker { display: none; }
+html.sgo-app .sgo-more > summary:hover { color: var(--t1); }
+html.sgo-app .sgo-more > summary svg { width: 16px; height: 16px; stroke-width: 2.6; transition: transform .2s var(--ease-out); }
+html.sgo-app .sgo-more[open] > summary svg { transform: rotate(180deg); }
+html.sgo-app .sgo-more-b { display: flex; flex-direction: column; gap: 20px; padding-top: 8px; }
+html.sgo-app .sgo-task .sgo-mfoot { margin-top: 4px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html.sgo-app .sgo-task .sgo-mfoot .sgo-btn { height: 40px; min-height: 40px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 600; }
+html.sgo-app .sgo-fine { margin: -8px 0 0; font-size: 13px; line-height: 1.4; color: var(--t3); }
+html.sgo-app .sgo-task .sgo-err { min-height: 0; margin: -8px 0 0; font-size: 14px; color: var(--bad); }
+@media (max-width: 520px) { html.sgo-app .sgo-modal.sgo-task { padding: 22px 20px; } html.sgo-app .sgo-task .sgo-grid2 { grid-template-columns: 1fr; gap: 20px; } }
+
+html.sgo-app .dash6 .ag .sec-h h2.sec-t { position: static; width: auto; height: auto; overflow: visible; clip-path: none; white-space: normal; }
+
+/* sidebar: the profile sits at the very top, and the icons are heavy like the dashboard's */
+@media (min-width: 901px) {
+  html.sgo-app .sgo-rail > .sgo-menu { order: -1; margin: 0 0 12px; padding: 0 0 12px; border: 0; border-bottom: 1px solid var(--hair); }
+  html.sgo-app .sgo-rail .sgo-rail-i svg, html.sgo-app .sgo-rail .sgo-rail-i:hover svg, html.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] svg { width: 22px; height: 22px; stroke-width: 2.4; }
+  html.sgo-app .sgo-rail .sgo-rail-i { color: var(--t2) !important; }
+  html.sgo-app .sgo-rail .sgo-rail-i:hover { color: var(--t1) !important; }
+  html.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] { color: var(--accent) !important; }
+  html.sgo-app .sgo-rail .sgo-rail-i .sgo-face { font-size: 16px; font-weight: 600; }
+}
+
+/* =====================================================================
+   v29: settings that must keep working: Light mode colours, Compact density, and the Accessibility choices
+   ===================================================================== */
+/* light mode: the urgency colours are darker so they read on a pale page */
+html.sgo-app:not(.sgo-dark) .dash6, html.sgo-app:not(.sgo-dark) { --u-overdue: #c4352b; --u-today: #b25d00; --u-soon: #2563c9; --u-done: #178a57; --t3: color-mix(in srgb, var(--text) 62%, var(--app-background)); }
+html.sgo-app:not(.sgo-dark) .dash6 .ag .pr .pr-open:hover { color: #fff !important; }
+html.sgo-app:not(.sgo-dark) .dash6 .an-act:hover, html.sgo-app:not(.sgo-dark) .dash6 .an-act[title="Mark as read"]:hover { color: #fff; }
+html.sgo-app:not(.sgo-dark) .dash6 .an-act { color: color-mix(in srgb, var(--c, var(--accent)) 80%, #000); }
+html.sgo-app:not(.sgo-dark) .pc-tick { stroke: #fff; }
+html.sgo-app:not(.sgo-dark) .dash6 .cl-r:hover .cl-g { color: color-mix(in srgb, var(--c, var(--accent)) 75%, #000); }
+
+/* compact density: the same layout with tighter rows, panels and gaps */
+html.sgo-compact .sgo-page.dash6 { row-gap: 24px; padding-top: 24px; }
+html.sgo-compact .dash6 > .dh { padding: 28px 40px; }
+html.sgo-compact .dash6 .dh-t { font-size: 40px; }
+html.sgo-compact .dash6 .dh-l { gap: 8px; }
+html.sgo-compact .dash6 .dp-fused, html.sgo-compact .dash6 > .dp-side-col { gap: 24px; }
+html.sgo-compact .dash6 .sec-h, html.sgo-compact .dash6 .side-h { margin-bottom: 12px; min-height: 36px; }
+html.sgo-compact .dash6 .ag-g + .ag-g { margin-top: 20px; }
+html.sgo-compact .dash6 .ag .pr-list, html.sgo-compact .dash6 .an-list, html.sgo-compact .dash6 .cl-list { padding: 6px; }
+html.sgo-compact .dash6 .ag .pr { padding: 8px 12px; }
+html.sgo-compact .dash6 .cl-a { padding: 10px 12px; row-gap: 8px; }
+html.sgo-compact .dash6 .an-list { gap: 6px; }
+html.sgo-compact .dash6 .an-list li > button { padding-block: 10px; }
+html.sgo-compact .dash6 .pri-filter, html.sgo-compact .dash6 .ag-ctl .sgo-btn.primary { height: 36px; min-height: 36px; font-size: 14px; }
+
+/* text size (Settings → Accessibility) */
+html.sgo-app.sgo-text-lg #sgo-root { zoom: 1.12; }
+html.sgo-app.sgo-text-xl #sgo-root { zoom: 1.25; }
+
+/* high contrast: full-strength text, visible outlines, a thick focus ring */
+html.sgo-app.sgo-contrast { --t2: var(--text); --t3: color-mix(in srgb, var(--text) 88%, var(--app-background)); --hair: color-mix(in srgb, var(--text) 45%, transparent); --s1: color-mix(in srgb, var(--text) 9%, var(--app-background)); --s2: color-mix(in srgb, var(--text) 15%, var(--app-background)); }
+html.sgo-app.sgo-contrast .dash6 .ag .pr-list, html.sgo-app.sgo-contrast .dash6 .cl-list, html.sgo-app.sgo-contrast .dash6 .an-list li { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 55%, transparent) !important; }
+html.sgo-app.sgo-contrast .dash6 .ag .pr .pr-due { box-shadow: inset 0 0 0 1.5px currentColor; }
+html.sgo-app.sgo-contrast #sgo-root :focus-visible { outline: 3px solid var(--text) !important; outline-offset: 3px !important; }
+html.sgo-app.sgo-contrast .pc-ring { stroke-width: 3; }
+
+/* reduced motion (Settings → Accessibility): nothing animates or transitions */
+html.sgo-reduce-motion *, html.sgo-reduce-motion *::before, html.sgo-reduce-motion *::after { animation-duration: .001ms !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; transition-delay: 0s !important; scroll-behavior: auto !important; }
+
+/* the banner's contour map, back to how it first looked: the original landscape, fading in from the right edge, one layer */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { content: ''; display: block; position: absolute; z-index: -1; inset: 0 0 0 36%; background: var(--topo-hero) right center / cover no-repeat; opacity: .9; transform: none; -webkit-mask-image: linear-gradient(to left, #000 25%, transparent); mask-image: linear-gradient(to left, #000 25%, transparent); pointer-events: none; }
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::after { display: none; }
+
+/* the banner's contours run right to the banner's edge (the picture is nudged so its blank margin falls outside) */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0 0 0 30%; background: var(--topo-hero) right -84px center / auto 142% no-repeat; }
+
+/* settings: compact cards and rows */
+html.sgo-app .sgo-card { padding: 18px 22px; margin-bottom: 12px; border-radius: 16px; }
+html.sgo-app .sgo-card h2 { margin: 0 0 6px; font-size: 18px; line-height: 1.3; font-weight: 600; }
+html.sgo-app .sgo-card > p.sgo-muted { margin: 0 0 6px; font-size: 14px; line-height: 1.45; max-width: 64ch; }
+html.sgo-app .sgo-set { padding: 10px 0; gap: 12px; }
+html.sgo-app .sgo-set b { font-size: 15px; font-weight: 600; line-height: 1.3; }
+html.sgo-app .sgo-set small { margin-top: 1px; font-size: 14px; line-height: 1.4; }
+html.sgo-app .sgo-card .sgo-input { min-height: 36px; height: 36px; }
+html.sgo-app .sgo-card .sgo-seg { padding: 2px; }
+html.sgo-app .sgo-card .sgo-seg button { min-height: 32px; padding: 0 14px; font-size: 14px; }
+html.sgo-app .sgo-card .sgo-btn { min-height: 36px; font-size: 14px; }
+html.sgo-app .sgo-card .sgo-head-a { margin-top: 8px; gap: 8px; }
+html.sgo-app .sgo-page > .sgo-head { margin-bottom: 16px; }
+
+/* banner contours: the picture's box runs 90px past the banner's right edge, so the lines reach the very end at any width */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { inset: 0 -90px 0 28%; background: var(--topo-hero) right center / cover no-repeat; }
+
+/* Appearance: three short sections (theme, accent, contour map) and the pickers tucked away */
+html.sgo-app .ap-modal { width: min(880px, calc(100vw - 32px)); padding: 24px 28px; }
+html.sgo-app .ap-modal .ap-head { margin-bottom: 16px; }
+html.sgo-app .ap-modal h2 { font-size: 20px; font-weight: 600; margin: 0; }
+html.sgo-app .ap-modal h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .ap-modal h3 small { font-size: 14px; font-weight: 400; color: var(--t3); }
+html.sgo-app .ap-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+html.sgo-app .ap-left, html.sgo-app .ap-right { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+html.sgo-app .ap-map { display: flex; flex-direction: column; gap: 4px; }
+html.sgo-app .ap-map .ap-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 40px; padding: 0; border: 0; }
+html.sgo-app .ap-map .ap-l b { font-size: 15px; font-weight: 400; color: var(--t1); }
+html.sgo-app .ap-map small { display: none; }
+html.sgo-app .ap-modal .sgo-seg { padding: 2px; }
+html.sgo-app .ap-modal .sgo-seg button { min-height: 32px; padding: 0 12px; font-size: 14px; }
+html.sgo-app .ap-presets { display: flex; flex-wrap: wrap; gap: 8px; }
+html.sgo-app .ap-preset { height: 36px; padding: 0 12px 0 8px; gap: 8px; border-radius: 10px; font-size: 14px; }
+html.sgo-app .ap-swrow { display: flex; flex-wrap: wrap; gap: 10px; }
+html.sgo-app .ap-swb { position: relative; flex: none; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%; display: grid; place-items: center; cursor: pointer; color: #fff; box-shadow: inset 0 0 0 1px rgb(255 255 255 / .18); transition: box-shadow .15s var(--ease-out); }
+html.sgo-app .ap-swb svg { width: 14px; height: 14px; stroke-width: 3; color: #fff; filter: drop-shadow(0 0 2px rgb(0 0 0 / .6)); }
+html.sgo-app .ap-swb:hover { box-shadow: inset 0 0 0 1px rgb(255 255 255 / .4), 0 0 0 2px color-mix(in srgb, var(--text) 25%, transparent); }
+html.sgo-app .ap-swb.on { box-shadow: 0 0 0 2px var(--app-background), 0 0 0 4px var(--text); }
+html.sgo-app .ap-swb:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+html.sgo-app .ap-swc { background: conic-gradient(#f43f5e, #f59e0b, #22c55e, #38bdf8, #8b5cf6, #f43f5e); overflow: hidden; }
+html.sgo-app .ap-swc input { position: absolute; inset: 0; opacity: 0; width: 100%; height: 100%; cursor: pointer; }
+html.sgo-app .ap-fine > summary { display: flex; align-items: center; justify-content: space-between; min-height: 40px; font-size: 14px; font-weight: 600; color: var(--t2); cursor: pointer; list-style: none; }
+html.sgo-app .ap-fine > summary::-webkit-details-marker { display: none; }
+html.sgo-app .ap-fine > summary:hover { color: var(--t1); }
+html.sgo-app .ap-fine > summary svg { width: 16px; height: 16px; stroke-width: 2.6; transition: transform .2s var(--ease-out); }
+html.sgo-app .ap-fine[open] > summary svg { transform: rotate(180deg); }
+html.sgo-app .ap-fine-b { display: flex; flex-direction: column; gap: 10px; padding-top: 4px; }
+html.sgo-app .ap-fine-b small { display: none; }
+@media (max-width: 760px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } }
+
+/* the old banner rule gave the picture a fixed width (min(720px, 70%)), which overrode "right" and left a blank strip at the end; the box is now sized by its edges only */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::before { width: auto; height: auto; top: 0; bottom: 0; left: 28%; right: -90px; }
+
+/* Appearance, one rhythm: 32px between the two columns, 24px between sections, 12px from a section title to its content, 36px controls, 8px between controls */
+html.sgo-app .ap-modal { width: min(860px, calc(100vw - 32px)); padding: 28px; }
+html.sgo-app .ap-modal .ap-head { margin-bottom: 24px; }
+html.sgo-app .ap-layout { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 32px; }
+html.sgo-app .ap-left, html.sgo-app .ap-right { gap: 24px; }
+html.sgo-app .ap-modal h3 { margin: 0 0 12px; font-size: 15px; line-height: 1.3; font-weight: 600; }
+html.sgo-app .ap-live { margin: 0; }
+html.sgo-app .ap-map { gap: 8px; }
+html.sgo-app .ap-map h3 { margin-bottom: 4px; }
+html.sgo-app .ap-map .ap-row { min-height: 36px; }
+html.sgo-app .ap-modal .sgo-seg button { min-height: 32px; }
+html.sgo-app .ap-modal .sgo-seg { height: 36px; box-sizing: border-box; }
+html.sgo-app .ap-map .sgo-btn { height: 36px; min-height: 36px; padding: 0 14px; font-size: 14px; }
+html.sgo-app .ap-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+html.sgo-app .ap-preset { width: 100%; justify-content: flex-start; height: 36px; }
+html.sgo-app .ap-swrow { gap: 12px; }
+html.sgo-app .ap-fine > summary { min-height: 36px; }
+html.sgo-app .ap-fine-b { gap: 8px; padding-top: 8px; }
+html.sgo-app .ap-modal .sgo-mfoot { margin-top: 24px; }
+html.sgo-app .ap-modal .sgo-mfoot .sgo-btn { height: 40px; min-height: 40px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 600; }
+
+html.sgo-app .ap-swrow { display: grid; grid-template-columns: repeat(10, 28px); justify-content: space-between; gap: 12px 0; }
+html.sgo-app .ap-preset:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+/* Appearance without themes: colours you change yourself. One scale: 32px between columns, 24px between sections, 12px title to content, 36px rows, 8px between rows. */
+html.sgo-app .ap-colours { display: flex; flex-direction: column; gap: 8px; }
+html.sgo-app .ap-colours > * { min-height: 36px; margin: 0; padding: 0; border: 0; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html.sgo-app .ap-colours small { display: none; }
+html.sgo-app .ap-colours b, html.sgo-app .ap-colours label > span { font-size: 15px; font-weight: 400; color: var(--t1); }
+html.sgo-app .ap-colours .sgo-input.hex { width: 104px; height: 36px; min-height: 36px; padding: 0 12px; font-size: 14px; }
+html.sgo-app .ap-colours .sgo-swatch-in { width: 36px; height: 36px; border-radius: 10px; }
+
+/* sidebar icons: the same heavy stroke, with rounded ends and corners so no line looks cut off, and room for the stroke at the icon's edges */
+@media (min-width: 901px) {
+  html.sgo-app .sgo-rail .sgo-rail-i svg, html.sgo-app .sgo-rail .sgo-rail-i:hover svg, html.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] svg { stroke-linecap: round; stroke-linejoin: round; overflow: visible; }
+  html.sgo-app .sgo-rail .sgo-rail-i svg path, html.sgo-app .sgo-rail .sgo-rail-i svg circle { stroke-linecap: round; stroke-linejoin: round; }
+}
+
+/* the same section rhythm on the Assignments page: 15px headings with a count, 12px to the list, 36px between sections */
+html.sgo-app .sgo-sec { margin: 0 0 36px; }
+html.sgo-app .sgo-sec > h3 { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 15px; line-height: 1.3; font-weight: 600; color: var(--t1); text-transform: none; }
+html.sgo-app .sgo-sec > h3 > span { display: inline-grid; place-items: center; min-width: 22px; height: 22px; padding: 0 7px; border-radius: 11px; font-size: 13px; font-weight: 600; line-height: 1; background: color-mix(in srgb, var(--text) 12%, transparent); color: var(--t2); }
+
+/* =====================================================================
+   v33: Appearance rows evenly spaced; the contour glow works (banner and miniature); priorities and announcements share one entrance and one exit
+   ===================================================================== */
+/* appearance: 16px from a title to its rows, 12px between rows (36px each) */
+html.sgo-app .ap-modal h3 { margin-bottom: 16px; }
+html.sgo-app .ap-map, html.sgo-app .ap-colours { gap: 12px; }
+html.sgo-app .ap-map h3 { margin-bottom: 4px; }
+html.sgo-app .ap-colours > *, html.sgo-app .ap-map .ap-row { min-height: 36px; height: 36px; }
+
+/* contour glow: a soft light in the glow colour behind the banner's lines (this is the Contour glow colour in Appearance) */
+html.sgo-app[data-sgo-topo="on"] .dash6 > .dh::after { content: ''; display: block !important; position: absolute; z-index: -2; inset: 0; background: radial-gradient(58% 140% at 84% 42%, color-mix(in srgb, var(--contour-glow) 36%, transparent), transparent 72%); pointer-events: none; }
+
+/* one entrance for both lists: each row or card rises into place, one after another; the lists start in turn */
+@keyframes item-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+html.sgo-app .dash6.intro .ag-g, html.sgo-app .dash6.intro .dp-fused > .side-card { animation: none !important; }
+html.sgo-app .dash6.intro .pr, html.sgo-app .dash6.intro .an-list li, html.sgo-app .dash6 .ag.swap .pr, html.sgo-app .dash6 .side-card.swap .an-list li { animation: item-rise .34s var(--ease-out) both; animation-delay: calc(var(--base, .08s) + var(--i, 0) * 45ms); }
+html.sgo-app .dash6 .ag-g:nth-of-type(1) { --base: .08s; }
+html.sgo-app .dash6 .ag-g:nth-of-type(2) { --base: .2s; }
+html.sgo-app .dash6 .ag-g:nth-of-type(3) { --base: .3s; }
+html.sgo-app .dash6 .ag-g:nth-of-type(4) { --base: .38s; }
+html.sgo-app .dash6 .dp-fused > .side-card { --base: .4s; }
+html.sgo-app .dash6 .ag.swap .ag-g, html.sgo-app .dash6 .side-card.swap { --base: 0s; }
+html.sgo-app .dash6 .ag.swap .pr { animation-delay: calc(var(--i, 0) * 45ms); }
+html.sgo-app .dash6 .side-card.swap .an-list li { animation-delay: calc(var(--i, 0) * 45ms); }
+/* one exit for both: the row or card fades, drifts 10px and closes up in about 0.3s (the same keyframes are used for dismissing and for completing) */
+html.sgo-app .dash6 .ag .pr.folding { transition: max-height .32s var(--ease-out), opacity .24s var(--ease-out), padding .32s var(--ease-out), transform .32s var(--ease-out), background-color .2s var(--ease-out); }
+html.sgo-app .dash6 .ag .pr.folding.fold { transform: translateX(10px); }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .dash6.intro .pr, html.sgo-app .dash6.intro .an-list li { animation: none !important; } }
+
+/* =====================================================================
+   v34: Appearance, redone. A large live preview on the left that shows every setting; one column of three well-spaced sections on the right.
+   Scale: 40px between the columns, 32px between sections, 16px from a title to its rows, 16px between rows (40px rows).
+   ===================================================================== */
+html.sgo-app .ap-modal { width: min(940px, calc(100vw - 32px)); padding: 32px 36px; }
+html.sgo-app .ap-modal .ap-head { margin-bottom: 28px; }
+html.sgo-app .ap-layout { grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 40px; align-items: start; }
+html.sgo-app .ap-left { position: sticky; top: 0; gap: 0; }
+html.sgo-app .ap-right { gap: 32px; }
+html.sgo-app .ap-live { border-radius: 16px; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+html.sgo-app .ap-live svg { display: block; width: 100%; height: auto; }
+html.sgo-app .ap-modal h3 { margin: 0 0 16px; font-size: 15px; font-weight: 600; }
+html.sgo-app .ap-map h3 { margin-bottom: 16px; }
+html.sgo-app .ap-map, html.sgo-app .ap-colours { gap: 16px; }
+html.sgo-app .ap-colours > *, html.sgo-app .ap-map .ap-row { min-height: 40px; height: 40px; }
+html.sgo-app .ap-modal .sgo-seg { height: 40px; }
+html.sgo-app .ap-modal .sgo-seg button { min-height: 36px; padding: 0 14px; }
+html.sgo-app .ap-map .sgo-btn { height: 40px; min-height: 40px; padding: 0 16px; }
+html.sgo-app .ap-colours .sgo-input.hex { height: 40px; min-height: 40px; width: 112px; }
+html.sgo-app .ap-colours .sgo-swatch-in { width: 40px; height: 40px; }
+html.sgo-app .ap-swrow { grid-template-columns: repeat(10, 28px); gap: 16px 0; }
+html.sgo-app .ap-modal .sgo-mfoot { margin-top: 32px; }
+@media (max-width: 800px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } html.sgo-app .ap-left { position: static; } }
+
+/* the panel fits a 900px-tall window without scrolling, and the preview is larger */
+html.sgo-app .ap-modal { padding: 28px 36px; }
+html.sgo-app .ap-modal .ap-head { margin-bottom: 24px; }
+html.sgo-app .ap-modal .sgo-mfoot { margin-top: 24px; }
+html.sgo-app .ap-layout { grid-template-columns: minmax(0, 420px) minmax(0, 1fr); }
+
+/* balanced columns: preview and accent on the left, colours and contour map on the right, so neither column leaves empty space */
+html.sgo-app .ap-left { gap: 32px; position: static; }
+html.sgo-app .ap-left .ap-accent .ap-swrow { grid-template-columns: repeat(10, 1fr); justify-items: start; }
+
+/* closer column heights: a wider preview on the left, slightly tighter rows on the right */
+html.sgo-app .ap-modal { width: min(960px, calc(100vw - 32px)); }
+html.sgo-app .ap-layout { grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 40px; }
+html.sgo-app .ap-right { gap: 28px; }
+html.sgo-app .ap-map, html.sgo-app .ap-colours { gap: 12px; }
+html.sgo-app .ap-left { gap: 28px; }
+
+/* priorities and announcements line up: the same 24px from each edge, on both sides */
+html.sgo-app .dash6 .an-list li > .an-acts { padding: 0 24px 0 8px; }
+html.sgo-app .dash6 .an-list li > .an-main { padding-right: 8px; }
+
+/* =====================================================================
+   v36: Settings and the Appearance panel: roomier rows, spaced-out buttons, a little more finish
+   ===================================================================== */
+html.sgo-app .sgo-card { padding: 22px 28px; margin-bottom: 16px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .sgo-card h2 { margin: 0 0 8px; font-size: 18px; }
+html.sgo-app .sgo-set { padding: 14px 0; gap: 20px; border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent); }
+html.sgo-app .sgo-set:first-of-type { border-top: 0; }
+
+/* segmented buttons: a gap between every button, a larger touch size, an accent fill with a soft lift when chosen */
+html.sgo-app .sgo-seg { display: inline-flex; gap: 6px; padding: 4px; border-radius: 12px; background: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .sgo-seg button { min-height: 36px; padding: 0 18px; border: 0; border-radius: 9px; background: transparent; color: var(--t2); font-size: 14px; font-weight: 600; transition: background-color .15s var(--ease-out), color .15s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .sgo-seg button:hover { background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--t1); }
+html.sgo-app .sgo-seg button.on { background: var(--accent); color: var(--on-accent); box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--accent) 60%, transparent); }
+html.sgo-app .sgo-seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+html.sgo-app .sgo-card .sgo-btn { min-height: 40px; padding: 0 18px; border-radius: 10px; }
+html.sgo-app .sgo-card .sgo-head-a { gap: 12px; margin-top: 12px; }
+html.sgo-app .sgo-card .sgo-input { min-height: 40px; height: 40px; border-radius: 10px; }
+html.sgo-app .ap-summary { display: flex; align-items: center; gap: 20px; padding-top: 12px; }
+html.sgo-app .ap-summary .thm-prev { width: 120px; flex: none; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+html.sgo-app .ap-summary .ap-l { flex: 1; min-width: 0; }
+
+/* the Appearance panel's buttons get the same room */
+html.sgo-app .ap-modal .sgo-seg { gap: 6px; padding: 4px; height: auto; }
+html.sgo-app .ap-modal .sgo-seg button { min-height: 32px; padding: 0 14px; }
+html.sgo-app .ap-modal .sgo-mfoot { gap: 16px; }
+html.sgo-app .ap-modal .sgo-mfoot .sgo-head-a { gap: 12px; }
+html.sgo-app .ap-swrow { gap: 16px 0; }
+
+/* =====================================================================
+   v38: Appearance offers sixteen colours per setting, as rectangles (no free picker)
+   ===================================================================== */
+html.sgo-app .ap-colours { display: flex; flex-direction: column; gap: 24px; }
+html.sgo-app .ap-colours > .ap-pal { display: block; min-height: 0; height: auto; }
+html.sgo-app .ap-pal h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 0 0 10px; font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .ap-pal h3 small { font-size: 14px; font-weight: 400; color: var(--t3); }
+html.sgo-app .ap-swgrid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; }
+html.sgo-app .ap-rect { position: relative; height: 30px; padding: 0; border: 0; border-radius: 8px; display: grid; place-items: center; cursor: pointer; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 20%, transparent); transition: transform .12s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .ap-rect:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 45%, transparent); }
+html.sgo-app .ap-rect.on { box-shadow: 0 0 0 2px var(--s1, var(--app-background)), 0 0 0 4px var(--t1); }
+html.sgo-app .ap-rect svg { width: 14px; height: 14px; stroke-width: 3; color: #fff; filter: drop-shadow(0 0 2px rgb(0 0 0 / .7)); }
+html.sgo-app .ap-rect:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+html.sgo-app .ap-right { gap: 24px; }
+html.sgo-app .ap-accent { display: block; }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .ap-rect { transition: none; } html.sgo-app .ap-rect:hover { transform: none; } }
+
+/* =====================================================================
+   v39: Appearance colours as four buttons; each opens its sixteen choices. Preview and actions on the left, colours and the map on the right.
+   ===================================================================== */
+html.sgo-app .ap-modal { width: min(940px, calc(100vw - 32px)); padding: 28px 36px; }
+html.sgo-app .ap-layout { grid-template-columns: minmax(0, 520px) minmax(0, 1fr); gap: 40px; align-items: start; }
+html.sgo-app .ap-left { display: flex; flex-direction: column; gap: 24px; position: static; }
+html.sgo-app .ap-actions { display: flex; align-items: center; gap: 12px; }
+html.sgo-app .ap-actions .sgo-btn { height: 40px; min-height: 40px; padding: 0 18px; border-radius: 10px; font-size: 15px; font-weight: 600; }
+html.sgo-app .ap-actions .sgo-btn.primary { margin-left: auto; }
+html.sgo-app .ap-right { gap: 28px; }
+html.sgo-app .ap-tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px 12px; }
+html.sgo-app .ap-tile { position: relative; }
+html.sgo-app .ap-tl { display: block; margin: 0 0 8px; font-size: 14px; font-weight: 600; color: var(--t2); }
+html.sgo-app .ap-tilebtn { width: 100%; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-radius: 10px; background: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); color: var(--t1); font-size: 15px; text-align: left; cursor: pointer; transition: box-shadow .15s var(--ease-out), background-color .15s var(--ease-out); }
+html.sgo-app .ap-tilebtn:hover { background: color-mix(in srgb, var(--text) 13%, var(--app-background)); }
+html.sgo-app .ap-tile.open .ap-tilebtn { box-shadow: inset 0 0 0 1.5px var(--accent); }
+html.sgo-app .ap-tilebtn span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .ap-tilebtn svg { flex: none; width: 16px; height: 16px; stroke-width: 2.6; color: var(--t3); transition: transform .2s var(--ease-out); }
+html.sgo-app .ap-tile.open .ap-tilebtn svg { transform: rotate(180deg); color: var(--accent); }
+html.sgo-app .ap-cur { flex: none; width: 28px; height: 20px; border-radius: 6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 28%, transparent); }
+html.sgo-app .ap-pop { position: absolute; z-index: 6; top: calc(100% + 8px); left: 0; width: 304px; display: grid; grid-template-columns: repeat(8, 1fr); gap: 8px; padding: 12px; border-radius: 14px; background: color-mix(in srgb, var(--text) 12%, var(--app-background)); box-shadow: 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent), 0 18px 40px -8px rgb(0 0 0 / .55); animation: dash-pop .16s var(--ease-out) both; transform-origin: top left; }
+html.sgo-app .ap-tile:nth-child(even) .ap-pop { left: auto; right: 0; transform-origin: top right; }
+html.sgo-app .ap-pop .ap-rect { height: 26px; }
+html.sgo-app .ap-pop .ap-rect.on { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 12%, var(--app-background)), 0 0 0 4px var(--t1); }
+html.sgo-app .ap-map { gap: 12px; }
+@media (max-width: 800px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } }
+
+/* sidebar order: profile, then notifications, then a separator, then the pages */
+@media (min-width: 901px) {
+  html.sgo-app .sgo-rail > .sgo-menu { order: -2; margin: 0 0 4px; padding: 0; border: 0; }
+  html.sgo-app .sgo-rail > .sgo-rail-notif { order: -1; margin: 0 0 12px; padding: 0 0 12px; border-bottom: 1px solid var(--hair); width: 40px; display: flex; justify-content: center; }
+}
+
+/* the notifications panel now opens from the bell near the top of the sidebar, so it hangs from the top */
+@media (min-width: 901px) {
+  html.sgo-app .sgo-rail-notif .notif-p { top: 64px; bottom: auto; max-height: calc(100vh - 88px); transform-origin: top left; }
+}
+
+/* colour choices: a bigger chip with its name under it, four across, so similar-looking colours are easy to tell apart */
+html.sgo-app .ap-pop { width: 320px; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; padding: 14px; }
+html.sgo-app .ap-opt { display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 0; border: 0; background: none; color: var(--t2); font-size: 13px; font-weight: 600; cursor: pointer; text-align: center; }
+html.sgo-app .ap-chip { position: relative; display: grid; place-items: center; height: 32px; border-radius: 8px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 28%, transparent); transition: transform .12s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .ap-chip svg { width: 14px; height: 14px; stroke-width: 3; color: #fff; filter: drop-shadow(0 0 2px rgb(0 0 0 / .8)); }
+html.sgo-app .ap-nm { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .ap-opt:hover .ap-chip { transform: translateY(-1px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 55%, transparent); }
+html.sgo-app .ap-opt:hover { color: var(--t1); }
+html.sgo-app .ap-opt.on { color: var(--t1); }
+html.sgo-app .ap-opt.on .ap-chip { box-shadow: 0 0 0 2px color-mix(in srgb, var(--text) 12%, var(--app-background)), 0 0 0 4px var(--t1); }
+html.sgo-app .ap-opt:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 8px; }
+html.sgo-app .ap-cur { width: 32px; height: 22px; }
+
+/* =====================================================================
+   v40: Appearance with themes: preview and themes side by side, the contour map in one row underneath
+   ===================================================================== */
+html.sgo-app .ap-modal { width: min(920px, calc(100vw - 32px)); padding: 28px 36px; }
+html.sgo-app .ap-layout { grid-template-columns: minmax(0, 480px) minmax(0, 1fr); gap: 36px; align-items: start; }
+html.sgo-app .ap-left { display: block; position: static; }
+html.sgo-app .ap-themes h3, html.sgo-app .ap-map h3 { margin: 0 0 14px; font-size: 15px; font-weight: 600; color: var(--t1); }
+html.sgo-app .ap-presets { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+html.sgo-app .ap-preset { display: flex; align-items: center; gap: 10px; width: 100%; height: 44px; padding: 0 12px 0 8px; border: 0; border-radius: 10px; background: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); color: var(--t1); font-size: 14px; font-weight: 600; text-align: left; cursor: pointer; transition: background-color .15s var(--ease-out), box-shadow .15s var(--ease-out); }
+html.sgo-app .ap-preset:hover { background: color-mix(in srgb, var(--text) 13%, var(--app-background)); }
+html.sgo-app .ap-preset.on { box-shadow: inset 0 0 0 2px var(--accent); }
+html.sgo-app .ap-preset:last-child:nth-child(odd) { grid-column: 1 / -1; }
+html.sgo-app .ap-pn { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .ap-mapbar { margin-top: 28px; padding-top: 24px; border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .ap-mapbar .ap-map { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 20px; }
+html.sgo-app .ap-mapbar .ap-map h3 { grid-column: 1 / -1; margin-bottom: 2px; }
+html.sgo-app .ap-mapbar .ap-row { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; height: auto; min-height: 0; }
+html.sgo-app .ap-mapbar .ap-l b { font-size: 14px; font-weight: 600; color: var(--t2); }
+html.sgo-app .ap-mapbar .sgo-seg { height: 40px; }
+html.sgo-app .ap-mapbar .sgo-btn { height: 40px; min-height: 40px; }
+html.sgo-app .ap-modal .sgo-mfoot { margin-top: 28px; }
+@media (max-width: 800px) { html.sgo-app .ap-layout { grid-template-columns: 1fr; } html.sgo-app .ap-mapbar .ap-map { grid-template-columns: 1fr 1fr; } }
+
+/* narrow screens: one column, in reading order (declared last so it wins over the wide layout above) */
+@media (max-width: 1000px) {
+  html.sgo-app .sgo-page.dash6 { grid-template-columns: minmax(0, 1fr); row-gap: 32px; padding: 20px 16px 56px; }
+  html.sgo-app .dash6 > .dh, html.sgo-app .dash6 > .dp-main, html.sgo-app .dash6 > .dp-side-col { grid-column: 1; }
+  html.sgo-app .dash6 > .dh { grid-row: 1; }
+  html.sgo-app .dash6 > .dp-main { grid-row: 2; }
+  html.sgo-app .dash6 > .dp-side-col { grid-row: 3; }
+  html.sgo-app .dash6 > .dh { padding: 28px 24px; align-items: stretch; }
+  html.sgo-app .dash6 .dh-wk { width: auto; }
+  html.sgo-app .dash6 .dh-t { font-size: 36px; }
+  html.sgo-app .dash6 .ag-ctl { flex-wrap: wrap; }
+  html.sgo-app .dash6 .ag-ctl .sgo-btn.primary { white-space: nowrap; }
+}
+@media (max-width: 720px) {
+  html.sgo-app .dash6 > .dh { padding: 24px 20px; min-height: 0; }
+  html.sgo-app .dash6 .dh-t { font-size: 30px; }
+  html.sgo-app .dash6 .ag-hrow { flex-wrap: wrap; }
+}
+
+/* week progress: one compact bar and a plain counter */
+html.sgo-app .dash6 .dh-wk { width: 240px; gap: 8px; }
+html.sgo-app .dash6 .wk-n { text-align: left; font-size: 14px; color: var(--t2); }
+html.sgo-app .dash6 .wk-n b { font-size: 15px; font-weight: 600; color: var(--t1); margin-right: 4px; }
+html.sgo-app .wk-bar { height: 6px; border-radius: 3px; overflow: hidden; background: color-mix(in srgb, var(--text) 18%, var(--s1)); }
+html.sgo-app .wk-bar i { display: block; height: 100%; min-width: 0; border-radius: 3px; background: var(--accent); transition: width .5s var(--ease-out); }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { position: static; width: auto; } }
+
+@media (max-width: 720px) {
+  html.sgo-app .dash6 .ag .pr { grid-template-columns: 22px minmax(0, 1fr) 32px; grid-template-areas: "c m o" ". d ."; }
+  html.sgo-app .dash6 .ag .pr .pr-due { justify-self: start; }
+}
+@media (max-width: 1000px) { html.sgo-app .dash6 > .dh { padding: 28px 24px; min-height: 0; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 > .dh { padding: 32px 28px; min-height: 0; } html.sgo-app .dash6 .dh-l { gap: 14px; } }
+html.sgo-app .dash6 .ag-hrow, html.sgo-app .dash6 .dp-side-col .side-h { min-height: 40px; }
+
+/* =====================================================================
+   Shared page frame and gradebook, brought onto the same rhythm as the dashboard
+   ===================================================================== */
+@media (min-width: 1001px) {
+  html.sgo-app .sgo-page:not(.dash6) { max-width: 1400px; padding: 40px 56px 80px; box-sizing: border-box; }
+}
+html.sgo-app .gr2-list { padding: 8px; gap: 2px; border: 0; border-radius: 16px; background: var(--s1); }
+html.sgo-app .gr2-course { border: 0; border-radius: 10px; }
+html.sgo-app .gr2-h { padding: 14px 16px; margin: 0; border-radius: 10px; }
+html.sgo-app .gr2-h:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { width: auto; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 .dh-wk { max-width: none; } }
+@media (max-width: 1000px) { html.sgo-app .dash6 > .dh { padding: 28px 24px; } }
+
+/* =====================================================================
+   Settings → Accessibility: rows that line up at any text size, and a high-contrast mode you can actually see
+   ===================================================================== */
+html.sgo-app .sgo-set { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 20px; }
+html.sgo-app .sgo-set > div:first-child { flex: 1 1 260px; min-width: 0; }
+html.sgo-app .sgo-set > :last-child:not(:first-child) { flex: 0 0 auto; margin-left: auto; max-width: 100%; }
+html.sgo-app .sgo-seg { flex-wrap: nowrap; overflow: visible; }
+html.sgo-app .sgo-seg button { white-space: nowrap; flex: 0 0 auto; }
+/* at larger text sizes every row stacks the same way: text on top, its control below, left-aligned */
+html.sgo-app.sgo-text-lg .sgo-set > :last-child:not(:first-child), html.sgo-app.sgo-text-xl .sgo-set > :last-child:not(:first-child) { margin-left: 0; }
+html.sgo-app.sgo-text-lg .sgo-set > div:first-child, html.sgo-app.sgo-text-xl .sgo-set > div:first-child { flex-basis: 100%; }
+html.sgo-app .sgo-seg button:focus-visible { outline-offset: 1px; }
+
+/* high contrast reaches the settings cards, rows and segmented controls too */
+html.sgo-app.sgo-contrast .sgo-card { background: color-mix(in srgb, var(--text) 7%, var(--app-background)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 60%, transparent); }
+html.sgo-app.sgo-contrast .sgo-set { border-top: 2px solid color-mix(in srgb, var(--text) 35%, transparent); }
+html.sgo-app.sgo-contrast .sgo-set:first-of-type { border-top: 0; }
+html.sgo-app.sgo-contrast .sgo-set small, html.sgo-app.sgo-contrast .sgo-card .sgo-muted { color: var(--text); }
+html.sgo-app.sgo-contrast .sgo-seg { background: var(--app-background); box-shadow: inset 0 0 0 2px var(--text); }
+html.sgo-app.sgo-contrast .sgo-seg button { color: var(--text); }
+html.sgo-app.sgo-contrast .sgo-seg button:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
+html.sgo-app.sgo-contrast .sgo-seg button.on { background: var(--text); color: var(--app-background); box-shadow: none; }
+html.sgo-app.sgo-contrast .sgo-card .sgo-btn { box-shadow: inset 0 0 0 2px currentColor; }
+
+/* =====================================================================
+   Appearance panel: opaque card, even theme grid, contour controls that never clip
+   ===================================================================== */
+html.sgo-app .ap-modal { background: color-mix(in srgb, var(--text) 5%, var(--app-background)); -webkit-backdrop-filter: none; backdrop-filter: none; box-sizing: border-box; max-height: calc(100vh - 32px); overflow-y: auto; }
+html.sgo-app .ap-modal .ap-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+html.sgo-app .ap-layout { align-items: start; }
+html.sgo-app .ap-themes > h3, html.sgo-app .ap-map > h3 { margin: 0 0 12px; font-size: 14px; font-weight: 600; color: var(--t2); }
+html.sgo-app .ap-presets { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 0; }
+html.sgo-app .ap-preset { height: 44px; min-height: 44px; box-sizing: border-box; }
+html.sgo-app .ap-preset:last-child:nth-child(odd) { grid-column: auto; }
+html.sgo-app .ap-sw { flex: none; }
+html.sgo-app .ap-mapbar .ap-map { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); align-items: end; gap: 16px 20px; }
+html.sgo-app .ap-mapbar .ap-row > .sgo-seg, html.sgo-app .ap-mapbar .ap-row > .sgo-btn { width: 100%; box-sizing: border-box; }
+html.sgo-app .ap-mapbar .sgo-seg { display: flex; height: 44px; align-items: stretch; }
+html.sgo-app .ap-mapbar .sgo-seg button { flex: 1 1 0; min-width: 0; padding: 0 8px; min-height: 0; }
+html.sgo-app .ap-mapbar .sgo-btn { justify-content: center; height: 44px; min-height: 44px; }
+html.sgo-app .ap-modal .sgo-mfoot { display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+@media (max-width: 800px) { html.sgo-app .ap-modal { padding: 20px; } html.sgo-app .ap-layout { gap: 24px; } }
+html.sgo-app .ap-layout { border: 0; padding-bottom: 0; margin-bottom: 0; }
+html.sgo-app .ap-layout::after { content: none; }
+html.sgo-app .ap-mapbar { margin-top: 24px; }
+
+/* =====================================================================
+   All caught up: a page of its own when no work is left
+   ===================================================================== */
+html.sgo-app .cu { display: grid; place-items: center; min-height: calc(100vh - 160px); padding: 32px 0; }
+html.sgo-app .cu-card { position: relative; isolation: isolate; overflow: hidden; width: min(640px, 100%); box-sizing: border-box; padding: 56px 40px 40px; border-radius: 24px; text-align: center; background: color-mix(in srgb, var(--u-done) 6%, var(--s1)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 8%, transparent); display: flex; flex-direction: column; align-items: center; }
+html.sgo-app[data-sgo-topo="on"] .cu-card::after { content: ''; position: absolute; z-index: -1; inset: 0; background: var(--topo-empty) center / cover no-repeat; opacity: .35; -webkit-mask-image: radial-gradient(circle at 50% 30%, #000, transparent 75%); mask-image: radial-gradient(circle at 50% 30%, #000, transparent 75%); pointer-events: none; }
+html.sgo-app .cu-i { display: grid; place-items: center; width: 80px; height: 80px; border-radius: 50%; background: color-mix(in srgb, var(--u-done) 20%, transparent); color: var(--u-done); box-shadow: 0 0 0 10px color-mix(in srgb, var(--u-done) 8%, transparent); animation: dash-rise .5s var(--ease-out) both; }
+html.sgo-app .cu-i svg { width: 36px; height: 36px; stroke-width: 2.4; }
+html.sgo-app .cu-eyebrow { margin: 28px 0 8px; font-size: 14px; letter-spacing: .04em; text-transform: uppercase; color: var(--t3); }
+html.sgo-app .cu-t { margin: 0 0 12px; font-size: 36px; line-height: 1.15; font-weight: 700; color: var(--t1); text-wrap: balance; }
+html.sgo-app .cu-s { margin: 0 0 28px; max-width: 42ch; font-size: 16px; line-height: 1.5; color: var(--t2); }
+html.sgo-app .cu-acts { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+html.sgo-app .cu-link { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 18px; border-radius: 10px; }
+html.sgo-app .cu-more { display: flex; gap: 24px; margin-top: 28px; padding-top: 20px; width: 100%; justify-content: center; border-top: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+@media (max-width: 600px) { html.sgo-app .cu-card { padding: 40px 20px 28px; } html.sgo-app .cu-t { font-size: 28px; } }
+
+/* =====================================================================
+   Every page opens with the dashboard's banner: the same panel, big title and contour map
+   ===================================================================== */
+html.sgo-app .sgo-page:not(.dash6) > .sgo-head { position: relative; overflow: hidden; isolation: isolate; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px 32px; box-sizing: border-box; min-height: 140px; margin: 0 0 24px; padding: 32px 40px; border-radius: 20px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app[data-sgo-topo="on"] .sgo-page:not(.dash6) > .sgo-head::before { content: ''; position: absolute; z-index: -1; inset: 0 -90px 0 38%; background: var(--topo-hero) right center / cover no-repeat; opacity: .8; -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 55%); mask-image: linear-gradient(to right, transparent 0%, #000 55%); pointer-events: none; }
+html.sgo-app .sgo-page:not(.dash6) > .sgo-head h1 { margin: 0; font-size: 44px; line-height: 1.06; font-weight: 600; letter-spacing: -.02em; color: var(--t1); text-wrap: balance; }
+html.sgo-app .sgo-page:not(.dash6) > .sgo-head p { margin: 8px 0 0; font-size: 16px; line-height: 1.4; color: var(--t2); max-width: 56ch; }
+html.sgo-app .sgo-page:not(.dash6) > .sgo-head .sgo-head-a { margin: 0; }
+@media (max-width: 720px) { html.sgo-app .sgo-page:not(.dash6) > .sgo-head { padding: 24px; min-height: 0; } html.sgo-app .sgo-page:not(.dash6) > .sgo-head h1 { font-size: 32px; } }
+
+/* every page's cards, lists and panels use the dashboard's surfaces, so nothing reads warmer or lighter than the dashboard */
+html.sgo-app.sgo-app, html.sgo-app.sgo-app.sgo-dark { --surface: var(--s1); --surface2: var(--s2); }
+html.sgo-app .sgo-page :is(.sgo-card, .sgo-course, .gp-card, .ib-list, .ib-read, .sgo-empty) { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+
+/* Grades: text sits well inside the card, and the heading, tags and table share one left and right edge */
+html.sgo-app .gr2-h { padding: 20px 28px; gap: 14px; }
+html.sgo-app .gr2-body { padding: 8px 28px 28px; }
+html.sgo-app .gr2-cats { padding: 14px 0 12px; gap: 8px; }
+html.sgo-app .gr2-ph { padding: 12px 0; }
+html.sgo-app .gr2-table th, html.sgo-app .gr2-table td { padding: 12px 10px; vertical-align: top; }
+html.sgo-app .gr2-table th:first-child, html.sgo-app .gr2-table td:first-child { padding-left: 0; }
+html.sgo-app .gr2-table th:last-child, html.sgo-app .gr2-table td:last-child { padding-right: 0; }
+html.sgo-app .gr2-none { padding: 20px 0; }
+@media (max-width: 600px) { html.sgo-app .gr2-h { padding: 16px 20px; } html.sgo-app .gr2-body { padding: 4px 20px 20px; } }
+
+/* =====================================================================
+   One spacing system for every container: text sits 24px from the edge, rows are 14px above and below,
+   panels are 16px apart. Dashboard, Grades, Settings and the page banners all follow it.
+   ===================================================================== */
+html.sgo-app { --inset: 24px; --row-y: 14px; --panel-gap: 16px; }
+/* dashboard: Priorities, Announcements and Grades share one inset and one row height */
+html.sgo-app .dash6 .ag .pr-list, html.sgo-app .dash6 .cl-list { padding: 8px; }
+html.sgo-app .dash6 .an-list { padding: 0; }
+html.sgo-app .dash6 .ag .pr { padding: var(--row-y) calc(var(--inset) - 8px); }
+html.sgo-app .dash6 .cl-a { padding: 16px calc(var(--inset) - 8px); }
+html.sgo-app .dash6 .an-list li > .an-main { padding: 18px 8px 18px var(--inset); }
+html.sgo-app .dash6 .an-list li > .an-acts { padding: 0 var(--inset) 0 8px; }
+html.sgo-app .dash6 .an-list { gap: 10px; }
+html.sgo-app .dash6 .an-top { margin-bottom: 8px; }
+html.sgo-app .dash6 .an-t { margin-top: 10px; }
+html.sgo-app .dash6 .tp-more { padding: 10px var(--inset); }
+html.sgo-app .dash6 .dp-fused, html.sgo-app .dash6 > .dp-side-col { gap: 32px; }
+html.sgo-app .dash6 .ag-g + .ag-g { margin-top: 28px; }
+html.sgo-app .dash6 .ag-gh { margin: 0 0 12px; }
+html.sgo-app .dash6 .sec-h, html.sgo-app .dash6 .side-h { margin-bottom: 16px; }
+html.sgo-app .dash6 .ag-clear { padding: 28px var(--inset); }
+html.sgo-app .dash6 > .dh, html.sgo-app .sgo-page:not(.dash6) > .sgo-head { padding: 36px 40px; }
+html.sgo-compact .dash6 .ag .pr { padding: 8px calc(var(--inset) - 8px); }
+html.sgo-compact .dash6 .an-list li > .an-main { padding-block: 12px; }
+/* grades and settings containers */
+html.sgo-app .gr2-h { padding: 20px var(--inset); }
+html.sgo-app .gr2-body { padding: 8px var(--inset) var(--inset); }
+html.sgo-app .sgo-card { padding: 24px var(--inset); margin-bottom: var(--panel-gap); }
+html.sgo-app .sgo-set { padding: var(--row-y) 0; }
+@media (max-width: 600px) { html.sgo-app { --inset: 20px; } }
+
+/* =====================================================================
+   Course page: no banner picture. A bold hero in the course's colour, a stat strip, dashboard-style tabs and panels
+   ===================================================================== */
+html.sgo-app .crs { display: block; }
+html.sgo-app .crs-head { position: relative; isolation: isolate; overflow: hidden; display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: end; gap: 24px 40px; box-sizing: border-box; margin: 0 0 24px; padding: 40px; border-radius: 20px; background: linear-gradient(115deg, color-mix(in srgb, var(--c) 34%, var(--s1)) 0%, color-mix(in srgb, var(--c) 10%, var(--s1)) 55%, var(--s1) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
+html.sgo-app .crs-head::after { content: ''; position: absolute; z-index: -1; right: -60px; top: -80px; width: 320px; height: 320px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--c) 40%, transparent), transparent 70%); pointer-events: none; }
+html.sgo-app .crs-actions { position: absolute; top: 20px; right: 20px; z-index: 2; display: flex; gap: 8px; margin: 0; }
+html.sgo-app .crs-title { position: static; margin: 0; padding: 0; min-width: 0; }
+html.sgo-app .crs-kicker { display: flex; align-items: center; gap: 10px; margin: 0 0 14px; font-size: 14px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 60%, var(--text)); }
+html.sgo-app .crs-kicker i { width: 28px; height: 4px; border-radius: 2px; background: var(--c); }
+html.sgo-app .crs-title h1 { margin: 0; font-size: 52px; line-height: 1.05; font-weight: 700; letter-spacing: -.025em; color: var(--t1); text-shadow: none; text-wrap: balance; max-width: 18ch; }
+html.sgo-app .crs-title h1 .crs-rename { opacity: 0; transition: opacity .15s var(--ease-out); }
+html.sgo-app .crs-title h1:hover .crs-rename, html.sgo-app .crs-title h1 .crs-rename:focus-visible { opacity: 1; }
+html.sgo-app .crs-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin-top: 16px; font-size: 15px; color: var(--t2); }
+html.sgo-app .crs-meta i { width: 4px; height: 4px; border-radius: 50%; background: var(--t3); }
+html.sgo-app .crs-code { padding: 3px 10px; border-radius: 999px; font-weight: 600; font-size: 14px; color: var(--t1); background: color-mix(in srgb, var(--c) 28%, transparent); }
+html.sgo-app .crs-stats { display: flex; gap: 12px; }
+html.sgo-app .crs-stat { min-width: 96px; padding: 14px 18px; border-radius: 14px; background: color-mix(in srgb, var(--app-background) 55%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); display: flex; flex-direction: column; gap: 4px; }
+html.sgo-app .crs-stat b { font-size: 28px; line-height: 1; font-weight: 700; color: var(--t1); font-variant-numeric: tabular-nums; }
+html.sgo-app .crs-stat span { font-size: 13px; color: var(--t2); }
+html.sgo-app .crs-stat.bad b { color: var(--u-overdue); }
+@media (max-width: 900px) { html.sgo-app .crs-head { grid-template-columns: 1fr; padding: 28px 24px; } html.sgo-app .crs-title h1 { font-size: 36px; } html.sgo-app .crs-stats { flex-wrap: wrap; } }
+
+/* tabs: the dashboard's segmented bar */
+html.sgo-app .crs-tabs { display: inline-flex; max-width: 100%; margin: 0 0 24px; padding: 4px; gap: 4px; border: 0; border-radius: 14px; background: var(--s2); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .crs-tabs a { min-height: 38px; padding: 0 18px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--t2) !important; opacity: 1; }
+html.sgo-app .crs-tabs a:hover { background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--t1) !important; }
+html.sgo-app .crs-tabs a[aria-current="page"], html.sgo-app .crs-tabs a[aria-current="page"]:hover { background: var(--accent); color: var(--on-accent) !important; box-shadow: 0 2px 8px -2px color-mix(in srgb, var(--accent) 60%, transparent); }
+html.sgo-app .crs-tab-pill { display: none; }
+
+/* panels: surfaces, inset and headings as on the dashboard */
+html.sgo-app .crs-grid { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+html.sgo-app .crs-col { display: flex; flex-direction: column; gap: 24px; }
+html.sgo-app .crs-card { padding: 24px; border: 0; border-radius: 16px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); transform: none; }
+html.sgo-app .crs-card:hover { transform: none; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .crs-card-h { display: flex; align-items: center; justify-content: space-between; margin: 0 0 16px; }
+html.sgo-app .crs-card-h h2 { margin: 0; font-size: 20px; line-height: 1.2; font-weight: 600; color: var(--t1); }
+html.sgo-app .crs-card-h .link { font-size: 14px; font-weight: 600; color: var(--accent); }
+html.sgo-app .crs-card.compact { padding: 20px 24px; }
+html.sgo-app .crs-dl > div { padding: 10px 0; }
+html.sgo-app .crs-dl dt { color: var(--t3); font-size: 14px; }
+html.sgo-app .crs-dl dd { color: var(--t1); font-size: 15px; font-weight: 600; }
+html.sgo-app .crs-micro { color: var(--t3); font-size: 13px; }
+html.sgo-app .crs-pane > .crs-card, html.sgo-app .crs-pane > .crs-gsum { margin-bottom: 16px; }
+@media (max-width: 900px) { html.sgo-app .crs-grid { grid-template-columns: 1fr; } }
+html.sgo-app .crs .crs-card, html.sgo-app .crs .crs-card.primary, html.sgo-app .crs .crs-card:hover { padding: 24px; border: 0; border-radius: 16px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); transform: none; }
+html.sgo-app .crs .crs-card.compact { padding: 20px 24px; }
+html.sgo-app .crs .crs-card.primary .crs-card-h h2 { font-size: 20px; line-height: 1.2; letter-spacing: 0; font-weight: 600; }
+
+/* course assignments and announcements: the dashboard's grouped panels */
+html.sgo-app .crs-pane .bk { margin: 0 0 28px; }
+html.sgo-app .crs-pane .bk-h { display: flex; align-items: center; gap: 10px; margin: 0 0 12px; font-size: 16px; font-weight: 600; color: var(--t1); }
+html.sgo-app .crs-pane .bk-n { display: inline-grid; place-items: center; min-width: 24px; height: 22px; padding: 0 8px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--t2); background: var(--s2); }
+html.sgo-app .crs-pane .bk > .rs-list { display: flex; flex-direction: column; gap: 2px; padding: 8px; border-radius: 16px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .crs-pane .bk .ar { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin: 0; border: 0; border-radius: 12px; transition: background-color .15s var(--ease-out); }
+html.sgo-app .crs-pane .bk .ar:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
+html.sgo-app .crs-pane .bk .ar .rs-main { flex: 1; min-width: 0; }
+html.sgo-app .crs-pane .bk .ar .rs-main small { color: var(--t3); }
+html.sgo-app .crs-pane .sgo-note { margin: 0; color: var(--t3); font-size: 14px; }
+html.sgo-app .crs-pane .an-cards { display: flex; flex-direction: column; gap: 12px; padding: 0; margin: 0; list-style: none; }
+html.sgo-app .crs-pane .an-cards > li.an { padding: 22px 24px; border: 0; border-radius: 16px; background: var(--s1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent); }
+html.sgo-app .crs-pane .an-cards .an-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+html.sgo-app .crs-pane .an-cards .an-text p { margin: 0; font-size: 15px; line-height: 1.55; color: var(--t1); }
+html.sgo-app .crs-pane .an-cards .an-time { margin-left: auto; font-size: 14px; color: var(--t3); }
+html.sgo-app .crs-pane .crs-gsum { display: flex; align-items: baseline; gap: 16px; padding: 22px 24px; }
+html.sgo-app .crs-pane .an-cards > li.an { background: var(--s1) !important; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 7%, transparent) !important; }
+html.sgo-app .crs-pane .an-cards .an-head { padding: 0; background: none; border: 0; }
+html.sgo-app .crs-pane .an-cards .an-text { padding: 0; }
+
+/* =====================================================================
+   Courses page: no banner. A big title, then bold tiles in each course colour
+   ===================================================================== */
+html.sgo-app .cl-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px 24px; flex-wrap: wrap; margin: 0 0 32px; }
+html.sgo-app .cl-top h1 { margin: 0; font-size: 56px; line-height: 1; font-weight: 700; letter-spacing: -.03em; color: var(--t1); }
+html.sgo-app .cl-top p { margin: 12px 0 0; font-size: 16px; color: var(--t2); }
+html.sgo-app .cl-page .sgo-cgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 24px; }
+html.sgo-app .cc2 { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; gap: 28px; min-height: 280px; box-sizing: border-box; padding: 24px; border-radius: 20px; background: linear-gradient(150deg, color-mix(in srgb, var(--c) 38%, var(--s1)) 0%, color-mix(in srgb, var(--c) 12%, var(--s1)) 60%, var(--s1) 100%); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 32%, transparent); transition: transform .2s var(--ease-out), box-shadow .2s var(--ease-out); }
+html.sgo-app .cc2::after { content: ''; position: absolute; z-index: -1; right: -50px; top: -70px; width: 220px; height: 220px; border-radius: 50%; background: radial-gradient(circle, color-mix(in srgb, var(--c) 36%, transparent), transparent 70%); pointer-events: none; }
+html.sgo-app .cc2:hover { transform: translateY(-3px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 60%, transparent), 0 18px 40px -24px color-mix(in srgb, var(--c) 70%, #000); }
+html.sgo-app .cc2.dragging { opacity: .5; } html.sgo-app .cc2.over { box-shadow: inset 0 0 0 2px var(--accent); }
+html.sgo-app .cc2-code { padding: 4px 12px; border-radius: 999px; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--t1); background: color-mix(in srgb, var(--c) 30%, transparent); }
+html.sgo-app .cc2-body { flex: 1; min-width: 0; }
+html.sgo-app .cc2 .sgo-course-t { margin: 0; font-size: 30px; line-height: 1.12; font-weight: 700; letter-spacing: -.02em; color: var(--t1); white-space: normal; text-wrap: balance; }
+html.sgo-app .cc2 .sgo-course-link { position: absolute; inset: 0; z-index: 1; border-radius: inherit; }
+@media (max-width: 600px) { html.sgo-app .cl-top h1 { font-size: 40px; } html.sgo-app .cl-page .sgo-cgrid { grid-template-columns: 1fr; } }
+
+/* Courses tiles, tighter: one stats row of grade + chips, less air between name, stats and links */
+html.sgo-app .cl-top { margin-bottom: 20px; }
+html.sgo-app .cl-top h1 { font-size: 48px; }
+html.sgo-app .cl-top p { margin-top: 8px; }
+html.sgo-app .cl-page .sgo-cgrid { gap: 16px; }
+html.sgo-app .cc2 { gap: 10px; min-height: 0; padding: 18px 20px; border-radius: 18px; }
+html.sgo-app .cc2-body { flex: none; }
+html.sgo-app .cc2 .sgo-course-t { font-size: 26px; line-height: 1.12; }
+html.sgo-app .cc2-chip { padding: 4px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; color: var(--t1); background: color-mix(in srgb, var(--text) 10%, transparent); }
+html.sgo-app .cc2-chip.bad { color: var(--u-overdue); background: color-mix(in srgb, var(--u-overdue) 16%, transparent); }
+
+/* Courses tiles, redesigned: identity only (index, code, term, teacher). No grades, no assignment counts. */
+html.sgo-app .cl-page .sgo-cgrid { grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 18px; }
+html.sgo-app .cc2 { gap: 0; min-height: 210px; padding: 20px 22px 18px; border-radius: 22px; justify-content: flex-start;
+  background: radial-gradient(120% 90% at 100% 0%, color-mix(in srgb, var(--c) 34%, transparent), transparent 62%), linear-gradient(180deg, color-mix(in srgb, var(--c) 10%, var(--s1)), var(--s1)); }
+html.sgo-app .cc2::after { display: none; }
+html.sgo-app .cc2::before { content: ''; position: absolute; left: 0; top: 22px; bottom: 22px; width: 4px; border-radius: 0 4px 4px 0; background: var(--c); }
+html.sgo-app .cc2-head { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; }
+html.sgo-app .cc2-code, html.sgo-app .cc2-term { padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; letter-spacing: .02em; color: var(--t1); background: color-mix(in srgb, var(--c) 24%, transparent); }
+html.sgo-app .cc2-term { background: color-mix(in srgb, var(--text) 9%, transparent); color: var(--t2); }
+html.sgo-app .cc2-body { flex: 1; padding-bottom: 18px; }
+html.sgo-app .cc2 .sgo-course-t { font-size: 25px; line-height: 1.14; max-width: 92%; }
+html.sgo-app .cc2-foot { position: relative; z-index: 2; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-top: 12px; border-top: 1px solid color-mix(in srgb, var(--text) 11%, transparent); }
+html.sgo-app .cc2-go { display: inline-flex; align-items: center; gap: 4px; font-size: 14px; font-weight: 600; color: var(--t2); opacity: .7; transition: opacity .15s, transform .2s var(--ease-out), color .15s; }
+html.sgo-app .cc2:hover .cc2-go { opacity: 1; color: var(--t1); transform: translateX(3px); }
+@media (max-width: 600px) { html.sgo-app .cl-page .sgo-cgrid { grid-template-columns: 1fr; } html.sgo-app .cc2-mark { font-size: 72px; } }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .cc2-mark, html.sgo-app .cc2-go { transition: none; } html.sgo-app .cc2:hover .cc2-mark, html.sgo-app .cc2:hover .cc2-go { transform: none; } }
+
+/* Courses tiles: no numbers or teacher; the watermark gets its own band under the title so nothing overlaps */
+html.sgo-app .cc2 { min-height: 190px; }
+html.sgo-app .cc2-body { padding-bottom: 36px; position: relative; z-index: 1; }
+html.sgo-app .cc2-head { position: relative; z-index: 1; padding-right: 110px; }
+html.sgo-app .cc2-foot { border-top: 0; padding-top: 0; justify-content: flex-start; }
+html.sgo-app .cc2-go { opacity: 1; color: var(--t1); font-size: 14px; }
+html.sgo-app .cc2 .sgo-course-t { max-width: 100%; text-shadow: none; }
+
+/* watermark is now a subject word, so it can run wider and in normal case */
+
+/* ===== Courses tiles, third pass: solid colour blocks, a different pattern on each ===== */
+html.sgo-app .cc2 { min-height: 200px; padding: 20px 22px; border-radius: 22px; background: var(--c); color: var(--ink); box-shadow: none; overflow: hidden; }
+html.sgo-app .cc2::before, html.sgo-app .cc2::after, html.sgo-app .cc2-mark { display: none; }
+html.sgo-app .cc2:hover { transform: translateY(-4px); box-shadow: 0 20px 40px -22px color-mix(in srgb, var(--c) 80%, #000); }
+html.sgo-app .cc2-art { position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: .22; color: var(--ink); transition: transform .5s var(--ease-out), opacity .2s; }
+html.sgo-app .cc2:hover .cc2-art { transform: scale(1.06); opacity: .32; }
+html.sgo-app .cc2-head, html.sgo-app .cc2-body, html.sgo-app .cc2-foot { position: relative; z-index: 1; }
+html.sgo-app .cc2-head { padding-right: 110px; }
+html.sgo-app .cc2-label { font-size: 13px; font-weight: 800; letter-spacing: .14em; text-transform: uppercase; color: var(--ink); opacity: .8; }
+html.sgo-app .cc2-code, html.sgo-app .cc2-term { padding: 3px 10px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--ink); background: color-mix(in srgb, var(--ink) 16%, transparent); }
+html.sgo-app .cc2 .sgo-course-t { color: var(--ink); font-size: 30px; font-weight: 800; letter-spacing: -.025em; line-height: 1.08; }
+html.sgo-app .cc2-body { padding-bottom: 22px; }
+html.sgo-app .cc2-foot { border: 0; padding: 0; justify-content: flex-start; }
+html.sgo-app .cc2-go { gap: 6px; padding: 8px 14px; border-radius: 999px; font-size: 14px; font-weight: 700; color: var(--c); background: var(--ink); opacity: 1; transition: transform .2s var(--ease-out); }
+html.sgo-app .cc2-go svg { stroke-width: 3; }
+html.sgo-app .cc2:hover .cc2-go { color: var(--c); transform: translateX(4px); }
+/* Reset order: same thick button as Add task on the dashboard */
+html.sgo-app .cl-top .cl-reset { box-sizing: border-box; height: 40px; min-height: 40px; padding: 0 18px; gap: 8px; border-radius: 10px; font-size: 15px; font-weight: 600; line-height: 1; }
+html.sgo-app .cl-top .cl-reset svg { width: 16px; height: 16px; stroke-width: 3; }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .cc2-art, html.sgo-app .cc2-go { transition: none; } html.sgo-app .cc2:hover .cc2-art, html.sgo-app .cc2:hover .cc2-go { transform: none; } }
+
+/* ===== Courses tiles, fourth pass: calm. Dark surface with a muted wash of the course colour and a faint pattern ===== */
+html.sgo-app .cc2 { background: color-mix(in srgb, var(--c) 16%, var(--s1)); color: var(--t1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 22%, transparent); }
+html.sgo-app .cc2:hover { transform: translateY(-2px); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 45%, transparent), 0 14px 30px -22px color-mix(in srgb, var(--c) 60%, #000); }
+html.sgo-app .cc2-art { color: var(--c); opacity: .14; -webkit-mask-image: linear-gradient(135deg, transparent 15%, #000 100%); mask-image: linear-gradient(135deg, transparent 15%, #000 100%); }
+html.sgo-app .cc2:hover .cc2-art { opacity: .2; transform: none; }
+html.sgo-app .cc2-label { color: color-mix(in srgb, var(--c) 70%, var(--t1)); opacity: 1; font-size: 13px; }
+html.sgo-app .cc2-code, html.sgo-app .cc2-term { color: var(--t2); background: color-mix(in srgb, var(--text) 8%, transparent); font-weight: 600; }
+html.sgo-app .cc2 .sgo-course-t { color: var(--t1); font-size: 27px; font-weight: 700; letter-spacing: -.02em; }
+html.sgo-app .cc2-go { padding: 0; background: none; color: var(--t2); font-weight: 600; font-size: 14px; }
+html.sgo-app .cc2-go svg { stroke-width: 2.4; }
+html.sgo-app .cc2:hover .cc2-go { color: color-mix(in srgb, var(--c) 75%, var(--t1)); transform: translateX(3px); }
+
+/* ===== Courses tiles, fifth pass: a real topographic map per course ===== */
+html.sgo-app .cc2 { min-height: 190px; gap: 0; background: color-mix(in srgb, var(--c) 13%, var(--s1)); }
+html.sgo-app .cc2-art { inset: 0; opacity: 1; color: var(--c); -webkit-mask-image: none; mask-image: none; transition: transform .6s var(--ease-out); }
+html.sgo-app .cc2-art svg { display: block; width: 100%; height: 100%; }
+html.sgo-app .cc2-art path { fill: none; stroke: currentColor; stroke-width: 1; vector-effect: non-scaling-stroke; stroke-linecap: round; stroke-linejoin: round; opacity: .5; }
+html.sgo-app .cc2-art path.mj { stroke-width: 1.7; stroke-opacity: .85; opacity: .75; }
+html.sgo-app .cc2:hover .cc2-art { opacity: 1; transform: scale(1.04); }
+html.sgo-app .cc2-art::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 13%, var(--s1)) 0%, transparent 55%); }
+html.sgo-app .cc2-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-right: 0; margin: 0; min-height: 40px; }
+html.sgo-app .cc2-label { font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: color-mix(in srgb, var(--c) 65%, var(--t1)); }
+html.sgo-app .cc2-body { flex: 1; padding: 22px 0 20px; }
+html.sgo-app .cc2 .sgo-course-t { font-size: 28px; font-weight: 800; letter-spacing: -.025em; line-height: 1.08; }
+html.sgo-app .cc2-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+html.sgo-app .cc2-chips { display: flex; flex-wrap: wrap; gap: 8px; min-height: 36px; align-items: center; }
+html.sgo-app .cc2-code, html.sgo-app .cc2-term { padding: 6px 12px; border-radius: 10px; font-size: 14px; font-weight: 700; color: var(--t1); background: color-mix(in srgb, var(--s1) 70%, var(--c)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 30%, transparent); }
+html.sgo-app .cc2-go { flex: none; display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border-radius: 10px; background: color-mix(in srgb, var(--s1) 70%, var(--c)); color: var(--t1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 40%, transparent); transition: background .15s, color .15s, transform .2s var(--ease-out); }
+html.sgo-app .cc2-go svg { width: 20px; height: 20px; stroke-width: 2.6; }
+html.sgo-app .cc2:hover .cc2-go { background: var(--c); color: var(--ink, #fff); transform: translateX(3px); }
+html.sgo-app .cl-top .cl-reset { height: 44px; min-height: 44px; padding: 0 20px; font-weight: 700; }
+html.sgo-app .cl-top .cl-reset svg { width: 18px; height: 18px; stroke-width: 2.6; flex: none; }
+
+/* ===== Courses tiles: make the map easy to see ===== */
+html.sgo-app .cc2 { background: color-mix(in srgb, var(--c) 22%, var(--s1)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 45%, transparent); }
+html.sgo-app .cc2-art { color: color-mix(in srgb, var(--c) 55%, #fff); }
+html.sgo-app .cc2-art path { stroke-width: 1.4; opacity: .8; stroke-opacity: 1 !important; }
+html.sgo-app .cc2-art path.mj { stroke-width: 2.6; opacity: 1; }
+html.sgo-app .cc2-art::after { background: linear-gradient(90deg, color-mix(in srgb, var(--c) 22%, var(--s1)) 0%, transparent 60%); }
+html.sgo-app .cc2 .sgo-course-t { text-shadow: 0 1px 12px color-mix(in srgb, var(--c) 22%, var(--s1)), 0 0 2px color-mix(in srgb, var(--c) 22%, var(--s1)); }
+html.sgo-app .cc2-label { color: color-mix(in srgb, var(--c) 40%, #fff); }
+
+/* ===== Courses tiles: the name must be easy to read ===== */
+html.sgo-app .cc2-art { -webkit-mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.35) 30%, rgba(0,0,0,.12) 62%, rgba(0,0,0,.7) 100%); mask-image: linear-gradient(180deg, #000 0%, rgba(0,0,0,.35) 30%, rgba(0,0,0,.12) 62%, rgba(0,0,0,.7) 100%); }
+html.sgo-app .cc2-art::after { background: none; }
+html.sgo-app .cc2-body { position: relative; z-index: 2; }
+html.sgo-app .cc2 .sgo-course-t { color: #fff; font-size: 30px; font-weight: 800; text-shadow: 0 2px 14px rgba(0,0,0,.55), 0 0 3px rgba(0,0,0,.45); }
+
+/* ===== Courses tiles: all the same size, no hover buttons ===== */
+html.sgo-app .cl-page .sgo-cgrid { grid-auto-rows: 210px; }
+html.sgo-app .cc2 { height: 210px; min-height: 210px; max-height: 210px; }
+html.sgo-app .cc2-head { min-height: 20px; flex: none; }
+html.sgo-app .cc2-body { flex: 1; min-height: 0; padding: 14px 0 12px; display: flex; align-items: center; }
+html.sgo-app .cc2 .sgo-course-t { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: 28px; line-height: 1.1; max-width: 100%; }
+html.sgo-app .cc2-foot { flex: none; }
+html.sgo-app .cc2-chips { flex-wrap: nowrap; overflow: hidden; min-width: 0; }
+html.sgo-app .cc2-code, html.sgo-app .cc2-term { white-space: nowrap; }
+
+/* "COURSES" label at the very top of the page */
+html.sgo-app .cl-eyebrow { display: inline-block; margin: 0 0 12px; padding: 6px 12px; border-radius: 10px; font-size: 13px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* Big COURSES label, a working arrow, and text that is easy to read */
+html.sgo-app .cl-eyebrow { margin: 0 0 16px; padding: 10px 22px; border-radius: 14px; font-size: 22px; font-weight: 800; letter-spacing: .18em; line-height: 1; color: var(--on-accent); background: var(--accent); box-shadow: none; }
+html.sgo-app .cc2-label { font-size: 14px; font-weight: 800; color: #fff; text-shadow: 0 1px 8px rgba(0,0,0,.6); opacity: 1; }
+html.sgo-app .cc2-code, html.sgo-app .cc2-term { font-size: 14px; font-weight: 800; color: #fff; background: rgba(8,8,10,.62); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--c) 55%, transparent); text-shadow: none; }
+html.sgo-app .cc2-go { position: relative; z-index: 3; width: 48px; height: 48px; border-radius: 12px; color: #fff; background: rgba(8,8,10,.62); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 70%, transparent); text-decoration: none; cursor: pointer; }
+html.sgo-app .cc2-go svg { width: 24px; height: 24px; stroke-width: 2.8; }
+html.sgo-app .cc2-go:hover, html.sgo-app .cc2:hover .cc2-go { background: var(--c); color: var(--ink, #fff); transform: none; }
+html.sgo-app .cc2 .sgo-course-t { font-size: 30px; text-shadow: 0 2px 4px rgba(0,0,0,.7), 0 0 18px rgba(0,0,0,.6); }
+
+/* COURSES label: no box, just very large type (it is the page title, so the second "Courses" heading goes) */
+html.sgo-app .cl-eyebrow { display: block; margin: 0; padding: 0; border-radius: 0; background: none; box-shadow: none; font-size: 72px; line-height: 1; font-weight: 800; letter-spacing: -.03em; text-transform: none; color: var(--t1); }
+html.sgo-app .cl-top h1 { display: none; }
+html.sgo-app .cl-top p { margin-top: 14px; }
+@media (max-width: 600px) { html.sgo-app .cl-eyebrow { font-size: 48px; } }
+html.sgo-app .cl-eyebrow { font-size: 56px; }
+@media (max-width: 600px) { html.sgo-app .cl-eyebrow { font-size: 40px; } }
+
+/* ===== Assignments page: the dashboard's own rows, groups, menus and entrance animation. No topographic banner. ===== */
+html.sgo-app .sgo-page.dash6.asg6 { grid-template-columns: minmax(0, 1fr); max-width: 1000px; }
+html.sgo-app .asg6 > .dp-main { grid-column: 1; grid-row: 2; }
+html.sgo-app .asg6 > .asg-h { align-items: flex-end; flex-wrap: wrap; gap: 16px 32px; }
+html.sgo-app .asg6 .asg-title { margin: 0; font-size: 56px; line-height: 1; font-weight: 800; letter-spacing: -.03em; color: var(--t1); }
+html.sgo-app .asg6 .asg-sub { margin: 12px 0 0; font-size: 16px; color: var(--t2); }
+html.sgo-app .asg6 .asg-act { display: flex; gap: 10px; flex-wrap: wrap; }
+html.sgo-app .asg6 .asg-act .sgo-btn { box-sizing: border-box; height: 44px; min-height: 44px; padding: 0 20px; gap: 8px; border-radius: 10px; font-size: 15px; font-weight: 700; line-height: 1; }
+html.sgo-app .asg6 .asg-act .sgo-btn svg { width: 18px; height: 18px; stroke-width: 2.6; flex: none; }
+html.sgo-app .asg6 .asg-act .sgo-btn.ghost { background: var(--s1); color: var(--t1); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+html.sgo-app .asg6 .asg-act .sgo-btn.ghost:hover { background: color-mix(in srgb, var(--text) 10%, var(--s1)); }
+html.sgo-app .asg6 .asg-bar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px 20px; margin: 0 0 24px; }
+html.sgo-app .asg6 .sgo-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+html.sgo-app .asg6 .sgo-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border: 0; border-radius: 10px; background: var(--s1); color: var(--t2); font-size: 14px; font-weight: 600; box-shadow: none; transition: background .15s var(--ease-out), color .15s, transform .1s; }
+html.sgo-app .asg6 .sgo-chip span { font-size: 13px; font-weight: 700; color: var(--t3); }
+html.sgo-app .asg6 .sgo-chip:hover { background: color-mix(in srgb, var(--text) 9%, var(--s1)); color: var(--t1); }
+html.sgo-app .asg6 .sgo-chip:active { transform: scale(.97); }
+html.sgo-app .asg6 .sgo-chip.on { background: var(--accent); color: var(--on-accent); }
+html.sgo-app .asg6 .sgo-chip.on span { color: inherit; opacity: .75; }
+html.sgo-app .asg6 .asg-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+html.sgo-app .asg6 .pri-filter { height: 40px; min-height: 40px; font-size: 14px; font-weight: 600; border-radius: 10px; }
+/* the same eased entrance and filter swap the dashboard uses */
+html.sgo-app .dash6.asg6.intro > .asg-h, html.sgo-app .dash6.asg6.intro .asg-bar { animation: dash-rise .45s var(--ease-out) both; }
+html.sgo-app .dash6.asg6.intro .asg-bar { animation-delay: .08s; }
+html.sgo-app .dash6.asg6.intro .ag-g { animation: dash-rise .45s var(--ease-out) both; }
+html.sgo-app .dash6.asg6.intro .ag-g:nth-of-type(1) { animation-delay: .14s; }
+html.sgo-app .dash6.asg6.intro .ag-g:nth-of-type(2) { animation-delay: .22s; }
+html.sgo-app .dash6.asg6.intro .ag-g:nth-of-type(3) { animation-delay: .3s; }
+html.sgo-app .dash6.asg6.intro .ag-g:nth-of-type(n+4) { animation-delay: .38s; }
+@media (prefers-reduced-motion: reduce) { html.sgo-app .dash6.asg6.intro *, html.sgo-app .dash6.asg6.intro { animation: none !important; } }
+@media (max-width: 600px) { html.sgo-app .asg6 .asg-title { font-size: 40px; } }
+
+/* Assignments: no topographic banner behind the title, and the dashboard's width */
+html.sgo-app .dash6 > .dh.asg-h::before, html.sgo-app .dash6 > .dh.asg-h::after, html.sgo-app[data-sgo-topo="on"] .dash6 > .dh.asg-h::before, html.sgo-app[data-sgo-topo="on"] .dash6 > .dh.asg-h::after, html.sgo-app[data-sgo-topo="on"] .dh.asg-h::before { content: none !important; display: none !important; background: none !important; }
+html.sgo-app .sgo-page.dash6.asg6 { max-width: 1240px; padding: 32px 40px 64px; }
+@media (max-width: 900px) { html.sgo-app .sgo-page.dash6.asg6 { padding: 24px 20px 56px; } }
+
+/* Assignments: the header is plain text on the page, not the dashboard's banner card */
+html.sgo-app .dash6.asg6 > .dh.asg-h { background: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; min-height: 0 !important; padding: 0 !important; overflow: visible !important; }
+
+/* Assignments: the filter bar never moves when the filter or the list changes */
+html { scrollbar-gutter: stable; }
+html.sgo-app .asg6 .asg-bar { min-height: 40px; flex-wrap: nowrap; align-items: center; }
+html.sgo-app .asg6 .sgo-chips { flex: 1 1 auto; flex-wrap: nowrap; min-width: 0; }
+html.sgo-app .asg6 .sgo-chip { flex: none; min-width: 112px; justify-content: center; }
+html.sgo-app .asg6 .asg-filters { flex: none; flex-wrap: nowrap; justify-content: flex-end; }
+html.sgo-app .asg6 .asg-filters .pri-filter { box-sizing: border-box; width: 190px; justify-content: space-between; }
+html.sgo-app .asg6 .asg-filters .pri-filter span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left; }
+@media (max-width: 1100px) { html.sgo-app .asg6 .asg-bar { flex-wrap: wrap; } html.sgo-app .asg6 .sgo-chips { flex-wrap: wrap; } html.sgo-app .asg6 .sgo-chip { min-width: 0; } }
+
+/* ===== No banners on any page: page titles are plain text on the page, with no card, colour wash or topographic art behind them ===== */
+html.sgo-app .sgo-page > .sgo-head {
+  background: none !important; box-shadow: none !important; border: 0 !important; border-radius: 0 !important; min-height: 0 !important; padding-left: 0 !important; padding-right: 0 !important; padding-top: 8px !important; padding-bottom: 8px !important; overflow: visible !important; }
+html.sgo-app .sgo-page > .sgo-head::before, html.sgo-app .sgo-page > .sgo-head::after, html.sgo-app[data-sgo-topo="on"] .sgo-page > .sgo-head::before,
+html.sgo-app .hero::before, html.sgo-app .hero::after { content: none !important; display: none !important; background: none !important; }

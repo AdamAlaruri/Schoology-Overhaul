@@ -89,24 +89,36 @@
   /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
     { id: 'brown', name: 'Brown', note: 'Warm brown, visible contours', accent: '#f0b46c', contour: '#d9b98a', contourGlow: '#c8843f', background: '#12100e' },
-    { id: 'schoology', name: 'Schoology blue', note: 'Light, blue and white', accent: '#1769d6', contour: '#9fb3cc', contourGlow: '#93c5fd', background: '#f8fafc' },
+    { id: 'schoology', name: 'Classic blue', note: 'Light, blue and white', accent: '#1769d6', contour: '#9fb3cc', contourGlow: '#93c5fd', background: '#f8fafc' },
     { id: 'hearth', name: 'Hearth', note: 'Warm charcoal', accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311' },
     { id: 'slate', name: 'Slate', note: 'Cool slate', accent: '#7fb0ff', contour: '#9fb0c8', contourGlow: '#3f6fb5', background: '#12161c' },
     { id: 'midnight', name: 'Midnight', note: 'Blue-black', accent: '#8fa2ff', contour: '#8aa0d0', contourGlow: '#3b52a8', background: '#0b0e16' },
     { id: 'forest', name: 'Forest', note: 'Deep green', accent: '#6fd3a0', contour: '#a8c4a8', contourGlow: '#3f8a5c', background: '#111613' },
     { id: 'plum', name: 'Plum', note: 'Dusk violet', accent: '#d1a2f0', contour: '#c7b0d6', contourGlow: '#8a4fa8', background: '#181319' },
     { id: 'ember', name: 'Ember', note: 'Warm brown', accent: '#f0a070', contour: '#d6b49c', contourGlow: '#c2562f', background: '#1a1411' },
+    { id: 'graphite', name: 'Graphite', note: 'Neutral gray and black', accent: '#d4d4d8', contour: '#8f8f96', contourGlow: '#5b5b63', background: '#0e0e0f' },
     { id: 'paper', name: 'Paper', note: 'Light', accent: '#2563eb', contour: '#cbd5e1', contourGlow: '#93c5fd', background: '#ffffff' },
   ];
   /** Push the four appearance colours (accent, contour, glow, background) to the page. Called after every change; nothing reloads. */
   S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
   /** 'light', 'dark' or 'system'. Colours the student picked are kept; only the brightness of the page follows the mode. */
   S.setThemeMode = (m) => { if (!['light', 'dark', 'system'].includes(m)) return; S.prefs.themeMode = m; S.savePrefs(); S.applyTheme(); };
+  /** Accessibility choices: text size ('' | 'lg' | 'xl'), high contrast and reduced motion. Applied as classes on <html> by applyTheme. */
+  S.setA11y = (patch) => {
+    const P = S.prefs;
+    if ('textSize' in patch && ['', 'lg', 'xl'].includes(patch.textSize)) P.textSize = patch.textSize;
+    if ('highContrast' in patch) P.highContrast = !!patch.highContrast;
+    if ('reduceMotion' in patch) P.reduceMotion = !!patch.reduceMotion;
+    S.savePrefs(); S.applyTheme();
+  };
   S.themeMode = () => S.prefs.themeMode || (C.isDark(S.prefs.background) ? 'dark' : 'light');
   S.setAppearance = (patch) => {
     const out = {};
     for (const k of Object.keys(patch)) { const hex = C.normHex(patch[k]); if (!hex) return false; out[k] = hex; }
-    Object.assign(S.prefs, out); S.savePrefs(); S.applyTheme(); return true;
+    Object.assign(S.prefs, out);
+    // a new background of the other brightness wins over an earlier Light/Dark choice, so a colour theme is never silently overridden
+    if (out.background && S.prefs.themeMode) S.prefs.themeMode = C.isDark(out.background) ? 'dark' : 'light';
+    S.savePrefs(); S.applyTheme(); return true;
   };
   /** The map's own settings: on or off, line density and which map (seed). Its blur is fixed in the design (theme.css). */
   S.setMap = (patch) => {
@@ -144,11 +156,11 @@
 
   /* ---------- icons (static, trusted markup) ---------- */
   const P = {
-    home: '<path d="M3 11l9-8 9 8"/><path d="M5 9.5V20h14V9.5"/>',
-    book: '<path d="M4 5a2 2 0 012-2h13v15H6a2 2 0 00-2 2z"/><path d="M4 20a2 2 0 012-2h13v3H6a2 2 0 01-2-1z"/>',
-    tasks: '<rect x="4" y="4" width="16" height="16" rx="4"/><path d="M8.5 12.5l2.5 2.5 4.5-5.5"/>',
-    calendar: '<rect x="3" y="5" width="18" height="16" rx="4"/><path d="M3 10h18M8 3v4M16 3v4"/>',
-    grades: '<path d="M5 20V11M12 20V4M19 20v-6"/>',
+    home: '<path d="M4 11l8-7 8 7"/><path d="M6 10v10h12V10"/><path d="M10 20v-6h4v6"/>',
+    book: '<path d="M5 4h13v16H5z"/><path d="M9 4v16"/>',
+    tasks: '<path d="M4 4h16v16H4z"/><path d="M8 12l3 3 5-6"/>',
+    calendar: '<path d="M4 6h16v14H4z"/><path d="M4 10h16M8 3v4M16 3v4"/>',
+    grades: '<path d="M3 20h18"/><path d="M6 20v-8M12 20V5M18 20v-5"/>',
     folder: '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>',
     settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M18.7 5.3l-2.1 2.1M7.4 16.6l-2.1 2.1"/>',
     clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
@@ -165,6 +177,8 @@
     down: '<path d="M6 9l6 6 6-6"/>',
     left: '<path d="M15 5l-7 7 7 7"/>',
     right: '<path d="M9 5l7 7-7 7"/>',
+    arrowRight: '<path d="M5 12h14"/><path d="M13 6l6 6-6 6"/>',
+    resetOrder: '<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>',
     mega: '<path d="M3 11v3a1 1 0 001 1h2l7 4V6L6 10H4a1 1 0 00-1 1zM17 9a4 4 0 010 6"/>',
     logout: '<path d="M10 4H6a2 2 0 00-2 2v12a2 2 0 002 2h4M15 8l4 4-4 4M19 12H9"/>',
     flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
@@ -174,23 +188,27 @@
     check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
     panel: '<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/>',
     palette: '<circle cx="12" cy="12" r="9"/><circle cx="8.5" cy="10.5" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="15.5" cy="10.5" r="1"/><path d="M12 21a2.5 2.5 0 010-5h1.5a2 2 0 000-4"/>',
-    bell: '<path d="M6 8a6 6 0 1112 0c0 6 2.5 7.5 2.5 7.5h-17S6 14 6 8z"/><path d="M10 19a2 2 0 004 0"/>',
+    bell: '<path d="M6 17v-6a6 6 0 0112 0v6"/><path d="M4 17h16M10 20.5h4"/>',
     trash: '<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>',
     image: '<rect x="3" y="4" width="18" height="16" rx="3"/><circle cx="9" cy="10" r="1.6"/><path d="M4 18l5-5 4 4 3-3 4 4"/>',
     dots: '<circle cx="5" cy="12" r="1.4" fill="currentColor"/><circle cx="12" cy="12" r="1.4" fill="currentColor"/><circle cx="19" cy="12" r="1.4" fill="currentColor"/>',
-    groups: '<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0112 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.5a5 5 0 015 5"/>',
-    inbox: '<path d="M3 13l3-8h12l3 8"/><path d="M3 13v6h18v-6h-5l-1 2h-6l-1-2z"/>',
+    groups: '<circle cx="9" cy="8" r="3"/><path d="M3 20v-2a6 6 0 0112 0v2"/><path d="M16 5.2a3 3 0 010 5.6M18.5 14.4A6 6 0 0121 18v2"/>',
+    inbox: '<path d="M4 5h16v14H4z"/><path d="M4 13h5l1 2h4l1-2h5"/>',
     help: '<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 113.5 2.3c-.6.3-1 .8-1 1.5v.7"/><path d="M12 17.5v.01"/>',
-    access: '<circle cx="12" cy="5" r="2"/><path d="M5 8h14M12 8v5l-3 6M12 13l3 6"/>',
+    access: '<circle cx="12" cy="4.5" r="1.5"/><path d="M5 8.5h14M12 8.5V14M9 21l3-7 3 7"/>',
     rocket: '<path d="M5 15c-1.5 1-2 4-2 4s3-.5 4-2"/><path d="M14 4c3 0 5 2 5 5-1.5 4-5 7-7 7-1 0-2-.5-2.5-1.5l-1-1C8 12.500 7 10.500 7 10c0-2 3-6 7-6z"/><circle cx="14" cy="10" r="1.4"/>',
-    notepad: '<path d="M7 3h10a2 2 0 012 2v15H5V5a2 2 0 012-2z"/><path d="M9 3v2M15 3v2M8.500 10h7M8.500 14h7M8.500 18h4"/>',
+    notepad: '<path d="M6 3h12v18H6z"/><path d="M9 8h6M9 12h6M9 16h4"/>',
     file: '<path d="M7 3h8l4 4v14H7z"/><path d="M15 3v4h4"/>',
     link: '<path d="M10 14a4 4 0 005.700 0l3-3a4 4 0 00-5.700-5.700l-1 1"/><path d="M14 10a4 4 0 00-5.700 0l-3 3a4 4 0 005.700 5.700l1-1"/>',
     slides: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M12 16v4M8 20h8"/>',
     sheet: '<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>',
     download: '<path d="M12 4v11M7 11l5 5 5-5M5 20h14"/>',
     reload: '<path d="M20 11a8 8 0 10-2.3 5.7M20 5v6h-6"/>',
-    search: '<circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/>',
+    trendUp: '<path fill="currentColor" stroke="none" d="M12 3.2l7.6 8.3h-4.6V21H9V11.5H4.4z"/>',
+    trendDown: '<path fill="currentColor" stroke="none" d="M12 20.8l-7.6-8.3H9V3h6v9.5h4.6z"/>',
+    arrowUp: '<path d="M12 19V5M6 11l6-6 6 6"/>',
+    arrowDown: '<path d="M12 5v14M6 13l6 6 6-6"/>',
+    search: '<circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5 5"/>',
     menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
   };
   S.icon = (name, size = 18) => {
@@ -243,7 +261,7 @@
   };
 
   const pad = (n) => String(n).padStart(2, '0');
-  S.fmtTime = (ts) => { const d = new Date(ts); return `${pad(d.getHours())}:${pad(d.getMinutes())}`; }; // 24-hour, local timezone
+  S.fmtTime = (ts) => { const d = new Date(ts), h = d.getHours() % 12 || 12, m = d.getMinutes(); return `${h}${m ? ':' + pad(m) : ''} ${d.getHours() < 12 ? 'AM' : 'PM'}`; }; // 12-hour, local timezone
   S.fmtDate = (ts, withYear) => { const d = new Date(ts); return `${S.WEEKDAYS[d.getDay()]}, ${S.MONTHS[d.getMonth()].slice(0, 3)} ${d.getDate()}${withYear ? ', ' + d.getFullYear() : ''}`; };
 
   /** Short relative description of a due time. */
@@ -328,27 +346,6 @@
   /** Course code from the raw title, e.g. "MATH&151". */
   S.courseCode = (name) => { const m = /\(([A-Z]{2,6}\s?&?\s?\d{2,4}[A-Z]?)\)/.exec(name || ''); return m ? m[1] : ''; };
   S.cn = (id, name) => S.cmeta(id, name).name || S.autoName(name);
-  S.COVERS = [['graphite', '#202124'], ['charcoal', '#333436'], ['steel', '#67686b'], ['silver', '#98999b']];
-  const autoGrad = (id, name) => `color-mix(in srgb, ${S.courseColor(id, name)} 36%, var(--surface2))`; // flat tint of the course colour, only when no picture is known
-  S.autoGradient = autoGrad;
-  const photo = (u) => `center / cover no-repeat url("${String(u).replace(/"/g, '%22')}")`;
-  /** CSS background for a banner choice. '' and 'orig' mean the original Schoology banner when it is known, else the colour gradient. */
-  S.coverCssFor = (id, name, v) => {
-    if (v && v.startsWith('b:')) { const u = S.bannerUrl && S.bannerUrl(v.slice(2)); return u ? photo(u) : autoGrad(id, name); }
-    if (v && v.startsWith('data:image/')) return photo(v);
-    const legacy = S.COVERS.find((x) => x[0] === v);
-    if (legacy) return legacy[1];
-    const original = S.originalBanner ? S.originalBanner(id, name) : '';
-    return original ? photo(original) : autoGrad(id, name);
-  };
-  S.coverCss = (id, name) => S.coverCssFor(id, name, S.cmeta(id, name).cover || '');
-  /** If an image fails to load (offline, expired link), fall back to the colour gradient instead of a blank banner. */
-  S.guardImage = (el, url, fallback) => { if (!url) return; const im = new Image(); im.onerror = () => { el.style.background = fallback; }; im.src = url; };
-  S.guardCover = (el, id, name) => {
-    const v = S.cmeta(id, name).cover || '';
-    if (v && v !== 'orig') return;
-    S.guardImage(el, S.originalBanner ? S.originalBanner(id, name) : '', autoGrad(id, name));
-  };
   S.setCourseMeta = (id, patch) => {
     const m = Object.assign({}, S.prefs.courseMeta[id], patch);
     Object.keys(m).forEach((k) => { if (m[k] === '' || m[k] == null) delete m[k]; });
