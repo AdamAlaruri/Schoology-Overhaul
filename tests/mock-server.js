@@ -14,7 +14,7 @@ const ups = [
   [204, 'assignment', 'Primary Source Analysis', 103, 3.3], [205, 'assignment', 'Reading Response: Ch. 9', 104, 4.2], [206, 'assignment', 'Quiz: Quadratics', 102, 6.1],
   [207, 'event', 'Picture Day', 104, 8.2], [208, 'assignment', 'Research Outline', 103, 11.1], [209, 'assignment', 'Midterm Exam', 104, 15.2],
 ];
-const overdue = [[301, 'Vocabulary Quiz 4', 102, -2], [302, 'Lab Safety Form', 101, -5]];
+const overdue = [[301, 'Vocabulary Quiz 4', 102, -2]];
 
 const upcomingHtml = (only) => '<div class="upcoming-list">' + ups.filter((u) => !only || u[1] === only).map(([id, t, title, c, off]) => {
   const d = at(off | 0, 8 + ((id % 7)), 0);
@@ -25,15 +25,21 @@ const coursesHtml = () => '<ul>' + courses.map(([id, n, s]) => `<li class="cours
 const feedHtml = () => '<ul id="feed">' + [['Ms. Rivera', 101, 'Reminder: bring your lab notebooks Thursday. We will start the enzyme unit.'], ['Mr. Chen', 102, '<strong>Quadratics quiz moved to Friday</strong> Review sheet is posted under Materials, and we will go over it in class on Thursday.'], ['Mrs. Patel', 104, 'Midterm study guide is uploaded. Office hours Wednesday after school.']]
   .map(([a, c, b], i) => `<li class="edge-item" id="n${i}"><div class="edge-sentence"><span class="update-sentence-inner"><a href="/user/${i}">${a}</a> posted in <a href="/course/${c}/materials">${courses.find((x) => x[0] === c)[1]}</a></span></div><div class="update-body s-rte">${b}</div><span class="update-time">${i + 1}h ago</span></li>`).join('') + '</ul>';
 const gradesHtml = () => '<ul class="s-grades-course-list">' + courses.map(([id, n, sec], i) => {
-  const row = (cls, title, extra, grade) => `<tr class="report-row ${cls}"><th class="title-column clickable"><div class="td-content-wrapper"><span class="title"><a>${title}<span class="visually-hidden">${cls.includes('item') ? 'assignment' : ''}</span></a></span>${extra || ''}</div></th><td class="grade-column">${grade}</td><td class="comment-column">${cls.includes('item') && title === 'Unit Test' ? 'Strong work on the free response.' : 'No comment'}</td></tr>`;
+  const row = (cls, title, extra, grade) => `<tr class="report-row ${cls}"><th class="title-column clickable"><div class="td-content-wrapper"><span class="title"><a>${title}<span class="visually-hidden">${cls.includes('item') ? 'assignment' : ''}</span></a></span>${extra || ''}</div></th><td class="grade-column">${grade}</td><td class="comment-column">${cls.includes('item') && title === 'Unit 4 Test' ? 'Strong work on the free response.' : 'No comment'}</td></tr>`;
   const item = (t, due, g, href) => row('item-row', href ? `<a href="${href}">${t}</a>` : t, `<span class="due-date"><span class="visually-hidden">Due</span> Due ${due}</span>`, g);
   const letter = ['A (94.24%)', 'B+ (88.1%)', 'A- (91.5%)', 'A (96%)'][i];
-  return `<li class="s-grades-course-item"><div id="s-js-gradebook-course-${id}" class="gradebook-course hierarchical-grading-report"><div class="gradebook-course-title">(CODE${id}) ${n.toUpperCase()}: (S1) Teacher${i}, A</div><div class="gradebook-course-grades"><table role="presentation"><tbody>` +
+  // each course has its own work; only one item across the demo is missing, so the screenshots are not a wall of overdue rows
+  const hw = [
+    [['Cell Structure Quiz', '9/18/26', '46 / 50'], ['Enzyme Lab Report', '10/02/26 11:59pm', '27 / 30', '/assignment/7001'], ['Photosynthesis Worksheet', '10/12/26', '—<span class="visually-hidden">This student has made a submission that has not been graded</span>'], ['Unit 5 Test Review', '11/05/26', '—']],
+    [['Problem Set 6.2', '9/22/26', '18 / 20'], ['Factoring Practice', '10/06/26', '20 / 20'], ['Problem Set 7.1', '10/20/26', '17 / 20'], ['Problem Set 7.3', '11/07/26', '—']],
+    [['Document Analysis: The Magna Carta', '9/25/26', '9 / 10'], ['Primary Source Reflection', '10/09/26 11:59pm', '<span class="visually-hidden"></span>Missing'], ['Map Skills Packet', '10/15/26', '48 / 50'], ['Primary Source Analysis', '11/09/26', '—']],
+    [['Reading Response: Ch. 5', '9/20/26', '10 / 10'], ['Vocabulary Set 3', '10/03/26', '19 / 20'], ['Reading Response: Ch. 8', '10/22/26', '9 / 10'], ['Reading Response: Ch. 9', '11/10/26', '—']],
+  ][i];
+  const tests = [[['Unit 4 Test', '10/20/26', '45 / 50']], [['Quadratics Quiz', '10/24/26', '46 / 50']], [['Ancient Rome Test', '10/27/26', '92 / 100']], [['Short Story Test', '10/28/26', '48 / 50']]][i];
+  return `<li class="s-grades-course-item"><div id="s-js-gradebook-course-${id}" class="gradebook-course hierarchical-grading-report"><div class="gradebook-course-title">${n}</div><div class="gradebook-course-grades"><table role="presentation"><tbody>` +
     row('course-row has-children', 'Course Grade', '', letter) + row('period-row has-children', 'S1 (2026-2027)', '<span> (100%)</span>', letter) +
-    row('category-row has-children', 'Homework', '<span> (10%)</span>', 'A (95.71%)') +
-    item('HW 1 See Description', '9/03/26', '5 / 5') + item('Lab Report', '11/03/26 11:59pm', '18 / 20', '/assignment/7001') + item('Unit 5 Test', '11/05/26', '—') + item('HW 2 Chapter review with a very long assignment name that should wrap onto several lines instead of stretching the whole table', '9/04/26', '18 / 20') +
-    item('Lab write-up', '10/09/26 11:59pm', '<span class="visually-hidden"></span>Missing') + item('Reading', '10/12/26', '—<span class="visually-hidden">This student has made a submission that has not been graded</span>') +
-    row('category-row has-children', 'Test', '<span> (60%)</span>', '—') + item('Unit Test', '10/20/26', '45 / 50') +
+    row('category-row has-children', 'Homework', '<span> (40%)</span>', 'A (95.71%)') + hw.map((x) => item(...x)).join('') +
+    row('category-row has-children', 'Tests', '<span> (60%)</span>', 'A (93%)') + tests.map((x) => item(...x)).join('') +
     `</tbody></table></div></div></li>`; }).join('') + '</ul>';
 
 // ---- course content, same markup as Schoology's /course/<id>/materials ----
