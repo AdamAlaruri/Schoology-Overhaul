@@ -67,6 +67,9 @@ html[data-sgo-topo="off"] #sgo-topo { display: none; }
 #sgo-topo .topo-lines path { stroke: var(--contour-color); stroke-width: calc(1px * var(--topo-w, 1)); }
 #sgo-topo .topo-lines path.mj { stroke-width: calc(1.5px * var(--topo-w, 1)); }
 #sgo-topo .topo-glow { display: none; }
+/* map options: Strength scales how visible the whole map is (capped at fully opaque), Style swaps the ordinary contours for dashes */
+#sgo-topo { filter: opacity(min(1, var(--topo-strength, 1))); }
+html[data-sgo-topo-style="dashed"] #sgo-topo .topo-lines path:not(.mj) { stroke-dasharray: calc(7px * var(--topo-w, 1)) calc(6px * var(--topo-w, 1)); }
 .sgo-main { background: transparent; }
 
 /* ================= type ================= */
@@ -81,9 +84,9 @@ html[data-sgo-topo="off"] #sgo-topo { display: none; }
 .dp-h, .sgo-calnav h2 { font-size: var(--fs-h3); font-weight: var(--fw-h3); line-height: var(--lh-h3); letter-spacing: -.01em; text-transform: none; color: var(--text); }
 .dc-body h2, .sgo-course-t, .gp-name, .sgo-card h2, .crs-card-h h2, .sgo-modal h2, .ib-rh h2, .tp-fbh h3, .sgo-empty-t, .gr2-h b { font-size: var(--fs-h4); font-weight: var(--fw-h4); line-height: var(--lh-h4); letter-spacing: 0; }
 .sgo p, .sgo li, .sgo td, .sgo th, .sgo label { font-size: inherit; }
-.sgo-item-title, .tc-title, .rs-t b, .ar-t b, .ib-top b { font-size: var(--fs-body); font-weight: var(--fw-strong); line-height: var(--lh-body); }
+.sgo-item-title, .rs-t b, .ar-t b, .ib-top b { font-size: var(--fs-body); font-weight: var(--fw-strong); line-height: var(--lh-body); }
 .sgo-btn, .sgo-menu-p button, .sgo-chip, .sgo-seg button, .sgo-rail-i { font-size: var(--fs-small); font-weight: var(--fw-strong); line-height: var(--lh-small); }
-.dc-meta, .sgo-item-meta, .tc-when, .tc-course, .rs-meta, .ib-snip, .sgo-muted, .sgo-note, .gp-h p, .dp-quip, .dp-date { font-size: var(--fs-small); font-weight: var(--fw-body); line-height: var(--lh-small); color: var(--muted); }
+.dc-meta, .sgo-item-meta, .rs-meta, .ib-snip, .sgo-muted, .sgo-note, .gp-h p, .dp-quip, .dp-date { font-size: var(--fs-small); font-weight: var(--fw-body); line-height: var(--lh-small); color: var(--muted); }
 .sgo-sec h3, .tp-group h3, .dc-due h3, .sgo-wd { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
 .sgo-rail-i > span { font-size: var(--fs-micro); font-weight: var(--fw-strong); line-height: var(--lh-caption); letter-spacing: 0; text-transform: none; color: inherit; }
 .sgo-pill, .sgo-badge, .dc-count, .sgo-rail-n, .ib-top time, .an-h span, .sgo-chip span, .tp-fbh span { font-size: var(--fs-caption); font-weight: var(--fw-strong); line-height: var(--lh-caption); }
@@ -113,12 +116,12 @@ html[data-sgo-topo="off"] #sgo-topo { display: none; }
 
 /* small parts snap to the same scale: no browser-default button padding, no 2px or 3px gaps */
 .sgo-rail-i { gap: var(--space-1); } .sgo-rail-tog { margin: auto auto var(--space-1); }
-.sgo-rail-tog, .sgo-act, .sgo-chip-btn, .sgo-sw, .tc-check, .sgo-check, .sgo-x { padding: 0; }
+.sgo-rail-tog, .sgo-act, .sgo-chip-btn, .sgo-sw, .sgo-check, .sgo-x { padding: 0; }
 .sgo-pill, .sgo-badge, .dc-grade { padding: var(--space-1) var(--space-2); }
 .dc-count { padding: 0 var(--space-1); }
-.crs-title { padding: var(--space-3) 0 var(--space-2); } .crs-tabs, .tc-acts, .sgo-seg { gap: var(--space-1); }
+.crs-title { padding: var(--space-3) 0 var(--space-2); } .crs-tabs, .sgo-seg { gap: var(--space-1); }
 .rs-acts, .bc ol { gap: var(--space-1); }
-.tc-when, .sgo-item-meta { margin-top: var(--space-1); } .crs-title p, .tc-course { margin-top: var(--space-1); }
+.sgo-item-meta { margin-top: var(--space-1); } .crs-title p { margin-top: var(--space-1); }
 
 /* ================= panels (layer 2) ================= */
 .dc, .tp, .sgo-card, .sgo-detail, .sgo-gcard, .sgo-course, .sgo-semester, .sgo-wcol, .ib-list, .ib-read, .gp-card, .crs-card, .gr2-course, .rs-list, .an, .crs-fail, .sgo-review, .sgo-list, .sgo-cell {
@@ -271,7 +274,7 @@ html.sgo-collapsed .rail-topo { opacity: .1; }
 .sgo-modal-bg { animation: sgo-fade 180ms var(--ease) both; }
 .sgo-modal { animation: sgo-pop 240ms var(--ease) both; transform-origin: center top; }
 .sgo-modal-bg.leaving { animation: sgo-fade-out 140ms var(--ease) both; pointer-events: none; } .sgo-modal-bg.leaving .sgo-modal { animation: sgo-pop-out 140ms var(--ease) both; }
-.an-list p, .fb-list p, .tp-ann p, .crs-desc, .pr-done .pr-list { animation: sgo-reveal 220ms var(--ease) both; }
+.an-list p, .tp-ann p, .crs-desc, .pr-done .pr-list { animation: sgo-reveal 220ms var(--ease) both; }
 .sgo-menu-p button, .notif-i, .an-list button, .link { transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease); }
 .toast { transition: opacity var(--t-card) var(--ease); }
 
@@ -342,8 +345,6 @@ html.sgo-collapsed .sgo-rail-i.sgo-rail-tog { min-height: 56px; padding: var(--s
 @media (max-width: 760px) { .ap-layout { grid-template-columns: minmax(0, 1fr); } }
 /* renaming on the card, and in Settings */
 .dc-rename { position: absolute !important; right: calc(var(--space-2) + var(--control-s) + var(--space-1)); top: var(--space-2); z-index: 1; background: rgb(21 19 17 / .66) !important; color: #fff !important; border-radius: 50%; transition: background var(--t-fast) var(--ease); } .dc-rename:hover { background: rgb(21 19 17 / .88) !important; }
-.cn-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: var(--space-2) var(--space-3); padding: var(--space-md) 0; border-top: 1px solid var(--line); } .cn-row:first-of-type { border-top: 0; }
-@media (max-width: 700px) { .cn-row { grid-template-columns: minmax(0, 1fr); } }
 
 /* ================= appearance: split view ================= */
 .ap-modal { width: min(1000px, 100%); padding: var(--space-4); }
@@ -378,7 +379,6 @@ html.sgo-collapsed .sgo-rail-i.sgo-rail-tog { min-height: 56px; padding: var(--s
 .ap-modal .ap-live { box-shadow: 0 0 0 1px var(--line-strong), 0 12px 32px -16px rgb(0 0 0 / .6); }
 @media (max-width: 860px) { .ap-modal { padding: var(--space-4); } .ap-layout { gap: var(--space-4); } }
 /* typographic covers inside smaller covers and thumbnails */
-.bp-thumb.typo .dc-typo { padding: var(--space-1) var(--space-2); } .bp-thumb.typo .dc-typo span { font-size: var(--fs-micro); } .bp-thumb.typo .dc-typo-t { font-size: var(--fs-small); line-height: var(--lh-small); }
 .crs-banner.typo .dc-typo { padding: var(--space-3) var(--space-5); } .crs-banner.typo .dc-typo-t { font-size: var(--fs-h2); line-height: var(--lh-h2); }
 .sgo-course-cover.typo .dc-typo { padding: var(--space-2) var(--space-3); } .sgo-course-cover.typo .dc-typo-t { font-size: var(--fs-card); line-height: var(--lh-small); }
 /* rename on the course page; notification icon picker */

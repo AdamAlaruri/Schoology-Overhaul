@@ -870,9 +870,6 @@ html.sgo-app .sgo-page select:focus-visible { outline: 2px solid var(--accent); 
 html.sgo-app .sgo-item-meta { display: block; }
 html.sgo-app .sgo-item-meta .sgo-dot { display: inline-block; margin-right: 8px; vertical-align: 1px; }
 
-@media (max-width: 720px) {
-}
-
 /* =====================================================================
    v23: no dots beside course names in the to-do; a strike that draws itself; grades with a steady layout, a bigger name and a count-up
    ===================================================================== */
@@ -1118,14 +1115,15 @@ html.sgo-compact .dash6 .an-list li > button { padding-block: 10px; }
 html.sgo-compact .dash6 .pri-filter, html.sgo-compact .dash6 .ag-ctl .sgo-btn.primary { height: 36px; min-height: 36px; font-size: 14px; }
 
 /* text size (Settings → Accessibility) */
-html.sgo-app.sgo-text-lg #sgo-root { zoom: 1.12; }
-html.sgo-app.sgo-text-xl #sgo-root { zoom: 1.25; }
+/* the page column scales, not the fixed frame around it or the icon-only sidebar, so the frame still fills the window and nothing is cut off */
+html.sgo-app.sgo-text-lg #sgo-root > .sgo-main { zoom: 1.12; }
+html.sgo-app.sgo-text-xl #sgo-root > .sgo-main { zoom: 1.25; }
 
 /* high contrast: full-strength text, visible outlines, a thick focus ring */
-html.sgo-app.sgo-contrast { --t2: var(--text); --t3: color-mix(in srgb, var(--text) 88%, var(--app-background)); --hair: color-mix(in srgb, var(--text) 45%, transparent); --s1: color-mix(in srgb, var(--text) 9%, var(--app-background)); --s2: color-mix(in srgb, var(--text) 15%, var(--app-background)); }
-html.sgo-app.sgo-contrast .dash6 .ag .pr-list, html.sgo-app.sgo-contrast .dash6 .cl-list, html.sgo-app.sgo-contrast .dash6 .an-list li { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 55%, transparent) !important; }
+html.sgo-app.sgo-contrast { --t2: color-mix(in srgb, var(--text) 90%, var(--app-background)); --t3: color-mix(in srgb, var(--text) 78%, var(--app-background)); --hair: color-mix(in srgb, var(--text) 28%, transparent); --s1: color-mix(in srgb, var(--text) 6.5%, var(--app-background)); --s2: color-mix(in srgb, var(--text) 11%, var(--app-background)); }
+html.sgo-app.sgo-contrast .dash6 .ag .pr-list, html.sgo-app.sgo-contrast .dash6 .cl-list, html.sgo-app.sgo-contrast .dash6 .an-list li { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 34%, transparent) !important; }
 html.sgo-app.sgo-contrast .dash6 .ag .pr .pr-due { box-shadow: inset 0 0 0 1.5px currentColor; }
-html.sgo-app.sgo-contrast #sgo-root :focus-visible { outline: 3px solid var(--text) !important; outline-offset: 3px !important; }
+html.sgo-app.sgo-contrast #sgo-root :focus-visible { outline: 2px solid var(--text) !important; outline-offset: 2px !important; }
 html.sgo-app.sgo-contrast .pc-ring { stroke-width: 3; }
 
 /* reduced motion (Settings → Accessibility): nothing animates or transitions */
@@ -1414,21 +1412,18 @@ html.sgo-app .sgo-set > div:first-child { flex: 1 1 260px; min-width: 0; }
 html.sgo-app .sgo-set > :last-child:not(:first-child) { flex: 0 0 auto; margin-left: auto; max-width: 100%; }
 html.sgo-app .sgo-seg { flex-wrap: nowrap; overflow: visible; }
 html.sgo-app .sgo-seg button { white-space: nowrap; flex: 0 0 auto; }
-/* at larger text sizes every row stacks the same way: text on top, its control below, left-aligned */
-html.sgo-app.sgo-text-lg .sgo-set > :last-child:not(:first-child), html.sgo-app.sgo-text-xl .sgo-set > :last-child:not(:first-child) { margin-left: 0; }
-html.sgo-app.sgo-text-lg .sgo-set > div:first-child, html.sgo-app.sgo-text-xl .sgo-set > div:first-child { flex-basis: 100%; }
 html.sgo-app .sgo-seg button:focus-visible { outline-offset: 1px; }
 
 /* high contrast reaches the settings cards, rows and segmented controls too */
-html.sgo-app.sgo-contrast .sgo-card { background: color-mix(in srgb, var(--text) 7%, var(--app-background)); box-shadow: inset 0 0 0 2px color-mix(in srgb, var(--text) 60%, transparent); }
-html.sgo-app.sgo-contrast .sgo-set { border-top: 2px solid color-mix(in srgb, var(--text) 35%, transparent); }
+html.sgo-app.sgo-contrast .sgo-card { background: color-mix(in srgb, var(--text) 5%, var(--app-background)); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 38%, transparent); }
+html.sgo-app.sgo-contrast .sgo-set { border-top: 1px solid color-mix(in srgb, var(--text) 24%, transparent); }
 html.sgo-app.sgo-contrast .sgo-set:first-of-type { border-top: 0; }
-html.sgo-app.sgo-contrast .sgo-set small, html.sgo-app.sgo-contrast .sgo-card .sgo-muted { color: var(--text); }
-html.sgo-app.sgo-contrast .sgo-seg { background: var(--app-background); box-shadow: inset 0 0 0 2px var(--text); }
+html.sgo-app.sgo-contrast .sgo-set small, html.sgo-app.sgo-contrast .sgo-card .sgo-muted { color: color-mix(in srgb, var(--text) 88%, var(--app-background)); }
+html.sgo-app.sgo-contrast .sgo-seg { background: var(--app-background); box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 55%, transparent); }
 html.sgo-app.sgo-contrast .sgo-seg button { color: var(--text); }
 html.sgo-app.sgo-contrast .sgo-seg button:hover { background: color-mix(in srgb, var(--text) 18%, transparent); }
 html.sgo-app.sgo-contrast .sgo-seg button.on { background: var(--text); color: var(--app-background); box-shadow: none; }
-html.sgo-app.sgo-contrast .sgo-card .sgo-btn { box-shadow: inset 0 0 0 2px currentColor; }
+html.sgo-app.sgo-contrast .sgo-card .sgo-btn { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 55%, transparent); }
 
 /* =====================================================================
    Appearance panel: opaque card, even theme grid, contour controls that never clip

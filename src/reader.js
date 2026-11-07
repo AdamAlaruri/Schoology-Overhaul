@@ -49,6 +49,7 @@
     const fail = (msg) => body.replaceChildren(h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'This file could not be opened here'), h('div', { class: 'sgo-empty-s' }, msg),
       src ? h('a', { class: 'sgo-btn', href: src, download: name }, icon('download', 16), 'Download') : null));
     if (!src) return fail('There is no file address for it.');
+    if (!S.isSiteUrl(src)) return fail('That file is not hosted on Schoology, so it is not opened here.');
     try {
       const r = await fetch(src, { credentials: 'same-origin' });
       if (r.status === 401 || (r.redirected && /\/login/.test(r.url))) { S.state.session = 'expired'; throw new Error('Your Schoology session has ended. Sign in again.'); }
@@ -70,7 +71,7 @@
       else return fail('Its type (' + (ext ? ext.toUpperCase() : type) + ') cannot be shown in the browser. Download it to open it in another app.'), actions.replaceChildren(h('a', { class: 'sgo-btn', href: url, download: name }, icon('download', 16), 'Download'));
       body.replaceChildren(view);
       actions.replaceChildren(
-        h('a', { class: 'sgo-btn ghost', href: url, target: '_blank', rel: 'noopener' }, icon('external', 16), 'New tab'),
+        h('a', { class: 'sgo-btn ghost', href: url, target: '_blank', rel: 'noopener noreferrer' }, icon('external', 16), 'New tab'),
         h('a', { class: 'sgo-btn', href: url, download: name }, icon('download', 16), 'Download'));
     } catch (e) { if (current === me) fail(String(e.message || e)); }
   };

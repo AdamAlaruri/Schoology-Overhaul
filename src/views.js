@@ -52,7 +52,7 @@
       ? h('button', { class: 'sgo-act', title: 'Edit', 'aria-label': 'Edit ' + it.title, onclick: (e) => { e.preventDefault(); S.openNewAssignment(it); } }, icon('edit', 15))
       : h('button', { class: 'sgo-act', title: 'Remove from my tracker', 'aria-label': 'Remove ' + it.title + ' from my tracker', onclick: (e) => { e.preventDefault(); askExclude(it); } }, icon('eyeoff', 15)));
     return h('article', { class: `sgo-item pr-${pr}${done ? ' is-done' : ''}${mine ? ' mine' : ''}`, style: { '--c': S.colorOf(it) } },
-      h('button', { class: 'sgo-check' + (done ? ' on' : ''), title: done ? 'Mark as not done' : 'Mark as done (saved only in this browser)', 'aria-pressed': String(done), onclick: () => toggleDone(it) }, checkRing()),
+      h('button', { class: 'sgo-check' + (done ? ' on' : ''), title: done ? 'Mark as not done' : 'Mark as done', 'aria-pressed': String(done), onclick: () => toggleDone(it) }, checkRing()),
       h('a', { class: 'sgo-item-main', href: detailHref(it) },
         h('div', { class: 'sgo-item-title' }, it.title),
         h('div', { class: 'sgo-item-meta' }, S.cn(it.courseId, it.courseName) || 'Course', ' · ', S.relDue(it.due), it.due && it.timed ? ' · ' + S.fmtTime(it.due) : '')),
@@ -89,6 +89,16 @@
       if (wasOpen) return;
       panel.hidden = false; menuHost().append(panel);
       const r = btn.getBoundingClientRect(), w = panel.offsetWidth, hgt = panel.offsetHeight;
+      if (btn.closest('.sgo-rail') && r.right + 8 + w <= innerWidth - 8) {
+        // sidebar button: open beside the rail, to its right, so the rail's own buttons stay clickable
+        panel.style.left = r.right + 8 + 'px';
+        panel.style.maxHeight = innerHeight - 16 + 'px';
+        panel.style.top = Math.max(8, Math.min(r.top, innerHeight - Math.min(hgt, innerHeight - 16) - 8)) + 'px';
+        btn.setAttribute('aria-expanded', 'true');
+        openMenu = { btn, panel };
+        panel.querySelector('[role="menuitem"]').focus();
+        return;
+      }
       panel.style.left = Math.max(8, Math.min(r.left, innerWidth - w - 8)) + 'px';
       const below = innerHeight - r.bottom - 12, above = r.top - 12; // open on the side with more room, and never taller than that room
       const up = hgt > below && above > below, room = Math.max(120, up ? above : below);
@@ -248,7 +258,7 @@
         h('div', { class: 'pr-course' }, name, e && e.possible != null ? h('span', { class: 'pr-pts' }, `${e.possible} pts`) : null)),
       h('span', { class: 'pr-due' }, dueLabel(it, now)),
       h('span', { class: 'badge b-' + u.id }, icon(u.icon, 14), u.label),
-      !it.manual && it.url ? h('a', { class: 'pr-open', href: it.url, target: '_blank', rel: 'noopener', title: 'Open in Schoology', 'aria-label': 'Open in Schoology: ' + it.title }, icon('external', 17))
+      !it.manual && it.url ? h('a', { class: 'pr-open', href: S.safeUrl(it.url), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Schoology', 'aria-label': 'Open in Schoology: ' + it.title }, icon('external', 17))
         : h('a', { class: 'pr-open', href: itemHref(it), title: 'Open', 'aria-label': 'Open: ' + it.title }, icon('right', 15)));
   }
 
@@ -454,7 +464,7 @@
   /** Says when the data was last read from Schoology, and says so plainly when a refresh failed. */
   function syncLine() {
     const st = S.syncStatus();
-    if (st.kind === 'none') return null;
+    if (st.kind !== 'failed') return null; // the routine "Updated just now" line is gone; only a failed refresh is worth saying
     const mins = st.at ? Math.max(0, Math.round((Date.now() - st.at) / 60000)) : null;
     const ago = mins == null ? '' : mins < 1 ? 'just now' : mins < 60 ? `${plural(mins, 'minute')} ago` : mins < 1440 ? `${plural(Math.round(mins / 60), 'hour')} ago` : `${plural(Math.round(mins / 1440), 'day')} ago`;
     const failed = st.kind === 'failed';
@@ -615,7 +625,6 @@
     return h('div', { class: 'sw-groups' + (shape ? ' ' + shape : ''), role: 'group' }, groups.map(([label, items]) => h('div', { class: 'sw-group' }, h('span', { class: 'sw-gl' }, label),
       h('div', { class: 'sw-row' }, items.map(([name, hex]) => h('button', { type: 'button', class: 'sw' + (cur === hex ? ' on' : ''), title: name, 'aria-label': name, 'aria-pressed': String(cur === hex), style: { background: hex }, onclick: () => onPick(hex) }, cur === hex ? icon('check', 14) : null))))));
   }
-  S.groupedSwatches = groupedSwatches;
 
   /* The little symbol beside each course's announcements. Pick any of these; it is saved for that course only. */
   S.NOTIF_ICONS = [['mega', 'Megaphone'], ['bell', 'Bell'], ['flag', 'Flag'], ['alert', 'Alert'], ['inbox', 'Inbox'], ['rocket', 'Rocket'], ['notepad', 'Notepad'], ['clock', 'Clock']];
@@ -713,8 +722,8 @@
     if (ctx.q.f) u.f = ctx.q.f; if (ctx.q.course !== undefined) u.course = ctx.q.course;
     const now = Date.now();
     const filters = {
-      all: (i) => !S.isStale(i) || S.isDone(i) || S.isOverdue(i), upcoming: (i) => !S.isDone(i) && i.due && i.due >= now, missing: (i) => !S.isDone(i) && (i.fromOverdue || i.gbMissing),
-      overdue: S.isOverdue, done: S.isDone,
+      all: (i) => !S.isArchived(i) && (!S.isStale(i) || S.isDone(i) || S.isOverdue(i)), upcoming: (i) => !S.isDone(i) && i.due && i.due >= now, missing: (i) => !S.isDone(i) && (i.fromOverdue || i.gbMissing),
+      overdue: S.isOverdue, done: (i) => S.isDone(i) && !S.isArchived(i), archive: S.isArchived,
     };
     const byCourse = (i) => !u.course || i.courseId === u.course;
     const byText = (i) => !u.q || (i.title + ' ' + S.cn(i.courseId, i.courseName)).toLowerCase().includes(u.q.toLowerCase());
@@ -730,13 +739,21 @@
       groups = order.filter((k) => m[k]).map((k) => [m[k].l, m[k].a]);
     } else {
       const c = categorize(pool);
-      groups = [['Overdue', c.overdue], ['Due today', c.today], ['Upcoming soon', c.soon], ['Due later', c.later], ['No due date', c.none], ['Completed', c.done]].filter((g) => g[1].length);
+      groups = [['Overdue', c.overdue], ['Due today', c.today], ['Upcoming soon', c.soon], ['Due later', c.later], ['No due date', c.none], [u.f === 'archive' ? 'Archive: done over a week ago' : 'Completed', c.done]].filter((g) => g[1].length);
+    }
+    if (u.f === 'archive') { // a long archive is grouped by the month it was ticked off, newest first, and shown a page at a time
+      const m = new Map();
+      pool.slice().sort((x, y) => (S.prefs.done[y.key] || 0) - (S.prefs.done[x.key] || 0)).forEach((i) => {
+        const d = new Date(S.prefs.done[i.key] || 0), k = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+        (m.get(k) || m.set(k, []).get(k)).push(i);
+      });
+      groups = [...m.entries()];
     }
     const pristine = u.f === 'all' && !u.course && !u.q;
     const review = S.unreviewedItems(), excluded = S.excludedItems().filter(byCourse).filter(byText);
     const ui = dui(); ui.open = ui.open || {};
     const swapTo = (fn) => () => { fn(); u.swap = true; S.render(); };
-    const chips = [['all', 'All'], ['upcoming', 'Upcoming'], ['missing', 'Missing'], ['overdue', 'Overdue'], ['done', 'Completed']].map(([k, l]) =>
+    const chips = [['all', 'All'], ['upcoming', 'Upcoming'], ['missing', 'Missing'], ['overdue', 'Overdue'], ['done', 'Completed'], ['archive', 'Archive']].map(([k, l]) =>
       h('button', { class: 'sgo-chip' + (u.f === k ? ' on' : ''), type: 'button', onclick: swapTo(() => { u.f = k; }) }, l, h('span', null, tasksOnly().filter(filters[k]).filter(byCourse).length)));
     const qChip = u.q ? h('button', { class: 'sgo-chip on q-chip', type: 'button', title: 'Clear this search', 'aria-label': `Clear search ${u.q}`, onclick: swapTo(() => { u.q = ''; }) }, `“${u.q}”`, icon('plus', 14)) : null;
     // the filters are the dashboard's own menu buttons, not native selects
@@ -749,9 +766,16 @@
     const sortSel = pick('Sort assignments', [['due', 'Sort: Due date'], ['class', 'Sort: Class'], ['status', 'Sort: Status']], u.sort || 'due', (id) => { u.sort = id; });
     const intro = S.state.loaded && !S._asgIntro; if (intro) S._asgIntro = true;
     const swap = !!u.swap; u.swap = false;
-    const CAP = { 'Completed': 6, 'Due later': 8, 'No due date': 8 };
+    const CAP = { 'Completed': 6, 'Due later': 8, 'No due date': 8, 'Archive: done over a week ago': 12 };
     let n = 0;
     const sections = groups.map(([name, arr]) => {
+      if (u.f === 'archive') { // paged: 10 at first, 25 more each time, so 100+ finished items never become one endless list
+        const key = 'asg-' + name, shownN = Math.min(arr.length, ui.open[key] > 1 ? ui.open[key] : 10), left = arr.length - shownN;
+        return h('section', { class: 'ag-g', 'aria-label': name },
+          h('h3', { class: 'ag-gh' }, h('span', null, name), h('b', null, arr.length)),
+          h('ul', { class: 'pr-list' }, arr.slice(0, shownN).map((i) => priorityRow(i, now, n++))),
+          left > 0 ? h('button', { class: 'tp-more', type: 'button', dataset: { fk: 'more-' + key }, onclick: () => { ui.open[key] = shownN + 25; u.swap = true; S.render(true); } }, `Show ${Math.min(25, left)} more (${left} left)`) : null);
+      }
       const cap = CAP[name] || 9999, open = !!ui.open['asg-' + name], shown = open ? arr : arr.slice(0, cap);
       return h('section', { class: 'ag-g' + (name === 'Overdue' ? ' g-overdue' : ''), 'aria-label': name },
         h('h3', { class: 'ag-gh' }, h('span', null, name), h('b', null, arr.length)),
@@ -953,7 +977,7 @@
     // weights and the goal tool stay tucked away
     const weightRow = (k) => h('li', { class: 'gx-w' },
       wi && k.custom ? h('input', { class: 'sgo-input gx-cname', type: 'text', value: k.name, maxlength: '40', 'aria-label': 'Category name', dataset: { fk: 'oc-n-' + k.id }, onchange: (e) => { const q2 = ovGet(c, true).cats.find((z) => z.id === k.id); if (q2) q2.name = e.target.value.trim() || 'Untitled'; ovSave(); } }) : h('span', { class: 'gx-w-n' }, k.name, k.custom ? h('em', null, 'Yours') : k.set ? h('em', null, 'Edited') : null),
-      !okTotal && Number(k.weight) > 0 ? h('span', { class: 'gx-share', title: 'Its share of the total, since the weights do not add to 100' }, '= ' + share(k) + '%') : null,
+      !okTotal && Number(k.weight) > 0 ? h('span', { class: 'gx-share', title: 'Share of the total' }, '= ' + share(k) + '%') : null,
       h('span', { class: 'gx-in' }, numInput(k.weight, 'Weight of ' + k.name + ' in percent', 'oc-w-' + k.id, (v) => setW(k, v)), h('i', null, '%')),
       k.custom ? h('button', { class: 'gx-x', type: 'button', title: 'Delete category', 'aria-label': 'Delete category ' + k.name, onclick: () => {
         const n = ov.items.filter((i) => i.cat === k.id).length;
@@ -1064,11 +1088,11 @@
   const asgHref = (id, aid) => `/course/${id}/materials?tab=assignments&a=${aid}`;
   /** Schoology's own page for a course, for when the original is wanted. The explicit flag stops the app from drawing over it. */
   const originalHref = (path) => path + (path.includes('?') ? '&' : '?') + 'sgo=classic';
-  const absHref = (href) => (/^https?:/i.test(href || '') ? href : href || '#');
+  const absHref = (href) => S.safeUrl(href);
   const SKELETON = (n = 4) => h('div', { class: 'sk-list', 'aria-busy': 'true', 'aria-label': 'Loading' }, Array.from({ length: n }, () => h('div', { class: 'sk-row' })));
   const failure = (what, msg, retry, original) => h('div', { class: 'crs-fail', role: 'alert' }, h('b', null, `Couldn't load ${what}`),
     h('p', null, /expired/.test(msg) ? 'Your Schoology session has ended. Sign in again, then retry.' : 'Schoology did not respond with the expected page. ' + msg),
-    h('div', { class: 'sgo-head-a' }, retry && btn('Try again', retry, 'ghost', 'reload'), original && h('a', { class: 'sgo-btn ghost', href: original, target: '_blank', rel: 'noopener' }, icon('external', 16), 'Open in Schoology')));
+    h('div', { class: 'sgo-head-a' }, retry && btn('Try again', retry, 'ghost', 'reload'), original && h('a', { class: 'sgo-btn ghost', href: original, target: '_blank', rel: 'noopener noreferrer' }, icon('external', 16), 'Open in Schoology')));
   const dueTs = (txt) => { const p = txt && S.parseDue(txt); return p ? p.ts : null; };
   const dueShort = (txt) => { const p = txt && S.parseDue(txt); return p ? `${mon3(p.ts)} ${new Date(p.ts).getDate()}${p.timed ? ' · ' + S.fmtTime(p.ts) : ''}` : txt || ''; };
 
@@ -1115,7 +1139,7 @@
     const st = S.folderState(c.id, it.id), items = st.data ? st.data.items : null;
     if (!items) return h('p', { class: 'rs-sub-empty' }, st.error ? 'Could not load this folder.' : 'Loading…');
     if (!items.length) return h('p', { class: 'rs-sub-empty' }, 'This folder is empty.');
-    return h('ul', { class: 'rs-sub' }, items.slice(0, 6).map((x) => h('li', null, h('a', { href: x.kind === 'folder' ? folderHref(c.id, x.id) : x.kind === 'assignment' && x.id ? asgHref(c.id, x.id) : absHref(x.href), target: x.kind === 'folder' || (x.kind === 'assignment' && x.id) ? null : '_blank', rel: 'noopener' },
+    return h('ul', { class: 'rs-sub' }, items.slice(0, 6).map((x) => h('li', null, h('a', { href: x.kind === 'folder' ? folderHref(c.id, x.id) : x.kind === 'assignment' && x.id ? asgHref(c.id, x.id) : absHref(x.href), target: x.kind === 'folder' || (x.kind === 'assignment' && x.id) ? null : '_blank', rel: 'noopener noreferrer' },
       icon(x.kind === 'folder' ? folderIcon(x.title) : x.kind === 'file' ? FMT_ICON[x.fmt] || 'file' : x.kind === 'assignment' ? 'notepad' : x.kind === 'assessment' ? 'rocket' : x.kind === 'link' ? 'link' : 'file', 15), h('span', null, x.title)))),
       items.length > 6 ? h('li', { class: 'rs-sub-more' }, h('a', { href: folderHref(c.id, it.id) }, `Open folder for ${items.length - 6} more`, icon('right', 14))) : null);
   }
@@ -1136,16 +1160,16 @@
     const ic = it.kind === 'file' ? FMT_ICON[it.fmt] || 'file' : it.kind === 'assignment' ? 'notepad' : it.kind === 'assessment' ? 'rocket' : it.kind === 'link' ? 'link' : 'file';
     const sub = [type, it.size, it.dueText ? 'Due ' + dueShort(it.dueText) : ''].filter(Boolean).join(' · ');
     const rd = it.kind === 'file' && (it.dl || it.href) ? { href: it.dl || it.href, name: it.title } : null; // files open in the built-in reader, not Schoology's viewer
-    const title = it.kind === 'assignment' && it.id ? h('a', { href: asgHref(c.id, it.id) }, it.title) : rd ? h('a', { href: absHref(rd.href), onclick: S.docClick(rd) }, it.title) : h('a', { href: absHref(it.href), target: '_blank', rel: 'noopener' }, it.title);
+    const title = it.kind === 'assignment' && it.id ? h('a', { href: asgHref(c.id, it.id) }, it.title) : rd ? h('a', { href: absHref(rd.href), onclick: S.docClick(rd) }, it.title) : h('a', { href: absHref(it.href), target: '_blank', rel: 'noopener noreferrer' }, it.title);
     return h('li', null, h('div', { class: 'rs rs-' + it.kind },
       h('span', { class: 'rs-ic' + (isA ? ' asg' : '') }, icon(ic, 20)),
       h('span', { class: 'rs-main' }, h('b', null, title), h('small', null, sub), it.body && it.kind !== 'file' ? h('small', { class: 'rs-body' }, it.body) : null),
       h('span', { class: 'rs-meta' }, ge ? h('span', { class: 'gr2-st st-' + ge.status }, ge.statusLabel) : null),
       h('span', { class: 'rs-acts' },
         it.kind === 'assignment' && it.id ? h('a', { class: 'sgo-act', href: asgHref(c.id, it.id), title: 'View details', 'aria-label': 'View details: ' + it.title }, icon('right', 15)) : null,
-        it.dl ? h('a', { class: 'sgo-act', href: absHref(it.dl), target: '_blank', rel: 'noopener', title: 'Download', 'aria-label': 'Download ' + it.title }, icon('download', 15)) : null,
+        it.dl ? h('a', { class: 'sgo-act', href: absHref(it.dl), target: '_blank', rel: 'noopener noreferrer', title: 'Download', 'aria-label': 'Download ' + it.title }, icon('download', 15)) : null,
         rd ? h('a', { class: 'sgo-act', href: absHref(rd.href), onclick: S.docClick(rd), title: 'Read here', 'aria-label': 'Read ' + it.title }, icon('file', 15)) : null,
-        it.href ? h('a', { class: 'sgo-act', href: absHref(it.href), target: '_blank', rel: 'noopener', title: 'Open in Schoology', 'aria-label': 'Open ' + it.title + ' in Schoology' }, icon('external', 15)) : null)));
+        it.href ? h('a', { class: 'sgo-act', href: absHref(it.href), target: '_blank', rel: 'noopener noreferrer', title: 'Open in Schoology', 'aria-label': 'Open ' + it.title + ' in Schoology' }, icon('external', 15)) : null)));
   }
 
   function materialsPane(c, r) {
@@ -1175,7 +1199,7 @@
     return h('li', { class: 'ar' }, h('span', { class: 'rs-ic asg' }, icon(asgIcon(r), 20)),
       h('div', { class: 'rs-main' }, h('b', null, h('a', { href }, r.title)), h('small', null, r.dueText ? 'Due ' + dueShort(r.dueText) : r.due ? `Due ${mon3(r.due)} ${new Date(r.due).getDate()}${r.timed ? ' · ' + S.fmtTime(r.due) : ''}` : 'No due date')),
       pts ? h('span', { class: 'ar-pts' }, pts) : null,
-      r.item && S.isDone(r.item) ? h('span', { class: 'ar-mine', title: 'You ticked this off in your own to-do. Schoology does not know about it.' }, 'Ticked in my to-do') : null,
+      r.item && S.isDone(r.item) ? h('span', { class: 'ar-mine', title: 'Ticked off by you. Schoology does not know.' }, 'Ticked in my to-do') : null,
       h('span', { class: 'gr2-st st-' + (r.st === 'submitted' ? 'pending' : r.st) }, r.stLabel));
   }
   function assignmentsPane(c, r) {
@@ -1205,12 +1229,12 @@
           h('div', { class: 'sgo-fact' }, h('span', null, 'Due'), h('b', null, dueText ? dueShort(dueText) || dueText : 'No due date')),
           row && row.grade && row.grade.possible != null ? h('div', { class: 'sgo-fact' }, h('span', null, 'Points'), h('b', null, `${gNum(row.grade.earned)} / ${gNum(row.grade.possible)}`)) : null,
           h('div', { class: 'sgo-fact' }, h('span', null, 'Submission'), h('b', null, row ? row.stLabel : 'See Schoology'))),
-        h('div', { class: 'sgo-head-a' }, h('a', { class: 'sgo-btn primary', href: nativeHref, target: '_blank', rel: 'noopener' }, icon('external', 16), 'Open in Schoology to submit')),
+        h('div', { class: 'sgo-head-a' }, h('a', { class: 'sgo-btn primary', href: nativeHref, target: '_blank', rel: 'noopener noreferrer' }, icon('external', 16), 'Open in Schoology to submit')),
         row && row.grade && row.grade.comment ? h('div', { class: 'crs-fb' }, h('b', null, 'Teacher feedback'), h('p', null, row.grade.comment)) : null,
         h('h3', { class: 'sgo-sub' }, 'Instructions'),
         d ? (d.descHtml && d.descHtml.trim() ? h('div', { class: 'sgo-desc' }, S.sanitize(d.descHtml)) : h('p', { class: 'sgo-muted' }, 'This assignment has no written instructions.'))
           : st.error ? failure('this assignment', st.error, () => S.retryAssignment(aid), nativeHref) : h('div', { class: 'sgo-skel' }),
-        d && d.attachments.length ? [h('h3', { class: 'sgo-sub' }, 'Attachments'), h('ul', { class: 'rs-list' }, d.attachments.map((a) => h('li', null, h('a', Object.assign({ class: 'rs', href: absHref(a.href) }, S.isDocLink(a.href) ? { onclick: S.docClick({ href: a.href, name: a.name }) } : { target: '_blank', rel: 'noopener' }), h('span', { class: 'rs-ic' }, icon('file', 20)), h('span', { class: 'rs-main' }, h('b', null, a.name)), h('span', { class: 'rs-go' }, icon('download', 16))))))] : null,
+        d && d.attachments.length ? [h('h3', { class: 'sgo-sub' }, 'Attachments'), h('ul', { class: 'rs-list' }, d.attachments.map((a) => h('li', null, h('a', Object.assign({ class: 'rs', href: absHref(a.href) }, S.isDocLink(a.href) ? { onclick: S.docClick({ href: a.href, name: a.name }) } : { target: '_blank', rel: 'noopener noreferrer' }), h('span', { class: 'rs-ic' }, icon('file', 20)), h('span', { class: 'rs-main' }, h('b', null, a.name)), h('span', { class: 'rs-go' }, icon('download', 16))))))] : null,
         h('div', { class: 'crs-mine' }, h('button', { class: 'sgo-btn ghost', type: 'button', 'aria-pressed': String(done), onclick: () => { S.prefs.done[itemKey] ? delete S.prefs.done[itemKey] : (S.prefs.done[itemKey] = Date.now()); S.savePrefs(); S.render(true); } }, icon('check', 16), done ? 'Ticked in my to-do' : 'Tick off in my to-do'),
           h('small', null, 'Only your own checklist. This does not submit anything to Schoology.'))));
   }
@@ -1298,9 +1322,9 @@
   V.course = () => {
     const r = S.courseRoute(); if (!r) return empty('Course not found');
     const c = S.state.courses.find((x) => x.id === r.id);
-    if (!c && S.state.session === 'expired') return h('div', { class: 'sgo-page' }, h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Sign in to see this course'), h('div', { class: 'sgo-empty-s' }, 'Your Schoology session has ended, so this course cannot be loaded yet.'), h('div', { class: 'sgo-head-a', style: { justifyContent: 'center', marginTop: '12px' } }, h('a', { class: 'sgo-btn', href: originalHref(location.pathname), target: '_blank', rel: 'noopener' }, 'Sign in again'))));
+    if (!c && S.state.session === 'expired') return h('div', { class: 'sgo-page' }, h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Sign in to see this course'), h('div', { class: 'sgo-empty-s' }, 'Your Schoology session has ended, so this course cannot be loaded yet.'), h('div', { class: 'sgo-head-a', style: { justifyContent: 'center', marginTop: '12px' } }, h('a', { class: 'sgo-btn', href: originalHref(location.pathname), target: '_blank', rel: 'noopener noreferrer' }, 'Sign in again'))));
     if (!c) return h('div', { class: 'sgo-page' }, S.state.loaded && !S.state.loading
-      ? h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Course not found'), h('div', { class: 'sgo-empty-s' }, 'This course is not in your list of classes.'), h('div', { class: 'sgo-head-a', style: { justifyContent: 'center', marginTop: '12px' } }, btn('My classes', () => S.go('/courses'), 'ghost'), h('a', { class: 'sgo-btn ghost', href: originalHref(location.pathname), target: '_blank', rel: 'noopener' }, 'Open in Schoology')))
+      ? h('div', { class: 'sgo-empty' }, h('div', { class: 'sgo-empty-t' }, 'Course not found'), h('div', { class: 'sgo-empty-s' }, 'This course is not in your list of classes.'), h('div', { class: 'sgo-head-a', style: { justifyContent: 'center', marginTop: '12px' } }, btn('My classes', () => S.go('/courses'), 'ghost'), h('a', { class: 'sgo-btn ghost', href: originalHref(location.pathname), target: '_blank', rel: 'noopener noreferrer' }, 'Open in Schoology')))
       : SKELETON(5));
     const name = S.cn(c.id, c.name); S._title = name;
     const teacher = S.courseTeacher(c), code = S.courseCode(c.name), term = S.courseTerm(c), feed = (state => (state.cd[c.id] || {}).feed)(S.state);
@@ -1431,7 +1455,6 @@
   const mixHex = (a, b, p) => { const A = hexRgb(a), B = hexRgb(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * p).toString(16).padStart(2, '0')).join(''); };
   const LOOK_KEYS = ['contour', 'contourGlow', 'background'];
   const sameLook = (t) => LOOK_KEYS.every((k) => (S.prefs[k] || '').toLowerCase() === t[k]);
-  S.sameLook = sameLook;
   /** A theme sets all of its colours: the background, the contour lines and glow, and the accent. */
   S.applyLook = (t) => {
     const html = document.documentElement;
@@ -1489,6 +1512,8 @@
       seg('Show map', 'Contour lines, or just the plain background', [[true, 'On'], [false, 'Off']], P.topoOn !== false, (v) => { S.setMap({ topoOn: v }); redraw(); }),
       seg('Density', 'How many contour lines are drawn', [['light', 'Light'], ['standard', 'Standard'], ['dense', 'Dense']], P.topoDensity || 'standard', (v) => { S.setMap({ topoDensity: v }); redraw(); }),
       seg('Weight', 'How thick the lines are', [['thin', 'Thin'], ['standard', 'Standard'], ['bold', 'Bold']], P.topoWeight || 'standard', (v) => { S.setMap({ topoWeight: v }); redraw(); }),
+      seg('Strength', 'How visible the background map is', [['faint', 'Faint'], ['standard', 'Standard'], ['strong', 'Strong']], P.topoStrength || 'standard', (v) => { S.setMap({ topoStrength: v }); redraw(); }),
+      seg('Line style', 'Solid lines, or dashed ordinary contours', [['solid', 'Solid'], ['dashed', 'Dashed']], P.topoStyle || 'solid', (v) => { S.setMap({ topoStyle: v }); redraw(); }),
       h('div', { class: 'ap-row', title: 'Draws a different landscape' }, h('div', { class: 'ap-l' }, h('b', null, 'Shape')), btn('New map', () => { S.setMap({ topoSeed: 1000 + Math.floor(Math.random() * 90000) }); redraw(); }, 'ghost', 'reload')),
     ];
   }

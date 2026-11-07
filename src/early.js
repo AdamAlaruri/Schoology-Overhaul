@@ -45,6 +45,8 @@
     html.classList.toggle('sgo-text-lg', !!(prefs && prefs.textSize === 'lg'));
     html.classList.toggle('sgo-text-xl', !!(prefs && prefs.textSize === 'xl'));
     st.setProperty('--topo-w', String({ thin: .55, standard: 1, bold: 1.9 }[(prefs && prefs.topoWeight) || 'standard'] || 1)); // line weight scales both the index and the ordinary contours
+    st.setProperty('--topo-strength', String({ faint: .55, standard: 1, strong: 1.7 }[(prefs && prefs.topoStrength) || 'standard'] || 1)); // how visible the background map is
+    html.dataset.sgoTopoStyle = prefs && prefs.topoStyle === 'dashed' ? 'dashed' : 'solid';
     buildLayer((prefs && prefs.topoDensity) || 'standard', Number(prefs && prefs.topoSeed) || 20260);
     buildArt(pick('contour'), prefs);
   };

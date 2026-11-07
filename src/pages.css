@@ -105,7 +105,7 @@ html.sgo-app .sgo-page > .sgo-head, html.sgo-app .cl-top, html.sgo-app .asg6 > .
 /* page-level action buttons, fields, chips: one height everywhere */
 html.sgo-app .sgo-page:not(.dash6) .sgo-head-a .sgo-btn, html.sgo-app .cl-top .sgo-btn { height: 44px; min-height: 44px; padding: 0 20px; border-radius: 10px; font-size: 15px; font-weight: 700; }
 /* Grades: same surfaces as the other pages */
-html.sgo-app .gr-bar, html.sgo-app .sgo-page .sgo-note { font-size: 14px; color: var(--t3); }
+html.sgo-app .sgo-page .sgo-note { font-size: 14px; color: var(--t3); }
 html.sgo-app .sgo-empty { border-radius: 18px; background: var(--s1); }
 /* Course page: the same banner as the Courses tiles (course-colour wash and its own topographic map), thick tabs, no stat strip */
 html.sgo-app .crs-head { position: relative; isolation: isolate; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 0; min-height: 220px; box-sizing: border-box; margin: 0 0 20px; padding: 28px 32px !important; border-radius: 22px !important; background: color-mix(in srgb, var(--c) 22%, var(--s1)) !important; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--c) 45%, transparent) !important; }
@@ -194,7 +194,7 @@ html.sgo-app .gx-r { display: grid; grid-template-columns: minmax(0, 1fr) auto 6
 html.sgo-app .gx-r:hover { background: color-mix(in srgb, var(--text) 6%, transparent); }
 html.sgo-app .gx-r.ed { background: color-mix(in srgb, var(--accent) 10%, transparent); }
 html.sgo-app .gx-r-m { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-html.sgo-app .gx-r-m b { font-size: 14.5px; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app .gx-r-m b { font-size: 14px; font-weight: 600; color: var(--t1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 html.sgo-app .gx-r-m span { font-size: 13px; color: var(--t3); }
 html.sgo-app .gx-r-m .sgo-input { height: 40px; }
 html.sgo-app .gx-r-s { display: inline-flex; align-items: center; justify-content: flex-end; gap: 6px; font-variant-numeric: tabular-nums; font-size: 14px; color: var(--t1); }
@@ -414,3 +414,328 @@ html.sgo-app .up-none { margin: 0; padding: 18px 12px; font-size: 14px; line-hei
 html.sgo-app .up-f { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 0; padding: 12px; border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent); font-size: 14px; font-weight: 700; color: var(--accent); text-decoration: none; }
 html.sgo-app .up-f:hover { color: var(--t1); }
 @media (max-width: 900px) { html.sgo-app .sgo-rail-notif .up-p { width: auto; } }
+
+/* ===== Every theme: boxes must be easy to see. Text fields, cards, lists, filters and toggles get a clear edge, and fields a lighter fill than the page ===== */
+html.sgo-app.sgo-app {
+  --edge: color-mix(in srgb, var(--text) 26%, var(--app-background));
+  --edge-soft: color-mix(in srgb, var(--text) 16%, var(--app-background));
+  --field: color-mix(in srgb, #fff 70%, var(--app-background));
+}
+html.sgo-app.sgo-app :is(.sgo-input, input.sgo-input, textarea.sgo-input, select.sgo-input, .sgo-task .sgo-input, .sgo-task select, .mat-search .sgo-input, .mat-sort, .sgo-card .sgo-input):not(.gx *):not([type="checkbox"]):not([type="radio"]):not([type="color"]) {
+  background-color: var(--field) !important; border: 0 !important; box-shadow: inset 0 0 0 1.5px var(--edge) !important; color: var(--text);
+}
+html.sgo-app.sgo-app :is(.sgo-input, .sgo-task .sgo-input, .sgo-task select):not(.gx *):hover { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 42%, var(--app-background)) !important; }
+html.sgo-app.sgo-app :is(.sgo-input, .sgo-task .sgo-input, .sgo-task select):not(.gx *):focus { box-shadow: inset 0 0 0 2px var(--accent) !important; outline: none; }
+html.sgo-app.sgo-app .sgo-input::placeholder { color: color-mix(in srgb, var(--text) 55%, var(--app-background)); }
+html.sgo-app.sgo-app .sgo-page :is(.sgo-card, .sgo-course, .gp-card, .ib-list, .ib-read, .sgo-empty, .sgo-list, .dash6 .pr-list, .dash6 .an-list, .dash6 .cl-list, .dash6 .side-empty, .dash6 .dh-wk) {
+  box-shadow: inset 0 0 0 1px var(--edge-soft);
+}
+html.sgo-app.sgo-app :is(.sgo-seg, .sgo-btn.ghost, .sgo-chip:not(.on), .dash6 .pri-filter, .ap-preset:not(.on), .cl-idle a) { box-shadow: inset 0 0 0 1px var(--edge); }
+html.sgo-app.sgo-app .sgo-seg button.on { box-shadow: 0 1px 4px rgb(0 0 0 / .18); }
+html.sgo-app.sgo-app :is(.sgo-modal, .ap-modal, .sgo-menu-p, .notif-p, .acc-pop) { border: 1px solid var(--edge); }
+html.sgo-app.sgo-app.sgo-dark { --field: color-mix(in srgb, #fff 8%, var(--app-background)); --edge: color-mix(in srgb, var(--text) 30%, var(--app-background)); --edge-soft: color-mix(in srgb, var(--text) 18%, var(--app-background)); }
+html.sgo-app.sgo-app.sgo-dark .sgo-seg button.on { box-shadow: none; }
+
+/* ===== Scroll bars: slim, rounded, drawn in the theme's own colours, and only prominent when pointed at ===== */
+html.sgo-app, html.sgo-app * { --sb-thumb: color-mix(in srgb, var(--text) 26%, transparent); --sb-thumb-hover: color-mix(in srgb, var(--accent) 70%, var(--text)); }
+html.sgo-app ::-webkit-scrollbar { width: 14px; height: 14px; background: transparent; }
+html.sgo-app ::-webkit-scrollbar-track { background: transparent; }
+html.sgo-app ::-webkit-scrollbar-corner { background: transparent; }
+html.sgo-app ::-webkit-scrollbar-thumb { min-height: 48px; min-width: 48px; border: 4px solid transparent; border-radius: 999px; background: var(--sb-thumb); background-clip: padding-box; }
+html.sgo-app ::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); background-clip: padding-box; }
+html.sgo-app ::-webkit-scrollbar-thumb:active { background: var(--accent); background-clip: padding-box; }
+@supports not selector(::-webkit-scrollbar) { html.sgo-app, html.sgo-app * { scrollbar-width: thin; scrollbar-color: var(--sb-thumb) transparent; } }
+/* modern Chrome ignores the styled bar when scrollbar-width is set, so the page area goes back to auto and uses the bar above */
+html.sgo-app.sgo-app .sgo-content { scrollbar-width: auto; }
+
+/* Scroll bars on the pages that keep Schoology's own layout: the same slim bar, in the chosen accent */
+html:not(.sgo-app) { --sb-thumb: color-mix(in srgb, var(--accent, #64748b) 55%, transparent); --sb-thumb-hover: var(--accent, #64748b); }
+html:not(.sgo-app) ::-webkit-scrollbar, html:not(.sgo-app)::-webkit-scrollbar { width: 14px; height: 14px; background: transparent; }
+html:not(.sgo-app) ::-webkit-scrollbar-track, html:not(.sgo-app)::-webkit-scrollbar-track { background: transparent; }
+html:not(.sgo-app) ::-webkit-scrollbar-thumb, html:not(.sgo-app)::-webkit-scrollbar-thumb { min-height: 48px; min-width: 48px; border: 4px solid transparent; border-radius: 999px; background: var(--sb-thumb); background-clip: padding-box; }
+html:not(.sgo-app) ::-webkit-scrollbar-thumb:hover, html:not(.sgo-app)::-webkit-scrollbar-thumb:hover { background: var(--sb-thumb-hover); background-clip: padding-box; }
+
+/* ===== Updates panel, calmer: a short title, one line per item, and no borders or extra text ===== */
+html.sgo-app.sgo-app .up-p { width: 340px; padding: 8px; }
+html.sgo-app.sgo-app .up-h { padding: 8px 10px 6px; }
+html.sgo-app.sgo-app .up-h b { display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; }
+html.sgo-app.sgo-app .up-n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; font-style: normal; font-size: 12px; font-weight: 700; background: var(--accent); color: var(--on-accent); }
+html.sgo-app.sgo-app .up-all { height: 28px; padding: 0 10px; font-size: 13px; font-weight: 600; background: none; color: var(--t2); }
+html.sgo-app.sgo-app .up-all:hover { background: color-mix(in srgb, var(--text) 8%, transparent); color: var(--t1); }
+html.sgo-app.sgo-app .up-l { gap: 0; }
+html.sgo-app.sgo-app .up-a { gap: 10px; padding: 9px 10px; align-items: center; }
+html.sgo-app.sgo-app .up-dot { margin-top: 0; }
+html.sgo-app.sgo-app .up-m b { font-size: 14px; }
+html.sgo-app.sgo-app .up-m span { font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+html.sgo-app.sgo-app .up-s { padding: 0; font-size: 13px; font-weight: 700; color: var(--t2); }
+html.sgo-app.sgo-app .up-f { display: block; margin: 4px 0 0; padding: 10px; border-top: 0; text-align: center; font-size: 13px; font-weight: 600; color: var(--t2); }
+html.sgo-app.sgo-app .up-f svg { display: none; }
+html.sgo-app.sgo-app .up-f:hover { color: var(--accent); }
+html.sgo-app.sgo-app .up-none { padding: 14px 10px; font-size: 14px; text-align: center; }
+
+/* ===== Updates panel, final: roomy rows, and the grade is the biggest thing in each one ===== */
+html.sgo-app.sgo-app .up-p { width: 400px; padding: 10px; }
+html.sgo-app.sgo-app .up-h { padding: 8px 12px 12px; }
+html.sgo-app.sgo-app .up-h b { font-size: 18px; font-weight: 800; }
+html.sgo-app.sgo-app .up-l { gap: 4px; }
+html.sgo-app.sgo-app .up-a { grid-template-columns: 10px minmax(0, 1fr) auto; gap: 14px; padding: 14px 14px; border-radius: 12px; }
+html.sgo-app.sgo-app .up-i .up-a { background: color-mix(in srgb, var(--text) 4%, transparent); }
+html.sgo-app.sgo-app .up-i .up-a:hover { background: color-mix(in srgb, var(--text) 9%, transparent); }
+html.sgo-app.sgo-app .up-m { gap: 4px; }
+html.sgo-app.sgo-app .up-m b { font-size: 15px; font-weight: 700; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+html.sgo-app.sgo-app .up-m span { font-size: 13px; }
+html.sgo-app.sgo-app .up-s { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 64px; }
+html.sgo-app.sgo-app .up-s b { font-size: 22px; font-weight: 800; line-height: 1.1; letter-spacing: -.02em; font-variant-numeric: tabular-nums; color: var(--t1); }
+html.sgo-app.sgo-app .up-s small { font-size: 12px; font-weight: 500; color: var(--t3); font-variant-numeric: tabular-nums; }
+html.sgo-app.sgo-app .up-s.hi b { color: var(--ok); }
+html.sgo-app.sgo-app .up-s.lo b { color: var(--bad, #ef4444); }
+html.sgo-app.sgo-app .up-f { margin-top: 8px; padding: 12px; }
+
+/* ===== Consistency pass: the dashboard uses the same page gutter and bottom space as every other page, so left edges line up when you switch pages ===== */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-page.dash6 { padding: 32px 40px 64px; }
+}
+/* section headings on the dashboard share the weight used by the other pages' headings */
+html.sgo-app.sgo-app .dash6 :is(.sec-h, .side-h) h2 { font-weight: 700; }
+
+/* ===== Updates panel: no empty column on the left. The unread dot sits in the padding instead of taking its own column ===== */
+html.sgo-app.sgo-app .up-a { position: relative; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; padding: 12px 14px 12px 20px; }
+html.sgo-app.sgo-app .up-dot { position: absolute; left: 8px; top: 50%; margin: -4px 0 0; }
+html.sgo-app.sgo-app .up-h { padding: 6px 10px 10px 14px; }
+
+/* ===== Course page: the banner stays, but its type matches the dashboard (same weight, size and colour rules, no heavy shadows) ===== */
+html.sgo-app.sgo-app .crs-kicker { margin: 0 0 10px; font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--t2); text-shadow: none; }
+html.sgo-app.sgo-app .crs-kicker i { background: var(--accent); }
+html.sgo-app.sgo-app .crs-title h1 { max-width: 20ch; font-size: 36px; line-height: 1.15; font-weight: 800; letter-spacing: -.02em; color: var(--t1); text-shadow: none; }
+html.sgo-app.sgo-app .crs-title h1 .crs-rename { color: var(--t1); background: color-mix(in srgb, var(--app-background) 60%, transparent); }
+html.sgo-app.sgo-app .crs-meta { margin-top: 12px; gap: 8px; font-size: 14px; }
+html.sgo-app.sgo-app .crs-meta > span { padding: 5px 12px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--t1); background: color-mix(in srgb, var(--app-background) 60%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 12%, transparent); }
+html.sgo-app.sgo-app .crs-actions button, html.sgo-app.sgo-app .crs-actions .sgo-icon-btn { width: 40px; height: 40px; color: var(--t1); background: color-mix(in srgb, var(--app-background) 60%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--text) 14%, transparent); }
+html.sgo-app.sgo-app .crs-actions button:hover { background: var(--accent); color: var(--on-accent); }
+html.sgo-app.sgo-app .crs-actions svg { width: 18px; height: 18px; stroke-width: 2.2; }
+html.sgo-app.sgo-app .crs-tabs a { font-size: 14px; font-weight: 600; }
+@media (max-width: 700px) { html.sgo-app.sgo-app .crs-title h1 { font-size: 30px; } }
+
+/* ===== Courses page: the whole tile is the link. The text and chips no longer sit on top of it and swallow the click ===== */
+html.sgo-app.sgo-app .cc2:has(.sgo-course-link) :is(.cc2-head, .cc2-body, .cc2-foot) { pointer-events: none; }
+html.sgo-app.sgo-app .cc2 .cc2-go { pointer-events: auto; position: relative; z-index: 3; }
+html.sgo-app.sgo-app .cc2 .cc2-label { font-size: 14px; font-weight: 600; letter-spacing: 0; text-transform: none; text-shadow: none; }
+html.sgo-app.sgo-app .cc2 .sgo-course-t { font-weight: 800; letter-spacing: -.02em; text-shadow: none; }
+
+/* the search box in Materials: room for its icon, so the icon never sits on the words */
+html.sgo-app.sgo-app .mat-search .sgo-input { padding-left: 42px !important; }
+html.sgo-app.sgo-app .mat-search svg { left: 14px; }
+
+/* =====================================================================
+   Final polish: the sidebar, the dashboard rhythm and zoom safety
+   ===================================================================== */
+/* sidebar: one rhythm. Every button is 40px with a 4px gap, icons share one size and weight, the divider has 12px above and below */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail { gap: 4px; padding: 16px 0; align-items: center; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-menu { margin: 0; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-rail-notif { margin: 0 0 12px; padding: 0 0 12px; border-bottom: 1px solid var(--hair); width: 40px; display: flex; justify-content: center; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-rail-notif + .sgo-rail-i, html.sgo-app.sgo-app .sgo-rail > .sgo-rail-i:first-of-type { margin-top: 0; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i { width: 40px; height: 40px; min-height: 40px; padding: 0; display: grid; place-items: center; border-radius: 10px; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i > svg { width: 21px; height: 21px; stroke-width: 2; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-face { width: 30px; height: 30px; border-radius: 9px; font-size: 14px; font-weight: 700; display: grid; place-items: center; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-n, html.sgo-app.sgo-app .sgo-rail .sgo-bell-n { position: absolute; top: 3px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font-size: 10px; font-weight: 700; line-height: 16px; text-align: center; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i { position: relative; }
+}
+html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] { background: color-mix(in srgb, var(--accent) 16%, transparent); color: var(--accent); }
+html.sgo-app.sgo-app .sgo-rail .sgo-rail-i:not([aria-current="page"]):hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+
+/* dashboard: one vertical rhythm. Sections 32px apart, a heading 16px above its panel, panels share one radius and inset */
+html.sgo-app.sgo-app .dash6 .dp-fused, html.sgo-app.sgo-app .dash6 > .dp-side-col { gap: 32px; }
+html.sgo-app.sgo-app .dash6 :is(.sec-h, .side-h) { min-height: 40px; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 0 0 16px; }
+html.sgo-app.sgo-app .dash6 .pr { align-items: center; gap: 12px; }
+html.sgo-app.sgo-app .dash6 .pr-main { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+html.sgo-app.sgo-app .dash6 .pr-main > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* zoom and narrow windows: nothing may push the page sideways. Long names wrap, grid children can shrink, wide tables scroll inside themselves */
+html.sgo-app.sgo-app, html.sgo-app.sgo-app body { overflow-x: clip; }
+html.sgo-app.sgo-app #sgo-root :is(h1, h2, h3, h4, .sgo-course-t, .pr-main b, .an-t) { overflow-wrap: anywhere; }
+html.sgo-app.sgo-app .sgo-page, html.sgo-app.sgo-app .sgo-page > * { min-width: 0; }
+html.sgo-app.sgo-app .crs-tabs { overflow-x: auto; scrollbar-width: none; }
+@media (max-width: 520px) {
+  html.sgo-app.sgo-app .sgo-page { padding-left: 16px; padding-right: 16px; }
+  html.sgo-app.sgo-app .dash6 > .dh, html.sgo-app.sgo-app .sgo-page:not(.dash6) > .sgo-head { padding-left: 20px; padding-right: 20px; }
+}
+
+/* ===== Sidebar labels: the icon rail always shows its label beside the icon on hover or keyboard focus, and the label stays put after a click ===== */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[data-tip]::after { display: block; left: calc(100% + 10px); z-index: 300; opacity: 0; transform: translate(-4px, -50%); transition: opacity .12s var(--ease-out), transform .12s var(--ease-out); transition-delay: 0s; pointer-events: none; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[data-tip]:hover::after, html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[data-tip]:focus-visible::after { opacity: 1; transform: translate(0, -50%); transition-delay: 120ms; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[data-tip]:active::after { opacity: 1; }
+}
+
+/* ===== Sidebar, roomier and bolder: bigger buttons, more air between them, heavier icons and labels ===== */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail { gap: 8px; padding: 20px 0; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i { width: 44px; height: 44px; min-height: 44px; border-radius: 12px; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-menu .sgo-rail-i { width: 44px; height: 44px; min-height: 44px; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-rail-notif { width: 44px; margin: 4px 0 16px; padding: 0 0 20px; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i > svg { width: 23px; height: 23px; stroke-width: 2.4; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-face { width: 34px; height: 34px; font-size: 16px; font-weight: 800; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-n, html.sgo-app.sgo-app .sgo-rail .sgo-bell-n { top: 4px; right: 3px; font-weight: 800; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[data-tip]::after { padding: 8px 12px; font-size: 15px; font-weight: 700; }
+}
+html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] { font-weight: 700; }
+html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] > svg { stroke-width: 2.6; }
+/* the phone menu: bold labels with room between rows */
+@media (max-width: 900px) {
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i { font-size: 16px; font-weight: 700; min-height: 48px; }
+  html.sgo-app.sgo-app .sgo-rail { gap: 6px; }
+}
+
+/* ===== The sidebar floats: a rounded panel with space around it, so it is no longer glued to the window edge ===== */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail { margin: 14px 0 14px 14px; height: calc(100% - 28px); border: 1px solid var(--edge-soft, var(--hair)); border-radius: 22px; background: var(--s1); box-shadow: 0 10px 30px -18px rgb(0 0 0 / .45); }
+  html.sgo-app.sgo-app .sgo-rail .rail-topo { border-radius: 0 0 22px 22px; overflow: hidden; }
+  html.sgo-app.sgo-app .sgo-content { padding-left: 24px; }
+}
+
+/* ===== Assignments: even 24px steps from the title to the filters to the list (it had 64px gaps) ===== */
+html.sgo-app.sgo-app .asg6 { row-gap: 24px; }
+html.sgo-app.sgo-app .asg6 .dp-main { row-gap: 24px; gap: 24px; }
+html.sgo-app.sgo-app .asg6 .dp-main > * { margin-top: 0; margin-bottom: 0; }
+html.sgo-app.sgo-app .asg6 .asg-bar { gap: 12px 16px; }
+
+/* ===== The sidebar is one large pill, separate from the page: it shrinks to its icons, floats, and is centred in the window ===== */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail { align-self: center; height: auto; max-height: calc(100% - 32px); margin: 16px 0 16px 20px; padding: 16px 8px; width: 64px; border-radius: 32px; overflow: visible; box-shadow: 0 14px 36px -16px rgb(0 0 0 / .55), inset 0 0 0 1px var(--edge-soft, var(--hair)); border: 0; }
+  html.sgo-app.sgo-app .sgo-rail .rail-topo { display: none; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-tog { display: none; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-rail-notif { width: 44px; }
+}
+@media (min-width: 901px) and (max-height: 700px) { html.sgo-app.sgo-app .sgo-rail { overflow-y: auto; scrollbar-width: none; } }
+
+/* ===== Grades: one corner system. Panels 16px, controls 12px, items inside a panel 10px, toggle groups 14px with 10px buttons ===== */
+html.sgo-app.sgo-app .gx :is(.gx-list, .gx-rows, .gx-sum, .gx-hd, .gx-card) { border-radius: 16px; }
+html.sgo-app.sgo-app .gx :is(.gx-chip, .gx-q, .sgo-input, .sgo-btn) { border-radius: 12px; }
+html.sgo-app.sgo-app .gx :is(.gx-c, .gx-r) { border-radius: 10px; }
+html.sgo-app.sgo-app .sgo-seg { border-radius: 14px; }
+html.sgo-app.sgo-app .sgo-seg button { border-radius: 10px; }
+html.sgo-app.sgo-app .gx .gx-list { overflow: hidden; }
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail, html.sgo-app.sgo-app[data-sgo-topo="on"] .sgo-rail { background: var(--s2); background-image: none; }
+}
+
+/* the profile picture is a square with rounded corners, in the sidebar and in menus */
+html.sgo-app.sgo-app .sgo-face { border-radius: 10px; }
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail::before, html.sgo-app.sgo-app .sgo-rail::after { content: none; }
+}
+
+/* the sidebar pill sits in the top-left corner instead of the middle of the window */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail { align-self: flex-start; margin: 20px 0 20px 20px; }
+}
+
+/* ===== The sidebar belongs to the page again: the whole left side, full height, one calm surface that fades into the page, with air around the icons ===== */
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app .sgo-rail, html.sgo-app.sgo-app[data-sgo-topo="on"] .sgo-rail {
+    align-self: stretch; height: auto; max-height: none; margin: 0; width: 80px; padding: 28px 0 24px; border: 0; border-radius: 0; overflow: visible;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--text) 5%, var(--app-background)) 0%, color-mix(in srgb, var(--text) 2%, var(--app-background)) 100%);
+    box-shadow: 1px 0 0 color-mix(in srgb, var(--text) 8%, transparent);
+  }
+  html.sgo-app.sgo-app .sgo-rail { gap: 10px; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i, html.sgo-app.sgo-app .sgo-rail > .sgo-menu .sgo-rail-i { width: 48px; height: 48px; min-height: 48px; border-radius: 16px; }
+  html.sgo-app.sgo-app .sgo-rail .sgo-rail-i[aria-current="page"] { background: color-mix(in srgb, var(--accent) 18%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent); }
+  html.sgo-app.sgo-app .sgo-rail .sgo-face { width: 38px; height: 38px; border-radius: 12px; font-size: 17px; }
+  html.sgo-app.sgo-app .sgo-rail > .sgo-rail-notif { width: 48px; margin: 2px 0 14px; padding: 0 0 18px; }
+  html.sgo-app.sgo-app .sgo-content { padding-left: 32px; }
+}
+
+/* =====================================================================
+   Density. Comfortable is the airy default. Compact tightens rows, panels, gutters and controls on every page, by about a fifth.
+   ===================================================================== */
+html.sgo-app.sgo-app:not(.sgo-compact) { --inset: 24px; --row-y: 14px; --panel-gap: 20px; --ctl: 44px; }
+html.sgo-app.sgo-app.sgo-compact { --inset: 16px; --row-y: 8px; --panel-gap: 12px; --ctl: 36px; }
+html.sgo-app.sgo-app.sgo-compact .sgo-page { padding-top: 20px; padding-bottom: 40px; }
+@media (min-width: 901px) {
+  html.sgo-app.sgo-app.sgo-compact .sgo-page, html.sgo-app.sgo-app.sgo-compact .sgo-page.dash6 { padding-left: 28px; padding-right: 28px; }
+  html.sgo-app.sgo-app.sgo-compact .sgo-rail { gap: 6px; padding-top: 20px; }
+  html.sgo-app.sgo-app.sgo-compact .sgo-rail .sgo-rail-i { width: 42px; height: 42px; min-height: 42px; border-radius: 13px; }
+}
+html.sgo-app.sgo-app.sgo-compact .sgo-page:not(.dash6) > .sgo-head { margin-bottom: 14px; }
+html.sgo-app.sgo-app.sgo-compact .asg6, html.sgo-app.sgo-app.sgo-compact .asg6 .dp-main { row-gap: 14px; gap: 14px; }
+html.sgo-app.sgo-app.sgo-compact .sgo-card { padding: 14px var(--inset); margin-bottom: var(--panel-gap); }
+html.sgo-app.sgo-app.sgo-compact .sgo-set { padding: var(--row-y) 0; }
+html.sgo-app.sgo-app.sgo-compact :is(.sgo-input, .sgo-btn, .pri-filter) { min-height: var(--ctl); height: auto; }
+html.sgo-app.sgo-app.sgo-compact .sgo-seg button { min-height: 32px; padding: 0 12px; }
+html.sgo-app.sgo-app.sgo-compact :is(.gx-c, .gx-r, .ar, .rs, .ib-row) { padding-top: 8px; padding-bottom: 8px; }
+html.sgo-app.sgo-app.sgo-compact .sgo-cgrid, html.sgo-app.sgo-app.sgo-compact .gp-grid { gap: 14px; }
+html.sgo-app.sgo-app.sgo-compact .crs-grid, html.sgo-app.sgo-app.sgo-compact .crs-col { gap: 14px; }
+html.sgo-app.sgo-app.sgo-compact .crs-card, html.sgo-app.sgo-app.sgo-compact .crs .crs-card { padding: 16px 18px; }
+html.sgo-app.sgo-app.sgo-compact .up-a { padding-top: 8px; padding-bottom: 8px; }
+html.sgo-app.sgo-app.sgo-compact .cc2 { min-height: 0; }
+
+/* Settings buttons (Data & privacy and the rest): always a clear outline and a lighter fill, in every theme */
+html.sgo-app.sgo-app .sgo-card .sgo-btn.ghost, html.sgo-app.sgo-app .sgo-head-a .sgo-btn.ghost { background: var(--field) !important; box-shadow: inset 0 0 0 1.5px var(--edge) !important; color: var(--t1); }
+html.sgo-app.sgo-app .sgo-card .sgo-btn.ghost:hover, html.sgo-app.sgo-app .sgo-head-a .sgo-btn.ghost:hover { background: var(--s2) !important; box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 44%, var(--app-background)) !important; }
+html.sgo-app.sgo-app .sgo-card .sgo-btn.ghost:focus-visible { box-shadow: inset 0 0 0 2px var(--accent) !important; }
+/* high contrast outlines the same buttons a little stronger, not harsher */
+html.sgo-app.sgo-app.sgo-contrast .sgo-card .sgo-btn.ghost { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--text) 60%, transparent) !important; }
+
+/* compact: the dashboard tightens as well */
+html.sgo-app.sgo-app.sgo-compact .dash6 > .dh { padding: 22px 28px; min-height: 0; }
+html.sgo-app.sgo-app.sgo-compact .dash6 .ag .pr { padding-top: 6px; padding-bottom: 6px; }
+html.sgo-app.sgo-app.sgo-compact .dash6 .dp-fused, html.sgo-app.sgo-app.sgo-compact .dash6 > .dp-side-col { gap: 20px; }
+
+/* Settings rows keep their control on the right at every text size: the words wrap beside it. Only a really narrow window stacks them */
+@media (min-width: 600px) {
+  html.sgo-app.sgo-app .sgo-set { flex-wrap: nowrap; }
+  html.sgo-app.sgo-app .sgo-set > div:first-child { flex: 1 1 0; min-width: 140px; }
+  html.sgo-app.sgo-app .sgo-set > :last-child:not(:first-child) { flex: 0 0 auto; margin-left: auto; }
+}
+
+/* =====================================================================
+   Schoology's own pages (account, settings and others the extension does not redraw) get the same sidebar as the rest:
+   icon-only, bold icons, a label on hover, nothing clipped, and the page makes room for it.
+   ===================================================================== */
+@media (min-width: 901px) {
+  html.sgo-native { --sb: 80px; }
+  html.sgo-native #sgo-root { width: var(--sb); }
+  html.sgo-native .sgo-rail {
+    box-sizing: border-box; width: var(--sb); height: 100%; display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 28px 0 24px; overflow: visible;
+    background: linear-gradient(90deg, color-mix(in srgb, var(--text, #fff) 5%, var(--app-background, #12100e)), color-mix(in srgb, var(--text, #fff) 2%, var(--app-background, #12100e)));
+    box-shadow: 1px 0 0 color-mix(in srgb, var(--text, #fff) 8%, transparent); border: 0;
+  }
+  html.sgo-native .sgo-rail .sgo-rail-i { position: relative; flex: none; box-sizing: border-box; width: 48px; height: 48px; min-height: 48px; padding: 0; display: grid; place-items: center; border-radius: 16px; background: none; color: var(--t3, #9aa4b2); text-decoration: none; }
+  html.sgo-native .sgo-rail .sgo-rail-i:hover { background: color-mix(in srgb, var(--text, #fff) 9%, transparent); color: var(--text, #fff); }
+  html.sgo-native .sgo-rail .sgo-rail-i[aria-current="page"] { background: color-mix(in srgb, var(--accent) 18%, transparent); color: var(--accent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 28%, transparent); }
+  html.sgo-native .sgo-rail .sgo-rail-i > svg { display: block; width: 23px; height: 23px; stroke-width: 2.4; }
+  html.sgo-native .sgo-rail .sgo-rail-i > span:not(.sgo-face) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  html.sgo-native .sgo-rail .sgo-menu { flex: none; margin: 0; }
+  html.sgo-native .sgo-rail .sgo-face { width: 38px; height: 38px; border-radius: 12px; font-size: 17px; font-weight: 800; display: grid; place-items: center; background: var(--accent); color: var(--on-accent, #fff); box-shadow: none; }
+  html.sgo-native .sgo-rail > .sgo-rail-notif { width: 48px; margin: 2px 0 14px; padding: 0 0 18px; border-bottom: 1px solid color-mix(in srgb, var(--text, #fff) 12%, transparent); display: flex; justify-content: center; }
+  html.sgo-native .sgo-rail .sgo-rail-n, html.sgo-native .sgo-rail .sgo-bell-n { position: absolute; top: 4px; right: 3px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; font-size: 10px; font-weight: 800; line-height: 16px; text-align: center; background: var(--accent); color: var(--on-accent, #fff); }
+  html.sgo-native .sgo-rail .rail-topo, html.sgo-native .sgo-rail .sgo-rail-tog, html.sgo-native .sgo-rail .sgo-rail-x { display: none; }
+  html.sgo-native .sgo-rail .sgo-rail-i[data-tip]::after { content: attr(data-tip); position: absolute; left: calc(100% + 10px); top: 50%; z-index: 300; padding: 8px 12px; border-radius: 8px; background: var(--s2, #2a2a2a); color: var(--text, #fff); font-size: 15px; font-weight: 700; white-space: nowrap; pointer-events: none; box-shadow: 0 6px 16px rgb(0 0 0 / .35); opacity: 0; transform: translate(-4px, -50%); transition: opacity .12s ease, transform .12s ease; }
+  html.sgo-native .sgo-rail .sgo-rail-i[data-tip]:hover::after, html.sgo-native .sgo-rail .sgo-rail-i[data-tip]:focus-visible::after { opacity: 1; transform: translate(0, -50%); transition-delay: 120ms; }
+}
+@media (min-width: 901px) and (max-height: 700px) { html.sgo-native .sgo-rail { overflow-y: auto; scrollbar-width: none; } }
+@media (min-width: 901px) {
+  html.sgo-native .sgo-rail > .sgo-menu { order: -2; }
+  html.sgo-native .sgo-rail > .sgo-rail-notif { order: -1; }
+}
+
+/* ===== Appearance window: the footer buttons sit fully inside the window, line up, and stay in reach while the window scrolls ===== */
+html.sgo-app.sgo-app .ap-modal { padding-bottom: 0; }
+html.sgo-app.sgo-app .ap-modal .sgo-mfoot { position: sticky; bottom: 0; z-index: 3; display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 20px -4px 0; padding: 16px 4px 20px; background: var(--surface-pop, var(--layer-3)); border-top: 1px solid var(--edge-soft, var(--hair)); }
+html.sgo-app.sgo-app .ap-modal .sgo-mfoot .sgo-btn { box-sizing: border-box; height: 44px; min-height: 44px; padding: 0 20px; border-radius: 12px; font-size: 15px; font-weight: 700; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
+html.sgo-app.sgo-app .ap-modal .sgo-mfoot .sgo-btn.ghost { box-shadow: inset 0 0 0 1.5px var(--edge); background: var(--field); }
+/* the toggle groups and the New map button share one height and one corner, so each row lines up */
+html.sgo-app.sgo-app .ap-modal .ap-row .sgo-seg, html.sgo-app.sgo-app .ap-modal .ap-row > .sgo-btn { box-sizing: border-box; height: 44px; min-height: 44px; border-radius: 14px; }
+html.sgo-app.sgo-app .ap-modal .ap-row > .sgo-btn { width: 100%; justify-content: center; box-shadow: inset 0 0 0 1.5px var(--edge); background: var(--field); }
+html.sgo-app.sgo-app .ap-modal .ap-row .sgo-seg { display: flex; width: 100%; }
+html.sgo-app.sgo-app .ap-modal .ap-row .sgo-seg button { flex: 1 1 0; min-width: 0; justify-content: center; }
+
+/* Assignments: the filter chips and the two dropdowns wrap onto a second line instead of overlapping when the page is not wide enough */
+html.sgo-app.sgo-app .asg6 .asg-bar { flex-wrap: wrap; }
+html.sgo-app.sgo-app .asg6 .sgo-chips { flex-wrap: wrap; min-width: 0; }
+
+/* Grades toolbar: the category chips get their own row, and the search box and "Add a score" sit under them, so nothing overlaps */
+html.sgo-app.sgo-app .gx-tools { flex-wrap: wrap; align-items: center; gap: 10px 8px; }
+html.sgo-app.sgo-app .gx-tools > .gx-chips { flex: 1 1 100%; min-width: 0; }
+html.sgo-app.sgo-app .gx-tools > .gx-q { flex: 1 1 160px; min-width: 0; }

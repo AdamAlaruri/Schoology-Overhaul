@@ -18,7 +18,7 @@
     ['groups', 'Groups', 'groups', '/groups'],
     ['calendar', 'Calendar', 'calendar', '/calendar'],
     ['inbox', 'Inbox', 'inbox', '/messages'],
-    ['settings', 'Accessibility', 'access', '/home#/settings'],
+    ['settings', 'Settings', 'access', '/home#/settings'],
   ];
 
   /* ---------- routing ---------- */
@@ -104,22 +104,21 @@
   function notifPanel(list) {
     // one short list: the four most recent things, new grades and teacher comments together
     const seen = new Set();
+    const sc = (e, p) => ({ pct: p ? Math.round((e / p) * 1000) / 10 : null, raw: e != null ? `${e}${p != null ? ' / ' + p : ''}` : '' });
     const items = [
-      ...list.map((n) => ({ grade: true, id: n.id, read: !!n.read, title: n.title, course: S.cn(n.courseId, n.course) || n.course || '', ts: n.at || 0, comment: n.comment || '',
-        score: n.earned != null ? `${n.earned}${n.possible != null ? ' / ' + n.possible : ''}${pct(n) ? ' \u00b7 ' + pct(n) : ''}` : '' })),
-      ...recentFeedback().map(({ x, g }) => ({ read: true, title: x.title, course: S.cn(g.courseId, g.courseName) || '', ts: x.ts || 0, comment: x.comment || '',
-        score: x.earned != null ? `${x.earned}${x.possible != null ? ' / ' + x.possible : ''}` : '' })),
+      ...list.map((n) => Object.assign({ grade: true, id: n.id, read: !!n.read, title: n.title, course: S.cn(n.courseId, n.course) || n.course || '', ts: n.at || 0 }, sc(n.earned, n.possible))),
+      ...recentFeedback().map(({ x, g }) => Object.assign({ read: true, title: x.title, course: S.cn(g.courseId, g.courseName) || '', ts: x.ts || 0 }, sc(x.earned, x.possible))),
     ].filter((i) => { const k = i.title + '|' + i.course; if (seen.has(k)) return false; seen.add(k); return true; }).sort((x, y) => y.ts - x.ts).slice(0, 4);
     const unread = list.filter((n) => !n.read).length;
     const row = (i) => h('li', { class: 'up-i' + (i.read ? '' : ' unread') },
       h('a', { class: 'up-a', href: '/grades/grades', onclick: () => { if (i.grade && !i.read) S.markGradeRead(i.id); S.ui.notifOpen = false; } },
         h('span', { class: 'up-dot', 'aria-hidden': 'true' }),
-        h('span', { class: 'up-m' }, h('b', null, i.title), h('span', null, [i.course, i.ts ? S.fmtDate(i.ts) : ''].filter(Boolean).join(' \u00b7 ')), i.comment ? h('em', null, i.comment.slice(0, 90)) : null),
-        i.score ? h('span', { class: 'up-s' }, i.score) : null));
+        h('span', { class: 'up-m' }, h('b', null, i.title), h('span', null, [i.course, i.ts ? S.fmtDate(i.ts) : ''].filter(Boolean).join(' \u00b7 '))),
+        i.raw ? h('span', { class: 'up-s ' + (i.pct == null ? '' : i.pct >= 90 ? 'hi' : i.pct >= 70 ? 'mid' : 'lo') }, i.pct != null ? h('b', null, i.pct + '%') : null, h('small', null, i.raw)) : null));
     return h('div', { class: 'notif-p up-p', role: 'dialog', 'aria-label': 'Updates' },
-      h('div', { class: 'up-h' }, h('div', null, h('b', null, 'Updates'), h('span', null, unread ? `${unread} new` : 'You are up to date')),
+      h('div', { class: 'up-h' }, h('b', null, 'Updates', unread ? h('i', { class: 'up-n' }, unread) : null),
         unread ? h('button', { class: 'up-all', type: 'button', onclick: () => { S.markAllGradesRead(); S.render(true); } }, 'Mark all read') : null),
-      items.length ? h('ul', { class: 'up-l' }, items.map(row)) : h('p', { class: 'up-none' }, 'Nothing new yet. Grades and teacher comments show up here.'),
+      items.length ? h('ul', { class: 'up-l' }, items.map(row)) : h('p', { class: 'up-none' }, 'You are all caught up.'),
       h('a', { class: 'up-f', href: '/grades/grades', onclick: () => { S.ui.notifOpen = false; } }, 'See all grades', icon('right', 14)));
   }
   /* Only one popover is open at a time: opening one closes the others, so they never stack. */
@@ -134,16 +133,22 @@
       h('button', { class: 'sgo-rail-i sgo-bell', type: 'button', 'data-tip': 'Updates', 'aria-haspopup': 'dialog', 'aria-expanded': String(open), dataset: { fk: 'bell' },
         'aria-label': n ? `Updates, ${n} unread` : 'Updates', onclick: (e) => { e.stopPropagation(); S.closePopovers('notif'); S.ui.notifOpen = !open; S.render(true); } },
         icon('bell', 21), h('span', null, 'Updates'), n ? h('b', { class: 'sgo-bell-n' }, n > 9 ? '9+' : n) : null),
-      open ? notifPanel(list) : null);
+      open ? placeBesideRail(notifPanel(list)) : null);
   }
-  /* Ripple: a soft circle grows from the pointer on .sgo-btn. Motion is skipped when the user asked for less of it. */
-  document.addEventListener('pointerdown', (e) => {
-    const b = e.target.closest && e.target.closest('#sgo-root .sgo-btn:not(:disabled)');
-    if (!b || e.button !== 0 || html.classList.contains('sgo-reduce-motion') || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) return;
-    const r = b.getBoundingClientRect(), dot = document.createElement('span');
-    dot.className = 'mo-ripple'; dot.style.left = e.clientX - r.left + 'px'; dot.style.top = e.clientY - r.top + 'px';
-    b.append(dot); dot.addEventListener('animationend', () => dot.remove(), { once: true }); setTimeout(() => dot.remove(), 800); // fallback if the animation never ends (background tab)
-  }, { passive: true });
+  /** On wide screens the Updates panel opens to the right of the sidebar, level with the bell, like the account menu: nothing in the rail is covered. */
+  function placeBesideRail(panel) {
+    requestAnimationFrame(() => {
+      const bell = document.querySelector('.sgo-bell'), rail = document.querySelector('.sgo-rail');
+      if (!panel.isConnected || !bell || !rail || innerWidth <= 900) return;
+      const b = bell.getBoundingClientRect(), r = rail.getBoundingClientRect(), hgt = Math.min(panel.offsetHeight, innerHeight - 16);
+      const want = { left: r.right + 8, top: Math.max(8, Math.min(b.top, innerHeight - hgt - 8)) };
+      panel.style.right = 'auto'; panel.style.bottom = 'auto'; panel.style.maxHeight = innerHeight - 16 + 'px';
+      panel.style.left = want.left + 'px'; panel.style.top = want.top + 'px';
+      const got = panel.getBoundingClientRect(); // an ancestor with a transform would offset fixed positioning: correct for it
+      if (Math.abs(got.left - want.left) > 1 || Math.abs(got.top - want.top) > 1) { panel.style.left = want.left - (got.left - want.left) + 'px'; panel.style.top = want.top - (got.top - want.top) + 'px'; }
+    });
+    return panel;
+  }
   document.addEventListener('click', (e) => { if (S.ui && S.ui.notifOpen &&!(e.target.closest && e.target.closest('.sgo-notif:not(.thm-wrap)'))) { S.ui.notifOpen = false; if (S.render) S.render(true); } });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && S.ui && S.ui.notifOpen) { S.ui.notifOpen = false; S.render(true); } });
   // the accent colour picker closes on a click elsewhere or Escape
@@ -230,7 +235,7 @@
     const r = route() || 'native';
     S.scrapeLive(document);
     if (S.resetSocial) S.resetSocial();
-    await S.refresh(r, { force: true });
+    await S.refresh(r, { force: true, all: true });
     S.render(true);
   };
 

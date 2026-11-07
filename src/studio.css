@@ -35,7 +35,7 @@ html.sgo-collapsed { --sb: 64px; }
 
 /* ---------- open surfaces: no boxes, no rules ---------- */
 html.sgo-app .side-card, html.sgo-app .ag .pr-list, html.sgo-app .pr-list, html.sgo-app .pr-done, html.sgo-app .dc-hidden-note { background: none; border: 0; border-radius: 0; box-shadow: none; padding: 0; overflow: visible; }
-html.sgo-app .pr + .pr, html.sgo-app .cl-r, html.sgo-app .an-list li, html.sgo-app .fb-list li { border: 0; }
+html.sgo-app .pr + .pr, html.sgo-app .cl-r, html.sgo-app .an-list li { border: 0; }
 html.sgo-app .sec-h p { display: none; }
 
 /* ---------- dashboard ---------- */
@@ -87,7 +87,7 @@ html.sgo-app .cl-m b { font-size: var(--fs-body); }
 html.sgo-app .cl-g { font-size: var(--fs-body); font-weight: var(--fw-strong); color: var(--muted); }
 html.sgo-app .cl-r:hover .cl-g { color: var(--text); }
 html.sgo-app .an-list button { padding: var(--space-2) 0; }
-html.sgo-app .an-list li + li, html.sgo-app .fb-list li + li { margin-top: var(--space-3); }
+html.sgo-app .an-list li + li { margin-top: var(--space-3); }
 html.sgo-app .dc-hidden-note { margin-top: var(--space-3); min-height: 0; font-size: var(--fs-small); color: var(--muted); }
 
 /* buttons and fields: flat, one primary */

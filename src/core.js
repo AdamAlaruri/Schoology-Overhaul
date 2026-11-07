@@ -87,16 +87,17 @@
   S.ACCENTS = [['Blue', '#3b82f6'], ['Sky', '#38bdf8'], ['Cyan', '#22d3ee'], ['Teal', '#14b8a6'], ['Emerald', '#10b981'], ['Green', '#22c55e'], ['Lime', '#84cc16'], ['Yellow', '#eab308'], ['Amber', '#f59e0b'], ['Orange', '#f97316'], ['Red', '#ef4444'], ['Rose', '#f43f5e'], ['Pink', '#f472b6'], ['Fuchsia', '#d946ef'], ['Purple', '#a855f7'], ['Violet', '#8b5cf6'], ['Indigo', '#6366f1'], ['Slate', '#94a3b8']];
   /* Curated looks: [accent, contour line, contour glow, background]. */
   S.THEME_PRESETS = [
-    { id: 'brown', name: 'Brown', note: 'Warm brown, visible contours', accent: '#f0b46c', contour: '#d9b98a', contourGlow: '#c8843f', background: '#12100e' },
-    { id: 'schoology', name: 'Classic blue', note: 'Light, blue and white', accent: '#1769d6', contour: '#9fb3cc', contourGlow: '#93c5fd', background: '#f8fafc' },
-    { id: 'hearth', name: 'Hearth', note: 'Warm charcoal', accent: '#8aa8ff', contour: '#c9b79c', contourGlow: '#b97c3f', background: '#151311' },
-    { id: 'slate', name: 'Slate', note: 'Cool slate', accent: '#7fb0ff', contour: '#9fb0c8', contourGlow: '#3f6fb5', background: '#12161c' },
-    { id: 'midnight', name: 'Midnight', note: 'Blue-black', accent: '#8fa2ff', contour: '#8aa0d0', contourGlow: '#3b52a8', background: '#0b0e16' },
-    { id: 'forest', name: 'Forest', note: 'Deep green', accent: '#6fd3a0', contour: '#a8c4a8', contourGlow: '#3f8a5c', background: '#111613' },
-    { id: 'plum', name: 'Plum', note: 'Dusk violet', accent: '#d1a2f0', contour: '#c7b0d6', contourGlow: '#8a4fa8', background: '#181319' },
-    { id: 'ember', name: 'Ember', note: 'Warm brown', accent: '#f0a070', contour: '#d6b49c', contourGlow: '#c2562f', background: '#1a1411' },
-    { id: 'graphite', name: 'Graphite', note: 'Neutral gray and black', accent: '#d4d4d8', contour: '#8f8f96', contourGlow: '#5b5b63', background: '#0e0e0f' },
-    { id: 'paper', name: 'Paper', note: 'Light', accent: '#2563eb', contour: '#cbd5e1', contourGlow: '#93c5fd', background: '#ffffff' },
+    /* Single-colour families: the accent is the primary shade, and the contour lines and glow use its lighter and darker partner. Five light, five dark. */
+    { id: 'cloud', name: 'Cloud', note: 'Cloud, light', accent: '#64748b', contour: '#94a3b8', contourGlow: '#64748b', background: '#f7f8fa' },
+    { id: 'sage', name: 'Sage', note: 'Sage, light', accent: '#71816d', contour: '#9baa96', contourGlow: '#71816d', background: '#f3f5f1' },
+    { id: 'lavender', name: 'Lavender', note: 'Lavender, light', accent: '#827493', contour: '#a99bb8', contourGlow: '#827493', background: '#f5f3f8' },
+    { id: 'ocean', name: 'Ocean', note: 'Ocean, light', accent: '#607f99', contour: '#91afc5', contourGlow: '#607f99', background: '#f1f5f8' },
+    { id: 'sand', name: 'Sand', note: 'Sand, light', accent: '#93816f', contour: '#b4a18d', contourGlow: '#93816f', background: '#f6f3ee' },
+    { id: 'coal', name: 'Coal', note: 'Coal, dark', accent: '#a3a3a3', contour: '#a3a3a3', contourGlow: '#737373', background: '#171717' },
+    { id: 'midnight', name: 'Midnight', note: 'Midnight, dark', accent: '#849ab5', contour: '#849ab5', contourGlow: '#607a98', background: '#141a24' },
+    { id: 'forest', name: 'Forest', note: 'Forest, dark', accent: '#8ba18d', contour: '#8ba18d', contourGlow: '#657d69', background: '#171e19' },
+    { id: 'aubergine', name: 'Aubergine', note: 'Aubergine, dark', accent: '#a394b5', contour: '#a394b5', contourGlow: '#78698b', background: '#201b26' },
+    { id: 'graphite', name: 'Graphite', note: 'Graphite, dark', accent: '#a5a6aa', contour: '#a5a6aa', contourGlow: '#77797e', background: '#202124' },
   ];
   /** Push the four appearance colours (accent, contour, glow, background) to the page. Called after every change; nothing reloads. */
   S.applyTheme = () => { if (window.__sgoTheme) window.__sgoTheme(S.prefs); document.documentElement.classList.toggle('sgo-collapsed', !!S.prefs.collapsed); };
@@ -125,11 +126,13 @@
     if ('topoOn' in patch) P.topoOn = !!patch.topoOn;
     if ('topoDensity' in patch && ['light', 'standard', 'dense'].includes(patch.topoDensity)) P.topoDensity = patch.topoDensity;
     if ('topoWeight' in patch && ['thin', 'standard', 'bold'].includes(patch.topoWeight)) P.topoWeight = patch.topoWeight;
+    if ('topoStrength' in patch && ['faint', 'standard', 'strong'].includes(patch.topoStrength)) P.topoStrength = patch.topoStrength;
+    if ('topoStyle' in patch && ['solid', 'dashed'].includes(patch.topoStyle)) P.topoStyle = patch.topoStyle;
     if ('density' in patch && ['comfortable', 'compact'].includes(patch.density)) P.density = patch.density;
     if ('topoSeed' in patch) P.topoSeed = Math.max(1, Math.round(Number(patch.topoSeed) || 20260));
     S.savePrefs(); S.applyTheme();
   };
-  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); S.setMap({ topoOn: d.topoOn, topoDensity: d.topoDensity, topoWeight: d.topoWeight, topoSeed: d.topoSeed }); };
+  S.resetAppearance = () => { const d = DEFAULTS(); S.setAppearance({ accent: d.accent, contour: d.contour, contourGlow: d.contourGlow, background: d.background }); S.setMap({ topoOn: d.topoOn, topoDensity: d.topoDensity, topoWeight: d.topoWeight, topoStrength: 'standard', topoStyle: 'solid', topoSeed: d.topoSeed }); };
 
   /* ---------- DOM helper (text is always a text node => no injection) ---------- */
   S.h = function h(tag, props, ...kids) {
@@ -141,6 +144,8 @@
       else if (k === 'style' && typeof v === 'object') for (const p in v) { if (p.startsWith('--')) el.style.setProperty(p, v[p]); else el.style[p] = v[p]; } // custom properties (--c) need setProperty
       else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
       else if (k === 'dataset') Object.assign(el.dataset, v);
+      else if (/^on/i.test(k)) continue; // an inline handler written as a string is never allowed
+      else if (/^(href|src|action|formaction|xlink:href)$/i.test(k) && /^\s*(javascript|vbscript|data:text\/html)/i.test(String(v))) continue; // script URLs never become links
       else el.setAttribute(k, v === true ? '' : v);
     }
     const add = (c) => {
@@ -284,7 +289,6 @@
   /* ---------- colour ---------- */
   /* Fourteen distinct, evenly weighted colours for tagging courses. They read on every theme; new courses are given one by a stable hash of their id. */
   const PALETTE = ['#ef8a80', '#f2a65a', '#f2c14e', '#c4d65a', '#6fd3a0', '#3fc1b0', '#5ec2e8', '#6ea0ff', '#8f8cf5', '#b58af0', '#e58ad6', '#f07aa3', '#c9a27a', '#9aa5b4'];
-  S.PALETTE = PALETTE;
   /* The same fourteen, organised by family so the picker reads as five small groups instead of one wall of colour. */
   S.COURSE_GROUPS = [['Warm', [['Coral', '#ef8a80'], ['Orange', '#f2a65a'], ['Amber', '#f2c14e'], ['Sand', '#c9a27a']]], ['Green', [['Lime', '#c4d65a'], ['Mint', '#6fd3a0'], ['Teal', '#3fc1b0']]],
     ['Blue', [['Sky', '#5ec2e8'], ['Blue', '#6ea0ff'], ['Indigo', '#8f8cf5']]], ['Purple & pink', [['Violet', '#b58af0'], ['Orchid', '#e58ad6'], ['Rose', '#f07aa3']]], ['Neutral', [['Slate', '#9aa5b4']]]];
@@ -398,16 +402,24 @@
   };
 
   /* ---------- HTML sanitiser for assignment descriptions ---------- */
+  /** Only web links and same-site paths pass; javascript:, data:, file: and anything unparseable become '#'. */
+  S.safeUrl = (href) => {
+    if (typeof href !== 'string' || !href.trim()) return '#';
+    try { const u = new URL(href.trim(), location.href); return u.protocol === 'https:' || u.protocol === 'http:' ? u.href : '#'; } catch (e) { return '#'; }
+  };
+  /** True when a file address stays on this Schoology site (the reader only fetches those, with the student's own session). */
+  S.isSiteUrl = (href) => { try { const u = new URL(href, location.href); return u.origin === location.origin || /(^|\.)schoology\.com$/i.test(u.hostname); } catch (e) { return false; } };
   S.sanitize = (html) => {
     const doc = new DOMParser().parseFromString(html || '', 'text/html');
-    doc.querySelectorAll('script,style,iframe,object,embed,link,meta,form,base,noscript').forEach((n) => n.remove());
+    doc.querySelectorAll('script,style,iframe,frame,frameset,object,embed,applet,link,meta,form,base,noscript,template,svg,math,audio,video,source,track,input,button,textarea,select').forEach((n) => n.remove());
     doc.body.querySelectorAll('*').forEach((el) => {
       for (const a of [...el.attributes]) {
         const n = a.name.toLowerCase();
         const keep = (n === 'href' && /^(https?:|\/|#|mailto:)/i.test(a.value)) || (n === 'src' && /^(https?:|\/)/i.test(a.value)) || n === 'alt' || n === 'colspan' || n === 'rowspan';
         if (!keep) el.removeAttribute(a.name);
       }
-      if (el.tagName === 'A') { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener'); }
+      if (el.tagName === 'A') { el.setAttribute('target', '_blank'); el.setAttribute('rel', 'noopener noreferrer'); }
+      if (el.tagName === 'IMG') { el.setAttribute('referrerpolicy', 'no-referrer'); el.setAttribute('loading', 'lazy'); }
     });
     const frag = document.createDocumentFragment();
     [...doc.body.childNodes].forEach((n) => frag.append(document.importNode(n, true)));

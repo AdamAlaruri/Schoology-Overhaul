@@ -50,7 +50,7 @@
       h('div', { class: 'cm-a' },
         h('button', { class: 'sgo-btn primary', type: 'submit', disabled: busy }, icon('send', 16), busy ? 'Sending…' : 'Send'),
         reply ? null : h('a', { class: 'sgo-btn ghost', href: '/messages' }, 'Cancel'),
-        h('a', { class: 'sgo-btn ghost', href: classic(reply ? '/messages/view/' + id : '/messages/new'), target: '_blank', rel: 'noopener' }, icon('external', 15), 'Open in Schoology')),
+        h('a', { class: 'sgo-btn ghost', href: classic(reply ? '/messages/view/' + id : '/messages/new'), target: '_blank', rel: 'noopener noreferrer' }, icon('external', 15), 'Open in Schoology')),
       st.msg ? h('p', { class: 'cm-msg ' + (st.state === 'error' ? 'bad' : 'ok'), role: st.state === 'error' ? 'alert' : 'status' }, st.msg) : null,
       h('p', { class: 'sgo-note' }, 'Sent through your Schoology account, so it is delivered and saved there exactly like a message sent on Schoology.'));
   }
@@ -71,7 +71,7 @@
       h('div', { class: 'ib-thread' }, d.rows.map((r) => h('article', { class: 'ib-msg' },
         h('div', { class: 'ib-mh' }, h('span', { class: 'ib-av' }, initials(r.name)), h('b', null, r.name || 'Unknown sender'), h('span', null, r.ts != null ? S.fmtDate(r.ts, true) + ' · ' + S.fmtTime(r.ts) : r.when)),
         h('div', { class: 'sgo-desc ib-body' }, S.sanitize(r.html)),
-        r.files.length ? h('ul', { class: 'ib-files' }, r.files.map((f) => h('li', null, h('a', { href: f.href, target: '_blank', rel: 'noopener' }, icon('file', 15), f.name)))) : null))),
+        r.files.length ? h('ul', { class: 'ib-files' }, r.files.map((f) => h('li', null, h('a', { href: S.safeUrl(f.href), target: '_blank', rel: 'noopener noreferrer' }, icon('file', 15), f.name)))) : null))),
       composer(id, id),
       h('p', { class: 'sgo-note' }, 'Opening a message marks it read, as it does in Schoology.'));
   }

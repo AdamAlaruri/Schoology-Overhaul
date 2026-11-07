@@ -116,8 +116,6 @@ html:not(.sgo-app):not(.sgo-native) #sgo-root { position: static; }
 /* ---------- dashboard ---------- */
 .sgo-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 16px; align-items: start; }
 .sgo-w { background: var(--surface); border-radius: 12px; box-shadow: var(--shadow); padding: 24px; min-width: 0; position: relative; }
-.sz-s { grid-column: span 4; } .sz-m { grid-column: span 6; } .sz-l { grid-column: span 12; }
-@media (max-width: 1100px) { .sz-s, .sz-m { grid-column: span 6; } } @media (max-width: 760px) { .sz-s, .sz-m, .sz-l { grid-column: span 12; } }
 .sgo-w-h h2 { font-size: var(--fs-body); line-height: var(--lh-body); font-weight: 500; display: flex; align-items: center; } .sgo-w-h small { margin-left: 8px; font-weight: 400; color: var(--muted); font-size: var(--fs-caption); line-height: var(--lh-caption); }
 .sgo-w.bad { box-shadow: var(--shadow), inset 0 0 0 1px color-mix(in srgb, var(--bad) 25%, transparent); }
 .sgo-w .sgo-item { box-shadow: none; background: var(--surface2); } .sgo-w .sgo-item:hover { box-shadow: none; background: color-mix(in srgb, var(--surface2) 85%, var(--text) 5%); }
@@ -268,10 +266,8 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 
 /* ---- banner picker ---- */
 .sgo-modal.wide { width: min(640px, 100%); }
-@media (max-width: 520px) { .bp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .sgo-modal.wide { padding-bottom: 0; } .sgo-modal.wide .sgo-mfoot { position: sticky; bottom: 0; margin-top: 16px; padding: 16px 0 24px; background: var(--surface); }
-@media (max-width: 700px) { .bp-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 
 /* ---- dashboard: hero, overview, today's priorities, courses, right column ----
  * Reading order: greeting -> academic overview -> priorities -> courses -> recent activity. Colours and sizes come from theme.css tokens.
@@ -364,15 +360,10 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 .side-card h3 { margin: 0; font-size: var(--fs-card); line-height: var(--lh-small); font-weight: var(--fw-h4); letter-spacing: 0; text-transform: none; color: var(--text); }
 .side-h { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2); }
 .link { display: inline-flex; align-items: center; gap: var(--space-1); padding: 0; border: 0; background: none; color: var(--accent-ink) !important; font-size: var(--fs-small); line-height: var(--lh-small); font-weight: var(--fw-strong); cursor: pointer; text-decoration: none; transition: color var(--t-fast) var(--ease); } .link:hover { color: var(--accent-hover) !important; text-decoration: underline; }
-.wp-big { display: flex; align-items: baseline; gap: var(--space-2); margin: var(--space-2) 0 var(--space-md); } .wp-big .num { font-size: var(--fs-h1); line-height: 1.1; font-weight: var(--fw-h1); letter-spacing: -.02em; font-variant-numeric: tabular-nums; } .wp-big span { font-size: var(--fs-small); color: var(--muted); }
-.wp-nums { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); margin: var(--space-3) 0 0; } .wp-nums div { padding-top: var(--space-md); border-top: 1px solid var(--line); }
-.wp-nums dt { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--muted); } .wp-nums dd { margin: 2px 0 0; font-size: var(--fs-h4); line-height: var(--lh-h4); font-weight: var(--fw-h4); font-variant-numeric: tabular-nums; } .wp-nums dd.bad { color: var(--bad); }
-.an-list, .fb-list { list-style: none; margin: 0; padding: 0; } .an-list li, .fb-list li { padding: var(--space-md) 0; border-top: 1px solid var(--line); } .an-list li:first-child, .fb-list li:first-child { border-top: 0; padding-top: var(--space-1); }
+.an-list { list-style: none; margin: 0; padding: 0; } .an-list li { padding: var(--space-md) 0; border-top: 1px solid var(--line); } .an-list li:first-child { border-top: 0; padding-top: var(--space-1); }
 .an-list button { display: flex; flex-direction: column; gap: 2px; width: 100%; padding: 0; border: 0; background: none; color: inherit; text-align: left; border-radius: var(--r-sm); }
 .an-c { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--accent-ink); font-weight: var(--fw-strong); } .an-list b { font-size: var(--fs-body); line-height: var(--lh-small); font-weight: var(--fw-strong); overflow-wrap: anywhere; } .an-list button:hover b { color: var(--accent-ink); }
 .an-t { font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-3); } .an-list p { margin: var(--space-2) 0 0; font-size: var(--fs-small); line-height: var(--lh-body); color: var(--muted); overflow-wrap: anywhere; }
-.fb-t { display: flex; justify-content: space-between; gap: var(--space-2); } .fb-t b { font-size: var(--fs-body); line-height: var(--lh-small); font-weight: var(--fw-strong); overflow-wrap: anywhere; } .fb-g { flex: none; font-size: var(--fs-small); font-weight: var(--fw-strong); color: var(--ok); font-variant-numeric: tabular-nums; }
-.fb-c { display: block; margin-top: 2px; font-size: var(--fs-caption); line-height: var(--lh-caption); color: var(--text-3); } .fb-list p { margin: var(--space-2) 0; font-size: var(--fs-small); line-height: var(--lh-body); color: var(--muted); overflow-wrap: anywhere; }
 .side-empty { margin: 0; font-size: var(--fs-small); line-height: var(--lh-small); color: var(--muted); }
 
 /* medium desktop: two course columns; tablet: one column with the right column's sections beneath */
@@ -384,7 +375,7 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 }
 /* phone: the information order is redesigned, not shrunk */
 @media (max-width: 767px) {
-  .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; padding: var(--space-4); } .hero-r { padding: 0; } .hero-prog { width: 100%; } .hero-menu { top: var(--space-2); right: var(--space-2); }
+  .hero { grid-template-columns: minmax(0, 1fr); min-height: 0; padding: var(--space-4); }
   .pr { grid-template-columns: 28px minmax(0, 1fr) 44px; row-gap: var(--space-2); padding-right: var(--space-3); } .pr .badge { grid-column: 2 / -1; grid-row: 2; justify-self: start; } .pr-open { grid-column: 3; grid-row: 1; width: 44px; height: 44px; }
   .sec-a { width: 100%; } .pri-filter { flex: 1; max-width: none; }
   .dp-side-col { grid-template-columns: minmax(0, 1fr); }
@@ -483,16 +474,14 @@ html:not(.sgo-booting) #sgo-boot { display: none; }
 .sgo-wcol.today { box-shadow: none; border-color: var(--accent); }
 .tc, .ib-msg, .tp-fb + .tp-fb { border-radius: var(--rm); }
 /* long names wrap inside their card instead of stretching it */
-.sgo-page h1, .sgo-page h2, .sgo-item-title, .tc-title, .dc-body h2, .gp-name, .rs-t b { overflow-wrap: anywhere; min-width: 0; }
-.crs-banner, .bp-preview { border-radius: var(--rc); } .sgo-modal { border-radius: calc(var(--rc) + 4px); }
+.sgo-page h1, .sgo-page h2, .sgo-item-title, .dc-body h2, .gp-name, .rs-t b { overflow-wrap: anywhere; min-width: 0; }
+.crs-banner { border-radius: var(--rc); } .sgo-modal { border-radius: calc(var(--rc) + 4px); }
 
 /* urgent rows read first without shouting: a faint tint and the badge, not a red block */
 .pr.u-overdue { background: color-mix(in srgb, var(--bad) 6%, transparent); } .pr.u-today { background: color-mix(in srgb, var(--warn) 6%, transparent); }
 .pr.u-overdue:hover, .pr.u-today:hover { background: var(--layer-3); }
 /* this week's progress sits apart: its own soft, warm card and an encouraging line */
 .side-card.progress { border-color: color-mix(in srgb, var(--accent) 22%, var(--line)); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 9%, var(--layer-3)), var(--layer-2) 70%); }
-.wp-note { margin: var(--space-2) 0 0; font-size: var(--fs-small); line-height: var(--lh-small); color: var(--muted); }
 /* typographic banner: the course name, set large, on a soft gradient */
-@media (max-width: 1279px) { .clk-t { font-size: 44px; } }
-@media (max-width: 767px) { .hero-r { padding: 0; } .clk { text-align: left; } .clk-row { justify-content: flex-start; } .clk-t { font-size: 40px; } }
+@media (max-width: 767px) { .clk { text-align: left; } }
 .dc.has-typo .dc-body h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; } /* the banner carries the visible title; the heading stays for screen readers */

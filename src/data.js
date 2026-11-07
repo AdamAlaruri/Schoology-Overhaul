@@ -539,15 +539,17 @@
   let pending = 0;
   /** Refresh remote data. Respects the cache lifetimes above unless forced, so switching tabs never refetches fresh data. */
   S.refresh = async (route, opts = {}) => {
-    const force = !!opts.force;
+    const force = !!opts.force, all = !!opts.all; // all: every source, whatever page is open (the Refresh buttons)
     pending++; state.loading = true; const before = sig();
+    const quiet = route === 'native' || route === 'inbox' || route === 'groups'; // pages that use none of the course data
     const jobs = [attempt('Fetch: courses', '/courses', parseCourses, applyCourses, force)];
-    if (route !== 'native' && route !== 'inbox' && route !== 'groups') jobs.push(
+    if (all || !quiet) jobs.push(
       attempt('Fetch: assignments', '/home/upcoming_submissions_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: events', '/home/upcoming_ajax', parseUpcoming, applyUpcoming, force),
       attempt('Fetch: overdue', '/home/overdue_submissions_ajax', parseOverdue, applyOverdue, force));
-    if (route === 'dashboard') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
-    if (route === 'dashboard' || route === 'grades' || route === 'course') jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
+    if (all || route === 'dashboard') jobs.push(attempt('Fetch: announcements', '/home/feed', parseAnnouncements, (a) => { state.announcements = a; }, force));
+    // grades feed the submitted/graded/missing status on every assignment and the grade notifications, so every page that shows work loads them
+    if (all || !quiet) jobs.push(attempt('Fetch: grades', '/grades/grades', parseGrades, (g) => { if (g.length) { state.grades = g; if (S.noteGrades) S.noteGrades(); } }, force));
     try {
       await Promise.all(jobs);
       relink();
@@ -577,6 +579,8 @@
 
   /* ---------- derived, non-fabricated helpers ---------- */
   S.isDone = (it) => !!S.prefs.done[it.key];
+  /** Ticked off more than a week ago: tucked into the Archive filter on Assignments so the lists stay short, but never lost. */
+  S.isArchived = (it) => { const t = S.prefs.done[it.key]; return typeof t === 'number' && Date.now() - t > 7 * 24 * 60 * 60 * 1000; };
   /** Overdue means Schoology lists it as missing. The student's own tasks have no such list, so their date decides. */
   S.isOverdue = (it) => !S.isDone(it) && (!!it.fromOverdue || !!it.gbMissing || (!!it.manual && !!it.due && it.due < Date.now()));
   /** Past its due date and not marked done. Schoology does not reliably expose submissions, so this is the student's own view. */
