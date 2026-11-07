@@ -12,7 +12,7 @@ It only changes how Schoology **looks** in your browser. It reads pages you can 
   <img src="docs/screenshots/dashboard.png" alt="Dashboard with a greeting, priorities grouped by urgency and a grades panel" width="820">
 </p>
 
-> The screenshots use made-up demo data from the local test server (see [Development](#development)) in the Midnight theme. They are not from a real student account.
+> The screenshots use made-up demo data from the local test server (see [Development](#development)) in the same blue as the logo. They are not from a real student account.
 
 ## Features
 
