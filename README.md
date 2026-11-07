@@ -50,11 +50,6 @@ The Grades page lists your courses on the left and one course on the right. **Ac
   <img src="docs/screenshots/calendar.png" alt="Month calendar with assignments as chips" width="400">
 </p>
 
-<p align="center">
-  <img src="docs/screenshots/updates.png" alt="The Updates panel beside the sidebar, with each recent grade as a large percentage" width="400">
-  <img src="docs/screenshots/appearance.png" alt="The Appearance window with ten themes and the contour map controls" width="400">
-</p>
-
 ## Install
 
 The extension is not on the Chrome Web Store yet, so you load it from this folder.
