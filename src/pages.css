@@ -739,3 +739,6 @@ html.sgo-app.sgo-app .asg6 .sgo-chips { flex-wrap: wrap; min-width: 0; }
 html.sgo-app.sgo-app .gx-tools { flex-wrap: wrap; align-items: center; gap: 10px 8px; }
 html.sgo-app.sgo-app .gx-tools > .gx-chips { flex: 1 1 100%; min-width: 0; }
 html.sgo-app.sgo-app .gx-tools > .gx-q { flex: 1 1 160px; min-width: 0; }
+
+/* the Updates panel is a solid surface, never see-through */
+html.sgo-app.sgo-app .up-p { background: color-mix(in srgb, var(--text) 7%, var(--app-background)); -webkit-backdrop-filter: none; backdrop-filter: none; opacity: 1; }

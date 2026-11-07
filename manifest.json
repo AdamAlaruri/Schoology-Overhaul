@@ -57,6 +57,6 @@
     }
   ],
   "web_accessible_resources": [
-    { "resources": ["fonts/*.woff2"], "matches": ["*://*.schoology.com/*"] }
+    { "resources": ["fonts/*.woff2", "icons/icon48.png"], "matches": ["*://*.schoology.com/*"] }
   ]
 }

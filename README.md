@@ -50,6 +50,11 @@ The Grades page lists your courses on the left and one course on the right. **Ac
   <img src="docs/screenshots/calendar.png" alt="Month calendar with assignments as chips" width="400">
 </p>
 
+<p align="center">
+  <img src="docs/screenshots/updates.png" alt="The Updates panel beside the sidebar, with each recent grade as a large percentage" width="400">
+  <img src="docs/screenshots/appearance.png" alt="The Appearance window with ten themes and the contour map controls" width="400">
+</p>
+
 ## Install
 
 The extension is not on the Chrome Web Store yet, so you load it from this folder.
@@ -141,7 +146,7 @@ Known limits: only the first page of each Schoology list is read, the calendar s
 
 ## The logo
 
-A white S on a Schoology-style blue tile, with a check-mark badge for getting things done. The badge overlaps the S, with a ring of the tile colour cut around it so the two read as one mark.
+A white S on a Schoology-style blue tile, with a check-mark badge for getting things done. The badge overlaps the S, with a ring of the tile colour cut around it so the two read as one mark. The same logo is shown as the browser tab icon while Schoology is open.
 
 ## Credits
 

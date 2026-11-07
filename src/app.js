@@ -7,6 +7,22 @@
   S.app = true;
   const { h, icon } = S;
   const html = document.documentElement;
+
+  /* The browser tab shows this extension's logo while Schoology is open, in place of Schoology's own icon. */
+  const logoUrl = () => {
+    try { if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) return chrome.runtime.getURL('icons/icon48.png'); } catch (e) { /* no extension API here */ }
+    return /^(localhost|127\.0\.0\.1)$/.test(location.hostname) ? location.origin + '/icons/icon48.png' : ''; // the local test server serves it directly
+  };
+  function setTabIcon() {
+    const url = logoUrl(), head = document.head;
+    if (!url || !head) return;
+    let mine = head.querySelector('link[data-sgo-icon]');
+    head.querySelectorAll('link[rel~="icon"], link[rel="apple-touch-icon"], link[rel="shortcut icon"]').forEach((l) => { if (l !== mine) l.remove(); });
+    if (!mine) { mine = document.createElement('link'); mine.rel = 'icon'; mine.type = 'image/png'; mine.setAttribute('sizes', '48x48'); mine.setAttribute('data-sgo-icon', ''); head.append(mine); }
+    if (mine.href !== url) mine.href = url;
+  }
+  setTabIcon();
+  if (document.head) new MutationObserver(() => { if (document.head.querySelector('link[rel~="icon"]:not([data-sgo-icon]), link[rel="apple-touch-icon"]')) setTabIcon(); }).observe(document.head, { childList: true });
   let root, side, main, content, top;
 
   const RAIL = () => [
