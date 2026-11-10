@@ -42,6 +42,7 @@
   S.loadPrefs = async () => {
     const saved = await S.store.get('sgo_prefs');
     const p = Object.assign(DEFAULTS(), saved || {});
+    delete p._by; // the writer's stamp is not a preference
     // reconcile widget list with the current set (add new, drop removed)
     const known = new Set((p.widgets || []).map((w) => w.id));
     p.widgets = (p.widgets || []).filter((w) => S.WIDGETS[w.id]);
@@ -79,8 +80,11 @@
     if ('bgBlur' in p) { delete p.bgBlur; S.savePrefs(); } // the blur used to be adjustable; it is part of the design now
     return p;
   };
+  /* Every write is stamped with this tab's id. chrome.storage reports a tab's own writes back to it, a moment later; without the stamp
+   * that late echo was adopted as if another tab had written it, and it overwrote whatever had changed here in the meantime. */
+  S.TAB = Math.random().toString(36).slice(2);
   let saveT;
-  S.savePrefs = () => { clearTimeout(saveT); saveT = setTimeout(() => S.store.set('sgo_prefs', S.prefs), 150); };
+  S.savePrefs = () => { clearTimeout(saveT); saveT = setTimeout(() => S.store.set('sgo_prefs', Object.assign({}, S.prefs, { _by: S.TAB })), 150); };
   S.resetPrefs = () => { S.prefs = DEFAULTS(); S.prefs.designV = 7; S.savePrefs(); };
   const C = window.SGO_COLOR;
   S.normHex = C.normHex; S.onAccent = C.onAccent;

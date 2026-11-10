@@ -22,6 +22,8 @@
   const dot = (c) => h('span', { class: 'sgo-dot', style: { background: c } });
   const btn = (label, onclick, cls, ic) => h('button', { class: 'sgo-btn ' + (cls || ''), onclick }, ic && icon(ic, 16), label);
   const toggleDone = (it) => { S.prefs.done[it.key] ? delete S.prefs.done[it.key] : (S.prefs.done[it.key] = Date.now()); S.savePrefs(); S.render(); };
+  /* The motion scale, in milliseconds, for the few animations that are driven from script. Keep in step with the --dur-* tokens in theme.css. */
+  const MOTION = { fast: 140, base: 180, panel: 260, page: 300, out: 'cubic-bezier(.22, 1, .36, 1)', inOut: 'cubic-bezier(.65, 0, .35, 1)' };
   /** True when the system asks for reduced motion, or the student turned it on in Settings → Accessibility. */
   function reducedMotion() { return matchMedia('(prefers-reduced-motion: reduce)').matches || document.documentElement.classList.contains('sgo-reduce-motion'); }
   const iso = (ts) => { const d = new Date(ts); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
@@ -63,7 +65,15 @@
 
   /* ---------- popover menu (three-dot menus, account menu) ---------- */
   let openMenu = null;
-  const closeMenu = (refocus) => { if (!openMenu) return; const m = openMenu; openMenu = null; m.panel.hidden = true; m.panel.remove(); m.btn.setAttribute('aria-expanded', 'false'); if (refocus) m.btn.focus(); };
+  /** Closes the open menu. It fades out briefly (motion.css: .leaving) and is then removed; with reduced motion it is removed at once. */
+  const closeMenu = (refocus) => {
+    if (!openMenu) return;
+    const m = openMenu, p = m.panel; openMenu = null;
+    m.btn.setAttribute('aria-expanded', 'false'); if (refocus) m.btn.focus();
+    const drop = () => { p.hidden = true; p.classList.remove('leaving'); p.remove(); };
+    if (reducedMotion() || !p.isConnected) { drop(); return; }
+    p.classList.add('leaving'); p._leaveT = setTimeout(drop, MOTION.fast);
+  };
   /** Open menus live on <html>, not inside the card: a card's hover lift (transform) or clipping can never move or cut them off. */
   S.closeMenus = () => closeMenu();
   const menuHost = () => { let hst = document.getElementById('sgo-menus'); if (!hst) { hst = h('div', { id: 'sgo-menus', class: 'sgo' }); document.documentElement.append(hst); } return hst; };
@@ -87,7 +97,7 @@
       const wasOpen = openMenu && openMenu.btn === btn;
       closeMenu();
       if (wasOpen) return;
-      panel.hidden = false; menuHost().append(panel);
+      clearTimeout(panel._leaveT); panel.classList.remove('leaving'); panel.hidden = false; menuHost().append(panel);
       const r = btn.getBoundingClientRect(), w = panel.offsetWidth, hgt = panel.offsetHeight;
       if (btn.closest('.sgo-rail') && r.right + 8 + w <= innerWidth - 8) {
         // sidebar button: open beside the rail, to its right, so the rail's own buttons stay clickable
@@ -189,7 +199,7 @@
     const close = () => {
       clearTimeout(S._toastT);
       if (!el.isConnected || el.classList.contains('leaving')) return;
-      el.classList.add('leaving'); setTimeout(() => el.remove(), 220);
+      el.classList.add('leaving'); setTimeout(() => el.remove(), MOTION.base + 20);
     };
     const run = () => { started = Date.now(); S._toastT = setTimeout(close, left); };
     const hold = () => { if (paused) return; paused = true; clearTimeout(S._toastT); left = Math.max(1500, left - (Date.now() - started)); };
@@ -202,20 +212,21 @@
   };
 
   /* ---- Today's Priorities ---- */
-  /** The exit shared by priorities and announcements: the item slides away to the right while it blurs and fades, then its space closes up. */
+  /** The exit shared by priorities and announcements: the item fades as it slips a little to the right, then its space closes up. */
   function leaveEl(el, then) {
     if (!el || !el.animate) { then(); return; }
-    const reduced = reducedMotion(), ease = 'cubic-bezier(.22, 1, .36, 1)';
+    const reduced = reducedMotion();
     el.style.overflow = 'hidden'; el.style.pointerEvents = 'none';
     const h0 = el.offsetHeight, gap = parseFloat(getComputedStyle(el.parentElement || el).rowGap) || 0;
     const frames = reduced
       ? [{ opacity: 1, height: h0 + 'px', marginBottom: '0px' }, { opacity: 0, height: '0px', marginBottom: -gap + 'px' }]
-      : [{ offset: 0, opacity: 1, transform: 'translateX(0)', filter: 'blur(0px)', height: h0 + 'px', marginBottom: '0px', easing: ease },
-        { offset: .5, opacity: 0, transform: 'translateX(44px)', filter: 'blur(4px)', height: h0 + 'px', marginBottom: '0px', easing: ease },
-        { offset: 1, opacity: 0, transform: 'translateX(44px)', filter: 'blur(4px)', height: '0px', marginBottom: -gap + 'px' }];
-    const anim = el.animate(frames, { duration: reduced ? 200 : 460, easing: 'linear', fill: 'forwards' });
+      // no blur (costly to paint, and it reads as a glitch); the whole exit is over in about a third of a second
+      : [{ offset: 0, opacity: 1, transform: 'translateX(0)', height: h0 + 'px', marginBottom: '0px', easing: 'cubic-bezier(.4, 0, 1, 1)' },
+        { offset: .4, opacity: 0, transform: 'translateX(16px)', height: h0 + 'px', marginBottom: '0px', easing: MOTION.inOut },
+        { offset: 1, opacity: 0, transform: 'translateX(16px)', height: '0px', marginBottom: -gap + 'px' }];
+    const anim = el.animate(frames, { duration: reduced ? MOTION.fast : MOTION.page + 40, easing: 'linear', fill: 'forwards' });
     let done = false; const fin = () => { if (!done) { done = true; then(); } };
-    anim.onfinish = fin; setTimeout(fin, 900); // never leave the item stuck if the animation is interrupted
+    anim.onfinish = fin; setTimeout(fin, 600); // never leave the item stuck if the animation is interrupted
   }
   /** The completion circle: a ring, a fill, a ripple and a tick, all drawn as vectors so no frame is ever resampled. CSS drives every state. */
   const checkRing = () => {
@@ -235,7 +246,7 @@
         { label: 'Undo', run: () => { dui().last = null; toggleDone(S.allItems().find((i) => i.key === it.key) || it); } });
     };
     // Ticking an item leaves it in place, done, for a moment: tick it again in that time and it simply goes back. Otherwise the row eases shut and the list is redrawn.
-    const HOLD = 1200;
+    const HOLD = 650; // long enough to see the tick land and to change your mind, short enough that the list never feels stuck
     const putBack = (btn, row) => { btn.classList.remove('on', 'just'); btn.setAttribute('aria-pressed', 'false'); btn.title = 'Mark complete'; row.classList.remove('u-done'); };
     const toggle = (e) => {
       if (viaSchoology) return;
@@ -249,7 +260,7 @@
       }, HOLD);
     };
     const tt = dui().last, just = !!tt && tt.id === it.key && Date.now() - tt.at < 1500; // only the item just ticked draws its check
-    return h('li', { class: `pr u-${u.id}`, style: { '--c': S.courseColor(it.courseId, it.courseName), '--i': idx } },
+    return h('li', { class: `pr u-${u.id}`, style: { '--c': S.tint(it.courseId, it.courseName), '--i': idx } },
       h('button', { class: 'pr-check' + (complete ? ' on' : '') + (just ? ' just' : ''), type: 'button', dataset: { fk: 'check-' + it.key }, 'aria-pressed': String(complete), 'aria-disabled': viaSchoology ? 'true' : null,
         title: viaSchoology ? 'Submitted in Schoology' : complete ? 'Mark as not complete' : 'Mark complete',
         'aria-label': (viaSchoology ? 'Submitted in Schoology: ' : complete ? 'Mark not complete: ' : 'Mark complete: ') + it.title, onclick: toggle }, checkRing()),
@@ -329,8 +340,8 @@
       const nl = [...document.querySelectorAll('.an-list li')].find((x) => x.dataset.key === id); if (!nl) return;
       const h1 = nl.offsetHeight; if (Math.abs(h1 - h0) < 2) return;
       nl.style.overflow = 'hidden'; nl.style.height = h0 + 'px'; void nl.offsetHeight;
-      nl.style.transition = 'height .3s cubic-bezier(.22, 1, .36, 1)'; nl.style.height = h1 + 'px';
-      setTimeout(() => { nl.style.height = ''; nl.style.transition = ''; nl.style.overflow = ''; }, 330);
+      nl.style.transition = `height ${MOTION.panel}ms ${MOTION.inOut}`; nl.style.height = h1 + 'px';
+      setTimeout(() => { nl.style.height = ''; nl.style.transition = ''; nl.style.overflow = ''; }, MOTION.panel + 30);
     };
     /** The card leaves: it slides right and fades while its height closes, then the list is redrawn. With reduced motion it is a quick fade only. */
     const settle = (e, cls, then) => {
@@ -338,7 +349,7 @@
       if (cls === 'leaving') { leaveEl(li, then); return; }
       if (!li.animate) { then(); return; }
       li.classList.add(cls); li.style.pointerEvents = 'none';
-      const anim = li.animate([{ opacity: 1 }, { opacity: .55 }], { duration: 200, easing: 'cubic-bezier(.22, 1, .36, 1)', fill: 'forwards' });
+      const anim = li.animate([{ opacity: 1 }, { opacity: .55 }], { duration: MOTION.base, easing: MOTION.out, fill: 'forwards' });
       let done = false; const fin = () => { if (!done) { done = true; then(); } };
       anim.onfinish = fin; setTimeout(fin, 500);
     };
@@ -356,7 +367,7 @@
           all.length > 3 ? h('button', { class: 'link', type: 'button', dataset: { fk: 'ann-all' }, onclick: () => { ui.annAll = !ui.annAll; ui.annSwap = true; S.render(); } }, ui.annAll ? 'Show fewer' : 'View all') : null)),
       shown.length ? h('ul', { class: 'an-list' }, shown.map((a, idx) => {
         const id = annKey(a), isOpen = !!ui.ann[id], isNew = annIsNew(a, seen, read);
-        return h('li', { class: (isNew ? 'new' : '') + (isOpen ? ' open' : '') + (idx === 0 ? ' lead' : ''), dataset: { key: id }, style: { '--c': S.courseColor(a.courseId, a.courseName), '--i': idx } },
+        return h('li', { class: (isNew ? 'new' : '') + (isOpen ? ' open' : '') + (idx === 0 ? ' lead' : ''), dataset: { key: id }, style: { '--c': S.tint(a.courseId, a.courseName), '--i': idx } },
           h('button', { class: 'an-main', type: 'button', dataset: { fk: 'ann-' + id }, 'aria-expanded': String(isOpen), onclick: (e) => toggleOpen(e, id, a, isOpen) },
             h('span', { class: 'an-top' }, h('span', { class: 'an-top-l' }, h('span', { class: 'an-c' }, h('i'), S.cn(a.courseId, a.courseName) || 'Announcement'), isNew ? h('span', { class: 'an-pill', 'aria-hidden': 'true' }, 'New') : null)),
             // Schoology posts have no separate subject line, so the text is shown once, whole; a subject gets its own line only when the post has one
@@ -442,7 +453,7 @@
     const name = S.cn(c.id, c.name), pct = Math.max(0, Math.min(100, tr.percent)), dir = tr.dir;
     const gradeEl = (v) => { const el = h('span', { class: 'cl-g' }, pctText(v)); if (dui().countGrades) countGrade(el, v); return el; };
     const detail = dir === 'up' || dir === 'down' ? `${Math.abs(tr.diff)} pts ${dir === 'up' ? 'above' : 'below'} your average lately` : dir === 'flat' ? 'In line with your average lately' : 'Needs two graded assignments';
-    return h('li', { class: 'cl-r d-' + dir, dataset: { id: c.id }, style: { '--c': S.courseColor(c.id, c.name), '--p': pct + '%' } },
+    return h('li', { class: 'cl-r d-' + dir, dataset: { id: c.id }, style: { '--c': S.tint(c.id, c.name), '--p': pct + '%' } },
       h('a', { class: 'cl-a', href: `/course/${c.id}/materials`, title: tr.recent != null ? `Last ${tr.count} graded assignments: ${tr.recent}%` : '', 'aria-label': `${name}, ${pctText(tr.percent)}, ${TREND_WORD[dir].toLowerCase()}. ${detail}` },
         h('span', { class: 'cl-m' }, h('span', { class: 'cl-c' }, name),
           h('span', { class: 'cl-t' }, dir === 'up' ? icon('trendUp', 12) : dir === 'down' ? icon('trendDown', 12) : null, h('span', null, dir === 'up' || dir === 'down' ? `${TREND_WORD[dir]} · ${Math.abs(tr.diff)} pts` : TREND_WORD[dir]))),
@@ -457,7 +468,7 @@
       !courses.length ? (!S.state.loaded ? h('div', { class: 'sk-row' }) : h('p', { class: 'side-empty' }, 'No courses found. Settings → Diagnostics shows what was read from Schoology.'))
         : [graded.length ? h('ul', { class: 'cl-list' }, graded.map(([c, t]) => courseRow(c, t))) : h('p', { class: 'side-empty' }, 'No grades have been posted yet.'),
           plain.length ? h('div', { class: 'cl-idle' }, h('p', null, graded.length ? 'No grade yet' : 'Your courses'),
-            h('ul', null, plain.map(([c]) => h('li', { style: { '--c': S.courseColor(c.id, c.name) } }, h('a', { href: `/course/${c.id}/materials` }, h('i'), S.cn(c.id, c.name)))))) : null],
+            h('ul', null, plain.map(([c]) => h('li', { style: { '--c': S.tint(c.id, c.name) } }, h('a', { href: `/course/${c.id}/materials` }, h('i'), S.cn(c.id, c.name)))))) : null],
       hidden ? h('p', { class: 'dc-hidden-note' }, h('span', { class: 'dc-hn-t' }, `${plural(hidden, 'course')} hidden`), h('a', { class: 'link', href: '/courses' }, 'Show')) : null);
   }
 
@@ -482,13 +493,16 @@
       h('div', { class: 'wk-bar' + (changed ? ' moving' : ''), 'aria-hidden': 'true' }, fill),
       h('p', { class: 'wk-n' }, h('b', { class: changed ? 'bump' : null }, `${wk.complete.length}/${total}`), ' completed this week', pctEl));
   }
+  /** Called by the app's dashboard timer: when the minute has changed, the clock in the header is rewritten in place (no redraw). */
+  S.tickClock = () => {
+    const e = document.querySelector('.dh-clock'), tx = clockText(Date.now());
+    if (e && e.textContent !== tx) { e.textContent = tx; e.classList.remove('tick'); void e.offsetWidth; e.classList.add('tick'); }
+  };
   function dashHead(wk, now, review) {
     const first = (S.prefs.displayName || S.state.user || '').trim().split(/\s+/)[0];
     const msg = wk.overdue ? `${plural(wk.overdue, 'assignment')} overdue${wk.today ? `, ${wk.today} due today` : ''}.`
       : wk.today ? `${plural(wk.today, 'assignment')} due today.` : 'Nothing is due today.';
     const total = wk.inView.length, pct = total ? Math.round((wk.complete.length / total) * 100) : 0;
-    // the clock keeps itself current while the dashboard is open
-    if (!S._clockT) S._clockT = setInterval(() => { const e = document.querySelector('.dh-clock'), tx = clockText(Date.now()); if (e && e.textContent !== tx) { e.textContent = tx; e.classList.remove('tick'); void e.offsetWidth; e.classList.add('tick'); } }, 15000);
     return h('header', { class: 'dh' },
       h('div', { class: 'dh-l' },
         h('p', { class: 'dh-hi' }, h('time', { class: 'dh-date' }, longDate(now)), h('span', { class: 'dh-dot', 'aria-hidden': 'true' }, '·'), h('time', { class: 'dh-clock' }, clockText(now))),
@@ -574,11 +588,11 @@
     const tile = h('article', { class: 'sgo-course cc2', style: { '--c': color, '--ink': inkOn(color) }, draggable: canDrag ? 'true' : null, dataset: { id: c.id } },
       linked && h('a', { class: 'sgo-course-link', href, draggable: 'false', 'aria-label': 'Open ' + name }),
       h('span', { class: 'cc2-art', 'aria-hidden': 'true' }),
-      h('div', { class: 'cc2-head' }, h('span', { class: 'cc2-label' }, 'Course')),
       h('div', { class: 'cc2-body' }, title),
       h('div', { class: 'cc2-foot' },
         h('div', { class: 'cc2-chips' }, code ? h('span', { class: 'cc2-code' }, code) : null, term ? h('span', { class: 'cc2-term' }, term) : null),
-        linked ? h('a', { class: 'cc2-go', href, draggable: 'false', 'aria-label': 'Open ' + name, title: 'Open ' + name }, icon('arrowRight', 22)) : null));
+        // the whole tile is already a link with this name; the arrow is its visible affordance, so it stays out of the tab order and the accessibility tree
+        linked ? h('a', { class: 'cc2-go', href, draggable: 'false', tabindex: '-1', 'aria-hidden': 'true' }, icon('arrowRight', 22)) : null));
     tile.querySelector('.cc2-art').innerHTML = topoSvg(c.id);
     if (canDrag) bindCourseDrag(tile, c);
     return tile;
@@ -589,7 +603,7 @@
   S.closeModal = (soft) => {
     const host = S.modalHost, bg = host && host.firstElementChild;
     if (soft && bg && !reducedMotion()) { // fade out, then remove; a modal opened meanwhile is left alone
-      bg.classList.add('leaving'); setTimeout(() => { if (bg.parentNode === host && bg.classList.contains('leaving')) bg.remove(); }, 150);
+      bg.classList.add('leaving'); setTimeout(() => { if (bg.parentNode === host && bg.classList.contains('leaving')) bg.remove(); }, MOTION.fast + 10);
     } else if (host) host.replaceChildren();
     if (S._modalKey) { document.removeEventListener('keydown', S._modalKey, true); S._modalKey = null; }
     S._apRepaint = null;
@@ -652,7 +666,7 @@
 
   V.courses = () => {
     const list = S.orderedCourses();
-    return h('div', { class: 'sgo-page cl-page' }, h('div', { class: 'cl-top' }, h('div', null, h('span', { class: 'cl-eyebrow' }, 'Courses'), h('h1', null, 'Courses'), h('p', null, `${list.length} ${list.length === 1 ? 'course' : 'courses'} \u00b7 drag tiles to rearrange`)),
+    return h('div', { class: 'sgo-page cl-page' }, h('div', { class: 'cl-top' }, h('div', null, h('h1', null, 'Courses'), h('p', null, `${list.length} ${list.length === 1 ? 'course' : 'courses'} \u00b7 drag tiles to rearrange`)),
       S.prefs.courseOrder.length ? h('button', { class: 'sgo-btn primary cl-reset', type: 'button', onclick: () => { S.prefs.courseOrder = []; S.savePrefs(); S.render(); } }, icon('resetOrder', 18), 'Reset order') : null),
       list.length ? h('div', { class: 'sgo-cgrid' }, list.map((c) => courseCard(c))) : empty('No courses found', 'Courses are read from your Schoology account. Open Settings → Diagnostics to see what was detected, or use Classic view.'));
   };
@@ -707,7 +721,7 @@
       h('div', { class: 'sp', role: 'dialog', 'aria-modal': 'true', 'aria-label': 'Search' },
         h('div', { class: 'sp-field' }, icon('search', 20), input, h('kbd', null, 'Esc')),
         list,
-        h('div', { class: 'sp-foot' }, h('span', null, '\u2191\u2193 to move \u00b7 Enter to open'), h('button', { type: 'button', class: 'rv-all', onclick: () => { const u = S.ui.assign; u.q = input.value.trim(); u.f = 'all'; u.course = ''; close(); S.go(assignmentsHref()); S.render(); } }, 'Open the Assignments page', icon('right', 14))))));
+        h('div', { class: 'sp-foot' }, h('span', null, '\u2191\u2193 to move \u00b7 Enter to open'), h('button', { type: 'button', class: 'rv-all', onclick: allMatches }, 'Open the Assignments page', icon('right', 14))))));
     setTimeout(() => input.focus(), 30);
   };
   document.addEventListener('keydown', (e) => {
@@ -1346,17 +1360,7 @@
         stat(String(missN), 'Missing', missN ? 'bad' : '')));
     header.querySelector('.crs-art').innerHTML = topoSvg(c.id);
     const tabs = [['overview', 'Overview'], ['materials', 'Materials'], ['assignments', 'Assignments'], ['grades', 'Grades'], ['announcements', 'Announcements']];
-    // A pill under the active tab. It starts where it was on the last course page, then slides to the new tab.
-    const pill = h('span', { class: 'crs-tab-pill', 'aria-hidden': 'true' }), prevPos = S._tabPos && S._tabPos.id === c.id ? S._tabPos : null;
-    if (prevPos) { pill.style.width = prevPos.W + 'px'; pill.style.transform = `translateX(${prevPos.L}px)`; } else pill.style.opacity = '0';
-    const nav = h('nav', { class: 'crs-tabs', 'aria-label': 'Course sections' }, pill, tabs.map(([k, label]) => h('a', { href: cHref(c.id, k), 'aria-current': r.tab === k ? 'page' : null }, label)));
-    setTimeout(() => {
-      const act = nav.querySelector('[aria-current="page"]'); if (!act || !nav.isConnected) return;
-      const L = act.offsetLeft, W = act.offsetWidth;
-      if (!prevPos) { pill.style.transition = 'none'; pill.style.width = W + 'px'; pill.style.transform = `translateX(${L}px)`; void pill.offsetWidth; pill.style.transition = ''; pill.style.opacity = '1'; }
-      else { pill.style.width = W + 'px'; pill.style.transform = `translateX(${L}px)`; }
-      S._tabPos = { id: c.id, L, W };
-    }, 0);
+    const nav = h('nav', { class: 'crs-tabs', 'aria-label': 'Course sections' }, tabs.map(([k, label]) => h('a', { href: cHref(c.id, k), 'aria-current': r.tab === k ? 'page' : null }, label)));
     const pane = { overview: overviewPane, materials: materialsPane, assignments: assignmentsPane, grades: gradesPane, announcements: announcementsPane }[r.tab](c, r);
     return h('div', { class: 'sgo-page crs' }, header, nav, pane);
   };
@@ -1460,7 +1464,7 @@
     const html = document.documentElement;
     html.classList.add('sgo-themeing'); // colours ease between looks instead of snapping
     S.setAppearance(Object.assign({ contour: t.contour, contourGlow: t.contourGlow, background: t.background }, t.accent ? { accent: t.accent } : {}));
-    clearTimeout(S.applyLook.t); S.applyLook.t = setTimeout(() => html.classList.remove('sgo-themeing'), 450);
+    clearTimeout(S.applyLook.t); S.applyLook.t = setTimeout(() => html.classList.remove('sgo-themeing'), MOTION.panel + 60);
   };
   /* The preview draws the real map: the same generator, seed, density and weight as the page, in the colours being edited, with the page's ambient
    * glow and the hero's own glow. It is a little brighter than the page (which shows it very softly) so the lines read at thumbnail size. */

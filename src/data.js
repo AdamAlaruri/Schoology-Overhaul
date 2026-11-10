@@ -468,7 +468,7 @@
   }
   const saveCache = S.debounce(() => {
     prune();
-    S.store.set('sgo_cache', { v: CACHE_VERSION, courses: state.courses, items: state.items, announcements: state.announcements, grades: state.grades, user: state.user, fetchedAt: state.fetchedAt, avatar: state.avatar, cd: state.cd });
+    S.store.set('sgo_cache', { v: CACHE_VERSION, _by: S.TAB, courses: state.courses, items: state.items, announcements: state.announcements, grades: state.grades, user: state.user, fetchedAt: state.fetchedAt, avatar: state.avatar, cd: state.cd });
   }, 500);
   S.clearCache = async () => { await S.store.remove('sgo_cache'); Object.assign(state, { courses: [], items: {}, announcements: [], grades: [], fetchedAt: {}, cd: {} }); };
 

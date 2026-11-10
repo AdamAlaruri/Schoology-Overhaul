@@ -304,11 +304,13 @@
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area !== 'local') return;
       let redraw = false;
-      if (changes.sgo_prefs && changes.sgo_prefs.newValue) {
-        const next = Object.assign(S.DEFAULTS(), changes.sgo_prefs.newValue);
+      // A tab hears about its own writes too. Those are skipped: by the time the echo arrives this tab may already hold something newer.
+      const foreign = (c) => c && c.newValue && c.newValue._by !== S.TAB;
+      if (foreign(changes.sgo_prefs)) {
+        const next = Object.assign(S.DEFAULTS(), changes.sgo_prefs.newValue); delete next._by;
         if (JSON.stringify(next) !== JSON.stringify(S.prefs)) { S.prefs = next; redraw = true; }
       }
-      if (changes.sgo_cache && changes.sgo_cache.newValue) redraw = S.adoptCache(changes.sgo_cache.newValue) || redraw;
+      if (foreign(changes.sgo_cache)) redraw = S.adoptCache(changes.sgo_cache.newValue) || redraw;
       if (redraw) { S.applyTheme(); S.render(true); if (S._apRepaint) S._apRepaint(); }
     });
   }
@@ -328,11 +330,13 @@
     addEventListener('hashchange', onNav); addEventListener('popstate', onNav);
     syncAcrossTabs();
     const tick = setInterval(() => { if (!alive()) { clearInterval(tick); if (obs) obs.disconnect(); return; } if (!document.hidden) onNav(); }, 700); // catches pushState navigation inside Schoology's own scripts
+    // One timer keeps the dashboard current while it is open: the clock in its header, and the lists when an item becomes overdue, today or tomorrow.
     const clock = setInterval(() => {
       if (!alive()) { clearInterval(clock); return; }
       if (document.hidden || route() !== 'dashboard' || !S.dashStamp) return;
-      if (S.dashStamp() !== S._dashStamp) S.render(true); // an item became overdue / today / tomorrow
-    }, 30000);
+      if (S.dashStamp() !== S._dashStamp) { S.render(true); return; }
+      if (S.tickClock) S.tickClock();
+    }, 15000);
     observe();
     const r = route();
     S.refresh(r || 'native').catch((e) => console.error('[Schoology Overhaul]', e)).then(() => S.render(true)); // always draw once data (or its failure) is known

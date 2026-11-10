@@ -82,7 +82,7 @@
     const ui = S.ui.mail, key = 'mail:' + box, res = S.mailList(box);
     const items = res.data || [], unread = items.filter((m) => m.unread).length;
     const shown = items.filter((m) => matches(m, ui.q) && (ui.f !== 'unread' || m.unread));
-    const tab = (k, label, href) => h('a', { href, 'aria-current': box === k && !id && !composing ? 'page' : null }, label);
+    const tab = (k, label, href) => h('a', { href, 'aria-current': box === k && !composing ? 'page' : null }, label); // an open message still belongs to its mailbox
     const listBody = stateBlock(res, 'your messages', key) || (shown.length
       ? h('ul', { class: 'ib-items' }, shown.map((m) => h('li', null, h('a', { class: 'ib-row' + (m.unread ? ' unread' : '') + (m.id === id ? ' on' : ''), href: '/messages/view/' + m.id, 'aria-current': m.id === id ? 'true' : null },
         h('span', { class: 'ib-av' }, initials(m.people)),
